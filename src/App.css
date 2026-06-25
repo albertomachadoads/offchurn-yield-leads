@@ -130,3 +130,39 @@ table.grid tbody tr:hover { background: var(--green-soft); }
 .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin: 0 0 12px; }
 @media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .main { padding: 16px; } .tiles { grid-template-columns: 1fr; } .topbar { padding: 0 14px; } }
+
+/* ===== Follow de Ações: dashboards e gráficos ===== */
+.tiles-5 { grid-template-columns: repeat(5, 1fr); }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px; }
+.dash-span2 { grid-column: span 2; }
+.dash-title { font-size: 13px; font-weight: 700; color: var(--ink-soft); margin: 0 0 16px; letter-spacing: -0.01em; }
+.dash-empty { color: var(--ink-faint); font-size: 13px; padding: 20px 0; text-align: center; }
+
+/* barras horizontais */
+.barh-list { display: flex; flex-direction: column; gap: 10px; }
+.barh-row { display: grid; grid-template-columns: 130px 1fr 36px; align-items: center; gap: 12px; }
+.barh-label { font-size: 12px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barh-track { height: 22px; background: var(--gray-soft); border-radius: 5px; overflow: hidden; }
+.barh-fill { height: 100%; border-radius: 5px; min-width: 2px; transition: width .4s ease; }
+.barh-val { font-size: 13px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* barras verticais */
+.barv-wrap { display: flex; align-items: flex-end; gap: 14px; height: 180px; padding-top: 20px; }
+.barv-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; min-width: 28px; }
+.barv-bar-area { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
+.barv-num { font-size: 12px; font-weight: 700; color: var(--ink); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.barv-bar { width: 70%; max-width: 46px; background: linear-gradient(180deg, var(--green) 0%, var(--green-deep) 100%); border-radius: 5px 5px 0 0; min-height: 3px; transition: height .4s ease; }
+.barv-label { font-size: 11px; color: var(--ink-faint); margin-top: 8px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* grid de inputs de etapas no modal */
+.acoes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.soma-hint { font-size: 12px; color: var(--ink-soft); background: var(--green-softer); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; }
+
+@media (max-width: 1024px) { .tiles-5 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 860px) {
+  .dash-grid { grid-template-columns: 1fr; }
+  .dash-span2 { grid-column: span 1; }
+  .acoes-grid { grid-template-columns: repeat(2, 1fr); }
+  .tiles-5 { grid-template-columns: repeat(2, 1fr); }
+  .barh-row { grid-template-columns: 100px 1fr 32px; }
+}

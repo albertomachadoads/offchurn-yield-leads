@@ -5,6 +5,15 @@ const CRITICIDADES = ["Normal", "Baixo", "Alto", "Crítico"];
 const TIPOS_META = ["Faturamento", "Leads"];
 const ADERENCIAS = ["Ok", "Atenção", "Abaixo", "Sem dados"];
 
+// Etapas das ações no Follow de Ações. A ordem define a ordem nos gráficos.
+const ETAPAS = [
+  { key: "aExecutar", label: "A executar", cor: "var(--ink-faint)" },
+  { key: "emAndamento", label: "Em andamento", cor: "var(--green)" },
+  { key: "concluidas", label: "Concluídas", cor: "var(--green-dark)" },
+  { key: "atrasadas", label: "Atrasadas", cor: "var(--red)" },
+  { key: "canceladas", label: "Canceladas", cor: "var(--amber)" },
+];
+
 const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
@@ -96,7 +105,31 @@ function seed() {
     },
   ];
 
-  return { gestores, clientes, registros, version: 1 };
+  const cliId = (n) => clientes.find((c) => c.nome === n).id;
+  const reunioes = [
+    {
+      id: uid(), data: "2026-06-15", gestorId: gJoao, clienteId: cliId("MDF na Web"),
+      criadas: 6, aExecutar: 2, emAndamento: 2, concluidas: 1, atrasadas: 1, canceladas: 0,
+      obs: "Abertura do funil e produção de novos criativos.", criadoEm: Date.now(),
+    },
+    {
+      id: uid(), data: "2026-06-15", gestorId: gAlberto, clienteId: cliId("Pink Ninas"),
+      criadas: 4, aExecutar: 1, emAndamento: 1, concluidas: 2, atrasadas: 0, canceladas: 0,
+      obs: "Planejamento moda praia e inverno.", criadoEm: Date.now(),
+    },
+    {
+      id: uid(), data: "2026-06-15", gestorId: gAlberto, clienteId: cliId("Guilherme Garcia & Co"),
+      criadas: 5, aExecutar: 2, emAndamento: 1, concluidas: 1, atrasadas: 1, canceladas: 0,
+      obs: "Funil de VSL e criativos para consultoria paga.", criadoEm: Date.now(),
+    },
+    {
+      id: uid(), data: "2026-06-12", gestorId: gJoao, clienteId: cliId("RG Multimarcas"),
+      criadas: 3, aExecutar: 0, emAndamento: 1, concluidas: 1, atrasadas: 0, canceladas: 1,
+      obs: "Troca de anúncios de veículos vendidos.", criadoEm: Date.now() - 1,
+    },
+  ];
+
+  return { gestores, clientes, registros, reunioes, version: 2 };
 }
 
 export function load() {
@@ -107,7 +140,11 @@ export function load() {
       localStorage.setItem(KEY, JSON.stringify(data));
       return data;
     }
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    // Migração: garante campos novos para quem salvou versões anteriores.
+    if (!Array.isArray(data.reunioes)) data.reunioes = [];
+    if (!data.version || data.version < 2) data.version = 2;
+    return data;
   } catch (e) {
     const data = seed();
     return data;
@@ -124,4 +161,4 @@ export function resetAll() {
   return data;
 }
 
-export { CRITICIDADES, TIPOS_META, ADERENCIAS, uid };
+export { CRITICIDADES, TIPOS_META, ADERENCIAS, ETAPAS, uid };

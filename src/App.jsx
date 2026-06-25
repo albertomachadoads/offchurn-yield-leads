@@ -3,6 +3,7 @@ import "./App.css";
 import { load, save, resetAll, CRITICIDADES, TIPOS_META, ADERENCIAS, uid } from "./store";
 import { fmtData, fmtValor, hoje, exportarXLSX } from "./utils";
 import { Icon, AderenciaBadge, AderenciaBar, Modal } from "./components.jsx";
+import FollowAcoes from "./FollowAcoes.jsx";
 
 export default function App() {
   const [data, setData] = useState(() => load());
@@ -16,6 +17,8 @@ export default function App() {
   const [busca, setBusca] = useState("");
   const [fGestor, setFGestor] = useState("todos");
   const [fAder, setFAder] = useState("todas");
+  const [fDe, setFDe] = useState("");
+  const [fAte, setFAte] = useState("");
 
   // modais
   const [regModal, setRegModal] = useState(null); // registro em edição/criação
@@ -37,6 +40,8 @@ export default function App() {
       .filter((r) => {
         if (fGestor !== "todos" && cliById[r.clienteId]?.responsavelId !== fGestor) return false;
         if (fAder !== "todas" && r.aderencia !== fAder) return false;
+        if (fDe && r.data < fDe) return false;
+        if (fAte && r.data > fAte) return false;
         if (busca.trim()) {
           const q = busca.toLowerCase();
           const nome = cliById[r.clienteId]?.nome?.toLowerCase() || "";
@@ -45,7 +50,7 @@ export default function App() {
         return true;
       })
       .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : (b.criadoEm || 0) - (a.criadoEm || 0)));
-  }, [data.registros, semana, fGestor, fAder, busca, cliById]);
+  }, [data.registros, semana, fGestor, fAder, fDe, fAte, busca, cliById]);
 
   const stats = useMemo(() => {
     const set = registrosFiltrados;
@@ -105,6 +110,21 @@ export default function App() {
     showToast("Relatório exportado (.xlsx)");
   }
 
+  // ---- ações reuniões (Follow de Ações) ----
+  function salvarReuniao(r) {
+    setData((d) => {
+      const lista = d.reunioes || [];
+      const existe = lista.some((x) => x.id === r.id);
+      const reunioes = existe
+        ? lista.map((x) => (x.id === r.id ? r : x))
+        : [...lista, { ...r, criadoEm: Date.now() }];
+      return { ...d, reunioes };
+    });
+  }
+  function excluirReuniao(id) {
+    setData((d) => ({ ...d, reunioes: (d.reunioes || []).filter((r) => r.id !== id) }));
+  }
+
   function resetar() {
     if (!confirm("Restaurar dados de exemplo? Isso substitui todo o histórico atual.")) return;
     const fresh = resetAll();
@@ -122,6 +142,7 @@ export default function App() {
         </div>
         <nav className="nav">
           <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>Acompanhamento</button>
+          <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>Follow de Ações</button>
           <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>Clientes da semana</button>
           <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>Cadastros</button>
         </nav>
@@ -137,11 +158,22 @@ export default function App() {
             busca={busca} setBusca={setBusca}
             fGestor={fGestor} setFGestor={setFGestor}
             fAder={fAder} setFAder={setFAder}
+            fDe={fDe} setFDe={setFDe} fAte={fAte} setFAte={setFAte}
             gestores={data.gestores}
             onNovo={() => setRegModal({ novo: true })}
             onEditar={(r) => setRegModal(r)}
             onExcluir={excluirRegistro}
             onExportar={exportar}
+          />
+        )}
+        {view === "follow" && (
+          <FollowAcoes
+            reunioes={data.reunioes || []}
+            clientes={data.clientes}
+            gestores={data.gestores}
+            onSave={salvarReuniao}
+            onDelete={excluirReuniao}
+            onToast={showToast}
           />
         )}
         {view === "semana" && (
@@ -186,7 +218,8 @@ export default function App() {
 /* ============ ACOMPANHAMENTO ============ */
 function Acompanhamento(props) {
   const { stats, registros, semana, respDoCliente, cliById, busca, setBusca,
-    fGestor, setFGestor, fAder, setFAder, gestores, onNovo, onEditar, onExcluir, onExportar } = props;
+    fGestor, setFGestor, fAder, setFAder, fDe, setFDe, fAte, setFAte,
+    gestores, onNovo, onEditar, onExcluir, onExportar } = props;
 
   return (
     <>
@@ -227,6 +260,19 @@ function Acompanhamento(props) {
             {ADERENCIAS.map((a) => <option key={a} value={a}>{a}</option>)}
           </select>
         </div>
+        <div className="field">
+          <label>De</label>
+          <input type="date" className="input" value={fDe} onChange={(e) => setFDe(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Até</label>
+          <input type="date" className="input" value={fAte} onChange={(e) => setFAte(e.target.value)} />
+        </div>
+        {(fDe || fAte) && (
+          <div className="field"><label>&nbsp;</label>
+            <button className="btn btn-ghost" onClick={() => { setFDe(""); setFAte(""); }}>Limpar datas</button>
+          </div>
+        )}
       </div>
 
       {registros.length === 0 ? (
