@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import "./App.css";
 import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
-import { fmtData, fmtValor, hoje, exportarXLSX } from "./utils";
+import { fmtData, fmtValor, fmtMoeda, hoje, exportarXLSX } from "./utils";
 import { Icon, AderenciaBadge, AderenciaBar, Modal } from "./components.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
@@ -483,7 +483,15 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
               <div className="list-row" key={c.id}>
                 <div>
                   <div className="lr-name">{c.nome}</div>
-                  <div className="lr-meta">{gestById[c.responsavelId]?.nome || "Sem gestor"}</div>
+                  <div className="lr-meta">
+                    {gestById[c.responsavelId]?.nome || "Sem gestor"}
+                    {(c.verbaMensal != null || c.cpa != null) && (
+                      <span className="lr-extra">
+                        {c.verbaMensal != null && <> · Verba {fmtMoeda(c.verbaMensal)}</>}
+                        {c.cpa != null && <> · CPA {fmtMoeda(c.cpa)}</>}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className={`pill ${c.ativo ? "" : "off"}`} onClick={() => onToggleAtivo(c.id)} style={{ cursor: "pointer" }}>
@@ -641,6 +649,8 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     nome: base.nome || "",
     responsavelId: base.responsavelId || gestores[0]?.id || "",
     ativo: base.ativo ?? true,
+    cpa: base.cpa ?? "",
+    verbaMensal: base.verbaMensal ?? "",
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
@@ -661,6 +671,18 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
         <select className="select" value={f.responsavelId} onChange={(e) => set("responsavelId", e.target.value)}>
           {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
+      </div>
+      <div className="form-grid">
+        <div className="form-row">
+          <label>CPA (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 45,00"
+            value={f.cpa} onChange={(e) => set("cpa", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Verba mensal (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 10000,00"
+            value={f.verbaMensal} onChange={(e) => set("verbaMensal", e.target.value)} />
+        </div>
       </div>
       <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <input type="checkbox" id="ativo" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} />

@@ -302,3 +302,6 @@ table.grid tbody tr:hover { background: var(--green-soft); }
 @media (max-width: 560px) {
   .tiles-6 { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* extra na lista de clientes (CPA / Verba) */
+.lr-extra { color: var(--green-deep); font-weight: 500; }

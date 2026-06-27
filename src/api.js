@@ -1,7 +1,7 @@
 import { supabase } from "./supabaseClient";
 
 // ===== Mapeamento banco (snake_case) <-> app (camelCase) =====
-const mapCliente = (r) => ({ id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo });
+const mapCliente = (r) => ({ id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo, cpa: r.cpa, verbaMensal: r.verba_mensal });
 const mapGestor = (r) => ({ id: r.id, nome: r.nome });
 const mapPessoa = (r) => ({ id: r.id, nome: r.nome });
 const mapAcomp = (r) => ({
@@ -40,7 +40,11 @@ export async function fetchAll() {
 
 // ===== CLIENTES =====
 export async function upsertCliente(c) {
-  const row = { nome: c.nome, responsavel_id: c.responsavelId || null, ativo: c.ativo };
+  const row = {
+    nome: c.nome, responsavel_id: c.responsavelId || null, ativo: c.ativo,
+    cpa: (c.cpa === "" || c.cpa == null) ? null : Number(c.cpa),
+    verba_mensal: (c.verbaMensal === "" || c.verbaMensal == null) ? null : Number(c.verbaMensal),
+  };
   if (c.id) row.id = c.id;
   const { data, error } = await supabase.from("clientes").upsert(row).select().single();
   if (error) throw error;
