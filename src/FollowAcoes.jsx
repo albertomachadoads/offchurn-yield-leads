@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { ETAPAS, uid } from "./store";
+import { ETAPAS, ETAPA_KEYS, uid } from "./store";
 import { fmtData, hoje } from "./utils";
 import { Icon, Modal } from "./components.jsx";
 
-// soma um campo de etapa em uma lista de reuniões
-const somaCampo = (lista, campo) => lista.reduce((acc, r) => acc + (Number(r[campo]) || 0), 0);
+const corEtapa = (etapa) => ETAPAS.find((e) => e.key === etapa)?.cor || "var(--ink-faint)";
 
 /* ====== Gráfico de barras horizontais ====== */
 function BarrasHorizontais({ dados, cor = "var(--green)" }) {
@@ -25,10 +24,10 @@ function BarrasHorizontais({ dados, cor = "var(--green)" }) {
   );
 }
 
-/* ====== Gráfico de barras verticais (timeline de ações criadas) ====== */
+/* ====== Gráfico de barras verticais (tarefas criadas por dia) ====== */
 function BarrasVerticais({ dados }) {
   const max = Math.max(1, ...dados.map((d) => d.valor));
-  if (dados.length === 0) return <div className="dash-empty">Sem reuniões cadastradas.</div>;
+  if (dados.length === 0) return <div className="dash-empty">Sem tarefas cadastradas.</div>;
   return (
     <div className="barv-wrap">
       {dados.map((d) => (
@@ -44,68 +43,76 @@ function BarrasVerticais({ dados }) {
   );
 }
 
-export default function FollowAcoes({ reunioes, clientes, gestores, onSave, onDelete, onToast }) {
+/* ====== Badge de etapa ====== */
+function EtapaBadge({ etapa }) {
+  return (
+    <span className="etapa-badge" style={{ "--c": corEtapa(etapa) }}>
+      <span className="dot" /> {etapa}
+    </span>
+  );
+}
+
+export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDelete, onToast }) {
   const [modal, setModal] = useState(null);
-  const [fGestor, setFGestor] = useState("todos");
+  const [fCriador, setFCriador] = useState("todos");
+  const [fResp, setFResp] = useState("todos");
   const [fCliente, setFCliente] = useState("todos");
+  const [fEtapa, setFEtapa] = useState("todas");
   const [fDe, setFDe] = useState("");
   const [fAte, setFAte] = useState("");
 
   const cliById = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c])), [clientes]);
-  const gestById = useMemo(() => Object.fromEntries(gestores.map((g) => [g.id, g])), [gestores]);
+  const pesById = useMemo(() => Object.fromEntries(pessoas.map((p) => [p.id, p])), [pessoas]);
+  const nomePes = (id) => pesById[id]?.nome || "—";
+  const nomeCli = (id) => cliById[id]?.nome || "—";
 
   const filtradas = useMemo(() => {
-    return reunioes
-      .filter((r) => fGestor === "todos" || r.gestorId === fGestor)
-      .filter((r) => fCliente === "todos" || r.clienteId === fCliente)
-      .filter((r) => (!fDe || r.data >= fDe) && (!fAte || r.data <= fAte))
+    return tarefas
+      .filter((t) => fCriador === "todos" || t.criadaPorId === fCriador)
+      .filter((t) => fResp === "todos" || t.responsavelId === fResp)
+      .filter((t) => fCliente === "todos" || t.clienteId === fCliente)
+      .filter((t) => fEtapa === "todas" || t.etapa === fEtapa)
+      .filter((t) => (!fDe || t.data >= fDe) && (!fAte || t.data <= fAte))
       .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : (b.criadoEm || 0) - (a.criadoEm || 0)));
-  }, [reunioes, fGestor, fCliente, fDe, fAte]);
+  }, [tarefas, fCriador, fResp, fCliente, fEtapa, fDe, fAte]);
 
   // ---- métricas ----
-  const totalCriadas = somaCampo(filtradas, "criadas");
-  const porEtapa = ETAPAS.map((e) => ({ label: e.label, valor: somaCampo(filtradas, e.key), cor: e.cor }));
-  const totalAcoes = porEtapa.reduce((a, b) => a + b.valor, 0);
-  const totReunioes = filtradas.length;
+  const total = filtradas.length;
+  const cont = (etapa) => filtradas.filter((t) => t.etapa === etapa).length;
+  const concluidas = cont("Concluída");
+  const atrasadas = cont("Atrasada");
+  const canceladas = cont("Cancelada");
+  const emAberto = total - concluidas - canceladas;
 
-  // criadas por reunião (timeline por data)
+  const porEtapa = ETAPAS.map((e) => ({ label: e.key, valor: cont(e.key), cor: e.cor }));
+
+  const agrupar = (campoId) => {
+    const m = {};
+    filtradas.forEach((t) => { const n = nomePes(t[campoId]); m[n] = (m[n] || 0) + 1; });
+    return Object.entries(m).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+  };
+  const porResponsavel = useMemo(() => agrupar("responsavelId"), [filtradas]);
+  const porCriador = useMemo(() => agrupar("criadaPorId"), [filtradas]);
+
+  const porCliente = useMemo(() => {
+    const m = {};
+    filtradas.forEach((t) => { const n = nomeCli(t.clienteId); m[n] = (m[n] || 0) + 1; });
+    return Object.entries(m).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+  }, [filtradas]);
+
   const criadasPorData = useMemo(() => {
     const m = {};
-    filtradas.forEach((r) => { m[r.data] = (m[r.data] || 0) + (Number(r.criadas) || 0); });
-    return Object.entries(m)
-      .sort(([a], [b]) => (a < b ? -1 : 1))
+    filtradas.forEach((t) => { m[t.data] = (m[t.data] || 0) + 1; });
+    return Object.entries(m).sort(([a], [b]) => (a < b ? -1 : 1))
       .map(([data, valor]) => ({ label: fmtData(data).slice(0, 5), valor }));
   }, [filtradas]);
 
-  // por gestor (total de ações = soma das etapas)
-  const porGestor = useMemo(() => {
-    const m = {};
-    filtradas.forEach((r) => {
-      const nome = gestById[r.gestorId]?.nome || "—";
-      const tot = ETAPAS.reduce((a, e) => a + (Number(r[e.key]) || 0), 0);
-      m[nome] = (m[nome] || 0) + tot;
-    });
-    return Object.entries(m).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
-  }, [filtradas, gestById]);
-
-  // por cliente
-  const porCliente = useMemo(() => {
-    const m = {};
-    filtradas.forEach((r) => {
-      const nome = cliById[r.clienteId]?.nome || "—";
-      const tot = ETAPAS.reduce((a, e) => a + (Number(r[e.key]) || 0), 0);
-      m[nome] = (m[nome] || 0) + tot;
-    });
-    return Object.entries(m).map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
-  }, [filtradas, cliById]);
-
-  const atrasadas = somaCampo(filtradas, "atrasadas");
-  const concluidas = somaCampo(filtradas, "concluidas");
+  const filtrosAtivos = fCriador !== "todos" || fResp !== "todos" || fCliente !== "todos" || fEtapa !== "todas" || fDe || fAte;
 
   function excluir(id) {
-    if (!confirm("Excluir esta reunião do histórico?")) return;
+    if (!confirm("Excluir esta tarefa do histórico?")) return;
     onDelete(id);
-    onToast("Reunião removida");
+    onToast("Tarefa removida");
   }
 
   return (
@@ -113,22 +120,35 @@ export default function FollowAcoes({ reunioes, clientes, gestores, onSave, onDe
       <div className="page-head">
         <div>
           <h1>Follow de Ações</h1>
-          <p>Cadastre as ações de cada reunião e acompanhe o andamento em tempo real.</p>
+          <p>Registre cada tarefa criada nas reuniões e acompanhe o andamento das ações.</p>
         </div>
         <div className="head-actions">
           <button className="btn btn-primary" onClick={() => setModal({ novo: true })}>
-            <Icon.Plus /> Nova reunião
+            <Icon.Plus /> Nova tarefa
           </button>
         </div>
+      </div>
+
+      {/* aviso fixo Monday */}
+      <div className="aviso-monday">
+        <span className="aviso-ico">!</span>
+        <span>Toda tarefa criada precisa ser adicionada ao Monday no quadro do cliente.</span>
       </div>
 
       {/* filtros */}
       <div className="toolbar">
         <div className="field">
-          <label>Gestor</label>
-          <select className="select" value={fGestor} onChange={(e) => setFGestor(e.target.value)}>
+          <label>Criada por</label>
+          <select className="select" value={fCriador} onChange={(e) => setFCriador(e.target.value)}>
             <option value="todos">Todos</option>
-            {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
+            {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>Responsável</label>
+          <select className="select" value={fResp} onChange={(e) => setFResp(e.target.value)}>
+            <option value="todos">Todos</option>
+            {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
           </select>
         </div>
         <div className="field">
@@ -139,6 +159,13 @@ export default function FollowAcoes({ reunioes, clientes, gestores, onSave, onDe
           </select>
         </div>
         <div className="field">
+          <label>Etapa</label>
+          <select className="select" value={fEtapa} onChange={(e) => setFEtapa(e.target.value)}>
+            <option value="todas">Todas</option>
+            {ETAPA_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
+          </select>
+        </div>
+        <div className="field">
           <label>De</label>
           <input type="date" className="input" value={fDe} onChange={(e) => setFDe(e.target.value)} />
         </div>
@@ -146,79 +173,76 @@ export default function FollowAcoes({ reunioes, clientes, gestores, onSave, onDe
           <label>Até</label>
           <input type="date" className="input" value={fAte} onChange={(e) => setFAte(e.target.value)} />
         </div>
-        {(fGestor !== "todos" || fCliente !== "todos" || fDe || fAte) && (
+        {filtrosAtivos && (
           <div className="field"><label>&nbsp;</label>
-            <button className="btn btn-ghost" onClick={() => { setFGestor("todos"); setFCliente("todos"); setFDe(""); setFAte(""); }}>Limpar filtros</button>
+            <button className="btn btn-ghost" onClick={() => { setFCriador("todos"); setFResp("todos"); setFCliente("todos"); setFEtapa("todas"); setFDe(""); setFAte(""); }}>Limpar filtros</button>
           </div>
         )}
       </div>
 
       {/* tiles de resumo */}
       <div className="tiles tiles-5">
-        <div className="tile"><div className="label">Reuniões</div><div className="value">{totReunioes}</div><div className="hint">no período</div></div>
-        <div className="tile"><div className="label">Ações criadas</div><div className="value">{totalCriadas}</div><div className="hint">total informado</div></div>
-        <div className="tile"><div className="label">Em aberto</div><div className="value">{totalAcoes - concluidas - somaCampo(filtradas, "canceladas")}</div><div className="hint">não finalizadas</div></div>
+        <div className="tile"><div className="label">Tarefas</div><div className="value">{total}</div><div className="hint">no período</div></div>
+        <div className="tile"><div className="label">Em aberto</div><div className="value">{emAberto}</div><div className="hint">não finalizadas</div></div>
         <div className="tile"><div className="label">Concluídas</div><div className="value">{concluidas}</div><div className="hint">finalizadas</div></div>
         <div className="tile"><div className="label">Atrasadas</div><div className="value" style={{ color: atrasadas > 0 ? "var(--red)" : "inherit" }}>{atrasadas}</div><div className="hint">ação imediata</div></div>
+        <div className="tile"><div className="label">Canceladas</div><div className="value">{canceladas}</div><div className="hint">descartadas</div></div>
       </div>
 
       {/* dashboards */}
       <div className="dash-grid">
         <div className="card card-pad dash-span2">
-          <h3 className="dash-title">Volume de ações por etapa</h3>
+          <h3 className="dash-title">Volume de tarefas por etapa</h3>
           <BarrasHorizontais dados={porEtapa} />
         </div>
         <div className="card card-pad">
-          <h3 className="dash-title">Ações criadas por reunião</h3>
+          <h3 className="dash-title">Tarefas criadas por dia</h3>
           <BarrasVerticais dados={criadasPorData} />
         </div>
         <div className="card card-pad">
-          <h3 className="dash-title">Ações por gestor</h3>
-          <BarrasHorizontais dados={porGestor} cor="var(--green-deep)" />
+          <h3 className="dash-title">Tarefas por responsável</h3>
+          <BarrasHorizontais dados={porResponsavel} cor="var(--green-deep)" />
         </div>
-        <div className="card card-pad dash-span2">
-          <h3 className="dash-title">Ações por cliente</h3>
-          <BarrasHorizontais dados={porCliente} cor="var(--green)" />
+        <div className="card card-pad">
+          <h3 className="dash-title">Tarefas criadas por pessoa</h3>
+          <BarrasHorizontais dados={porCriador} cor="var(--green)" />
+        </div>
+        <div className="card card-pad">
+          <h3 className="dash-title">Tarefas por cliente</h3>
+          <BarrasHorizontais dados={porCliente} cor="var(--green-dark)" />
         </div>
       </div>
 
-      {/* tabela de reuniões cadastradas */}
-      <h3 className="dash-title" style={{ marginTop: 24 }}>Reuniões cadastradas</h3>
+      {/* tabela de tarefas */}
+      <h3 className="dash-title" style={{ marginTop: 24 }}>Tarefas cadastradas</h3>
       {filtradas.length === 0 ? (
         <div className="card"><div className="empty">
-          <h3>Nenhuma reunião no período</h3>
-          <p>Cadastre uma reunião para alimentar os dashboards acima.</p>
-          <button className="btn btn-primary" onClick={() => setModal({ novo: true })}><Icon.Plus /> Nova reunião</button>
+          <h3>Nenhuma tarefa no período</h3>
+          <p>Cadastre uma tarefa para alimentar os dashboards acima.</p>
+          <button className="btn btn-primary" onClick={() => setModal({ novo: true })}><Icon.Plus /> Nova tarefa</button>
         </div></div>
       ) : (
         <div className="table-wrap">
           <table className="grid">
             <thead>
               <tr>
-                <th>Data</th><th>Gestor</th><th>Cliente</th><th>Criadas</th>
-                {ETAPAS.map((e) => <th key={e.key}>{e.label}</th>)}
-                <th>Observações</th><th></th>
+                <th>Data</th><th>Criada por</th><th>Responsável</th><th>Cliente</th>
+                <th>Ação</th><th>Etapa</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {filtradas.map((r) => (
-                <tr key={r.id}>
-                  <td className="cell-num">{fmtData(r.data)}</td>
-                  <td>{gestById[r.gestorId]?.nome || "—"}</td>
-                  <td className="cell-cliente">{cliById[r.clienteId]?.nome || "—"}</td>
-                  <td className="cell-num"><strong>{r.criadas || 0}</strong></td>
-                  {ETAPAS.map((e) => (
-                    <td className="cell-num" key={e.key}>
-                      {e.key === "atrasadas" && r[e.key] > 0
-                        ? <span style={{ color: "var(--red)", fontWeight: 600 }}>{r[e.key]}</span>
-                        : (r[e.key] || 0)}
-                    </td>
-                  ))}
-                  <td className="cell-acomp">{r.obs || "—"}</td>
+              {filtradas.map((t) => (
+                <tr key={t.id}>
+                  <td className="cell-num">{fmtData(t.data)}</td>
+                  <td>{nomePes(t.criadaPorId)}</td>
+                  <td>{nomePes(t.responsavelId)}</td>
+                  <td className="cell-cliente">{nomeCli(t.clienteId)}</td>
+                  <td className="cell-acomp">{t.acao || "—"}</td>
+                  <td><EtapaBadge etapa={t.etapa} /></td>
                   <td>
                     <div style={{ display: "flex", gap: 2 }}>
-                      <button className="iconbtn" onClick={() => setModal(r)} aria-label="Editar"><Icon.Edit /></button>
-                      <button className="iconbtn" onClick={() => excluir(r.id)} aria-label="Excluir"><Icon.Trash /></button>
+                      <button className="iconbtn" onClick={() => setModal(t)} aria-label="Editar"><Icon.Edit /></button>
+                      <button className="iconbtn" onClick={() => excluir(t.id)} aria-label="Excluir"><Icon.Trash /></button>
                     </div>
                   </td>
                 </tr>
@@ -229,100 +253,80 @@ export default function FollowAcoes({ reunioes, clientes, gestores, onSave, onDe
       )}
 
       {modal && (
-        <ReuniaoModal
-          base={modal} clientes={clientes} gestores={gestores}
+        <TarefaModal
+          base={modal} clientes={clientes} pessoas={pessoas}
           onClose={() => setModal(null)}
-          onSave={(r) => { onSave(r); setModal(null); onToast(modal.novo ? "Reunião cadastrada" : "Reunião atualizada"); }}
+          onSave={(t) => { onSave(t); setModal(null); onToast(modal.novo ? "Tarefa cadastrada" : "Tarefa atualizada"); }}
         />
       )}
     </>
   );
 }
 
-/* ====== Modal de cadastro de reunião ====== */
-function ReuniaoModal({ base, clientes, gestores, onClose, onSave }) {
+/* ====== Modal de cadastro de tarefa ====== */
+function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
   const [f, setF] = useState(() => ({
     id: base.id || uid(),
     data: base.data || hoje(),
-    gestorId: base.gestorId || gestores[0]?.id || "",
+    criadaPorId: base.criadaPorId || pessoas[0]?.id || "",
+    responsavelId: base.responsavelId || pessoas[0]?.id || "",
     clienteId: base.clienteId || clientes[0]?.id || "",
-    criadas: base.criadas ?? "",
-    aExecutar: base.aExecutar ?? "",
-    emAndamento: base.emAndamento ?? "",
-    concluidas: base.concluidas ?? "",
-    atrasadas: base.atrasadas ?? "",
-    canceladas: base.canceladas ?? "",
-    obs: base.obs || "",
+    acao: base.acao || "",
+    etapa: base.etapa || "A executar",
     criadoEm: base.criadoEm,
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
-  const num = (v) => (v === "" ? 0 : Number(v));
-  const valido = f.data && f.gestorId && f.clienteId;
-
-  const somaEtapas = ["aExecutar", "emAndamento", "concluidas", "atrasadas", "canceladas"]
-    .reduce((a, k) => a + num(f[k]), 0);
-
-  function submit() {
-    if (!valido) return;
-    onSave({
-      ...f,
-      criadas: num(f.criadas), aExecutar: num(f.aExecutar), emAndamento: num(f.emAndamento),
-      concluidas: num(f.concluidas), atrasadas: num(f.atrasadas), canceladas: num(f.canceladas),
-    });
-  }
+  const valido = f.data && f.criadaPorId && f.responsavelId && f.clienteId && f.acao.trim();
 
   return (
     <Modal
-      title={base.novo ? "Nova reunião" : "Editar reunião"}
+      title={base.novo ? "Nova tarefa" : "Editar tarefa"}
       onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={submit} disabled={!valido}>Salvar reunião</button>
+        <button className="btn btn-primary" onClick={() => valido && onSave({ ...f, acao: f.acao.trim() })} disabled={!valido}>Salvar tarefa</button>
       </>}
     >
+      <div className="aviso-monday aviso-modal">
+        <span className="aviso-ico">!</span>
+        <span>Lembre-se de adicionar esta tarefa ao Monday, no quadro do cliente.</span>
+      </div>
+
       <div className="form-grid">
         <div className="form-row">
-          <label>Data da reunião</label>
+          <label>Data</label>
           <input type="date" className="input" value={f.data} onChange={(e) => set("data", e.target.value)} />
         </div>
         <div className="form-row">
-          <label>Gestor</label>
-          <select className="select" value={f.gestorId} onChange={(e) => set("gestorId", e.target.value)}>
-            {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
+          <label>Cliente</label>
+          <select className="select" value={f.clienteId} onChange={(e) => set("clienteId", e.target.value)}>
+            {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label>Criada por</label>
+          <select className="select" value={f.criadaPorId} onChange={(e) => set("criadaPorId", e.target.value)}>
+            {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label>Responsável</label>
+          <select className="select" value={f.responsavelId} onChange={(e) => set("responsavelId", e.target.value)}>
+            {pessoas.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
           </select>
         </div>
       </div>
+
       <div className="form-row">
-        <label>Cliente</label>
-        <select className="select" value={f.clienteId} onChange={(e) => set("clienteId", e.target.value)}>
-          {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        <label>Ação a ser executada</label>
+        <textarea className="input" rows={3} placeholder="Descreva a tarefa…" value={f.acao} onChange={(e) => set("acao", e.target.value)} />
+      </div>
+
+      <div className="form-row">
+        <label>Etapa</label>
+        <select className="select" value={f.etapa} onChange={(e) => set("etapa", e.target.value)}>
+          {ETAPA_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
         </select>
-      </div>
-
-      <div className="form-row">
-        <label>Ações criadas na reunião</label>
-        <input type="number" min="0" className="input" placeholder="0" value={f.criadas} onChange={(e) => set("criadas", e.target.value)} />
-      </div>
-
-      <div className="acoes-grid">
-        {[
-          ["aExecutar", "A executar"],
-          ["emAndamento", "Em andamento"],
-          ["concluidas", "Concluídas"],
-          ["atrasadas", "Atrasadas"],
-          ["canceladas", "Canceladas"],
-        ].map(([k, label]) => (
-          <div className="form-row" key={k}>
-            <label>{label}</label>
-            <input type="number" min="0" className="input" placeholder="0" value={f[k]} onChange={(e) => set(k, e.target.value)} />
-          </div>
-        ))}
-      </div>
-      <div className="soma-hint">Soma das etapas: <strong>{somaEtapas}</strong> ação(ões)</div>
-
-      <div className="form-row">
-        <label>Observações</label>
-        <textarea className="input" rows={3} placeholder="Notas da reunião…" value={f.obs} onChange={(e) => set("obs", e.target.value)} />
       </div>
     </Modal>
   );

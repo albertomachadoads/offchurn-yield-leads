@@ -1,17 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import "./App.css";
-import { load, save, resetAll, CRITICIDADES, TIPOS_META, ADERENCIAS, uid } from "./store";
+import { CRITICIDADES, TIPOS_META, ADERENCIAS, uid } from "./store";
 import { fmtData, fmtValor, hoje, exportarXLSX } from "./utils";
 import { Icon, AderenciaBadge, AderenciaBar, Modal } from "./components.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
+import Login from "./Login.jsx";
+import Admin from "./Admin.jsx";
+import { supabaseConfigured } from "./supabaseClient";
+import { getSessionUser, onAuthChange, signOut } from "./auth";
+import * as api from "./api";
+
+const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [] };
 
 export default function App() {
-  const [data, setData] = useState(() => load());
+  // ----- sessão / auth -----
+  const [booting, setBooting] = useState(true);
+  const [user, setUser] = useState(null);
+
+  // ----- dados (do Supabase) -----
+  const [data, setData] = useState(EMPTY);
+  const [carregando, setCarregando] = useState(false);
+  const [erroCarga, setErroCarga] = useState("");
+
   const [view, setView] = useState("acompanhamento");
   const [toast, setToast] = useState(null);
-
-  // seleção de clientes da semana
-  const [semana, setSemana] = useState(() => new Set(load().clientes.filter((c) => c.ativo).map((c) => c.id)));
+  const [semana, setSemana] = useState(new Set());
 
   // filtros do acompanhamento
   const [busca, setBusca] = useState("");
@@ -21,21 +34,67 @@ export default function App() {
   const [fAte, setFAte] = useState("");
 
   // modais
-  const [regModal, setRegModal] = useState(null); // registro em edição/criação
+  const [regModal, setRegModal] = useState(null);
   const [cliModal, setCliModal] = useState(null);
   const [gestModal, setGestModal] = useState(null);
+  const [pesModal, setPesModal] = useState(null);
 
-  useEffect(() => { save(data); }, [data]);
+  const isAdmin = user?.papel === "admin";
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2600); };
+  // ----- inicialização da sessão -----
+  useEffect(() => {
+    if (!supabaseConfigured) { setBooting(false); return; }
+    let unsub;
+    (async () => {
+      try {
+        const u = await getSessionUser();
+        setUser(u);
+      } finally {
+        setBooting(false);
+      }
+      unsub = onAuthChange(async (session) => {
+        if (!session) { setUser(null); setData(EMPTY); return; }
+        const u = await getSessionUser();
+        setUser(u);
+      });
+    })();
+    return () => { if (unsub) unsub(); };
+  }, []);
 
+  // ----- carregar dados quando logado -----
+  const recarregar = useCallback(async () => {
+    if (!user) return;
+    setCarregando(true);
+    setErroCarga("");
+    try {
+      const all = await api.fetchAll();
+      setData(all);
+      // por padrão, foca todos os clientes ativos na semana (só na 1ª carga)
+      setSemana((prev) => prev.size > 0 ? prev : new Set(all.clientes.filter((c) => c.ativo).map((c) => c.id)));
+    } catch (e) {
+      setErroCarga(e.message || "Falha ao carregar dados.");
+    } finally {
+      setCarregando(false);
+    }
+  }, [user]);
+
+  useEffect(() => { if (user) recarregar(); }, [user, recarregar]);
+
+  // ----- tempo real -----
+  useEffect(() => {
+    if (!user || !supabaseConfigured) return;
+    const unsub = api.subscribeAll(() => { recarregar(); });
+    return () => unsub();
+  }, [user, recarregar]);
+
+  // ----- derivados -----
   const cliById = useMemo(() => Object.fromEntries(data.clientes.map((c) => [c.id, c])), [data.clientes]);
   const gestById = useMemo(() => Object.fromEntries(data.gestores.map((g) => [g.id, g])), [data.gestores]);
   const respDoCliente = (clienteId) => gestById[cliById[clienteId]?.responsavelId]?.nome || "—";
 
-  // registros visíveis (semana + filtros)
   const registrosFiltrados = useMemo(() => {
-    return data.registros
+    return (data.acompanhamentos || [])
       .filter((r) => semana.size === 0 ? true : semana.has(r.clienteId))
       .filter((r) => {
         if (fGestor !== "todos" && cliById[r.clienteId]?.responsavelId !== fGestor) return false;
@@ -45,93 +104,79 @@ export default function App() {
         if (busca.trim()) {
           const q = busca.toLowerCase();
           const nome = cliById[r.clienteId]?.nome?.toLowerCase() || "";
-          if (!nome.includes(q) && !r.acompanhamento.toLowerCase().includes(q)) return false;
+          if (!nome.includes(q) && !(r.acompanhamento || "").toLowerCase().includes(q)) return false;
         }
         return true;
       })
-      .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : (b.criadoEm || 0) - (a.criadoEm || 0)));
-  }, [data.registros, semana, fGestor, fAder, fDe, fAte, busca, cliById]);
+      .sort((a, b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
+  }, [data.acompanhamentos, semana, fGestor, fAder, fDe, fAte, busca, cliById]);
 
   const stats = useMemo(() => {
     const set = registrosFiltrados;
-    const ok = set.filter((r) => r.aderencia === "Ok").length;
-    const aten = set.filter((r) => r.aderencia === "Atenção").length;
-    const abaixo = set.filter((r) => r.aderencia === "Abaixo").length;
-    return { total: set.length, ok, aten, abaixo, clientes: new Set(set.map((r) => r.clienteId)).size };
+    return {
+      total: set.length,
+      ok: set.filter((r) => r.aderencia === "Ok").length,
+      aten: set.filter((r) => r.aderencia === "Atenção").length,
+      abaixo: set.filter((r) => r.aderencia === "Abaixo").length,
+      clientes: new Set(set.map((r) => r.clienteId)).size,
+    };
   }, [registrosFiltrados]);
 
-  // ---- ações registros ----
-  function salvarRegistro(reg) {
-    setData((d) => {
-      const existe = d.registros.some((r) => r.id === reg.id);
-      const registros = existe
-        ? d.registros.map((r) => (r.id === reg.id ? reg : r))
-        : [...d.registros, { ...reg, criadoEm: Date.now() }];
-      return { ...d, registros };
-    });
-    setRegModal(null);
-    showToast(reg.id && data.registros.some((r) => r.id === reg.id) ? "Acompanhamento atualizado" : "Acompanhamento registrado");
+  // ----- ações (gravam no banco; realtime atualiza a tela) -----
+  async function salvarRegistro(reg) {
+    try {
+      await api.upsertAcomp(reg, user?.id);
+      setRegModal(null);
+      showToast("Acompanhamento salvo");
+      recarregar();
+    } catch (e) { showToast("Erro: " + (e.message || "falha ao salvar")); }
   }
-  function excluirRegistro(id) {
+  async function excluirRegistro(id) {
     if (!confirm("Excluir este registro do histórico?")) return;
-    setData((d) => ({ ...d, registros: d.registros.filter((r) => r.id !== id) }));
-    showToast("Registro removido");
+    try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar(); }
+    catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
 
-  // ---- ações clientes ----
-  function salvarCliente(c) {
-    setData((d) => {
-      const existe = d.clientes.some((x) => x.id === c.id);
-      const clientes = existe ? d.clientes.map((x) => (x.id === c.id ? c : x)) : [...d.clientes, c];
-      return { ...d, clientes };
-    });
-    if (c.ativo) setSemana((s) => new Set(s).add(c.id));
-    setCliModal(null);
-    showToast("Cliente salvo");
+  async function salvarCliente(c) {
+    try {
+      const saved = await api.upsertCliente(c);
+      if (saved.ativo) setSemana((s) => new Set(s).add(saved.id));
+      setCliModal(null); showToast("Cliente salvo"); recarregar();
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
-  function toggleAtivo(id) {
-    setData((d) => ({ ...d, clientes: d.clientes.map((c) => (c.id === id ? { ...c, ativo: !c.ativo } : c)) }));
+  async function toggleAtivo(c) {
+    try { await api.upsertCliente({ ...c, ativo: !c.ativo }); recarregar(); }
+    catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
 
-  // ---- ações gestores ----
-  function salvarGestor(g) {
-    setData((d) => {
-      const existe = d.gestores.some((x) => x.id === g.id);
-      const gestores = existe ? d.gestores.map((x) => (x.id === g.id ? g : x)) : [...d.gestores, g];
-      return { ...d, gestores };
-    });
-    setGestModal(null);
-    showToast("Gestor salvo");
+  async function salvarGestor(g) {
+    try { await api.upsertGestor(g); setGestModal(null); showToast("Gestor salvo"); recarregar(); }
+    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+  async function salvarPessoa(p) {
+    try { await api.upsertPessoa(p); setPesModal(null); showToast("Pessoa salva"); recarregar(); }
+    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+
+  async function salvarTarefa(t) {
+    try { await api.upsertTarefa(t, user?.id); recarregar(); }
+    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+  async function excluirTarefa(id) {
+    try { await api.deleteTarefa(id); recarregar(); }
+    catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
 
   function exportar() {
-    const base = registrosFiltrados.length ? registrosFiltrados : data.registros;
+    const base = registrosFiltrados.length ? registrosFiltrados : data.acompanhamentos;
     exportarXLSX(base, data.clientes, data.gestores);
     showToast("Relatório exportado (.xlsx)");
   }
 
-  // ---- ações reuniões (Follow de Ações) ----
-  function salvarReuniao(r) {
-    setData((d) => {
-      const lista = d.reunioes || [];
-      const existe = lista.some((x) => x.id === r.id);
-      const reunioes = existe
-        ? lista.map((x) => (x.id === r.id ? r : x))
-        : [...lista, { ...r, criadoEm: Date.now() }];
-      return { ...d, reunioes };
-    });
-  }
-  function excluirReuniao(id) {
-    setData((d) => ({ ...d, reunioes: (d.reunioes || []).filter((r) => r.id !== id) }));
-  }
-
-  function resetar() {
-    if (!confirm("Restaurar dados de exemplo? Isso substitui todo o histórico atual.")) return;
-    const fresh = resetAll();
-    setData(fresh);
-    setSemana(new Set(fresh.clientes.filter((c) => c.ativo).map((c) => c.id)));
-    showToast("Dados restaurados");
-  }
+  // ----- telas de gate -----
+  if (!supabaseConfigured) return <SetupNeeded />;
+  if (booting) return <FullLoader texto="Carregando…" />;
+  if (!user) return <Login />;
 
   return (
     <div className="app">
@@ -144,13 +189,22 @@ export default function App() {
           <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>Acompanhamento</button>
           <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>Follow de Ações</button>
           <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>Clientes da semana</button>
-          <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>Cadastros</button>
+          {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>Cadastros</button>}
+          {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Administradores</button>}
         </nav>
         <div className="spacer" />
-        <span className="meta-info">{data.clientes.filter((c) => c.ativo).length} clientes ativos · {data.registros.length} registros</span>
+        <div className="user-box">
+          <div className="user-info">
+            <span className="user-nome">{user.nome}</span>
+            <span className="user-papel">{isAdmin ? "Administrador" : "Gestor"}</span>
+          </div>
+          <button className="btn btn-sm btn-ghost" onClick={() => signOut()}>Sair</button>
+        </div>
       </header>
 
       <main className="main">
+        {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
+
         {view === "acompanhamento" && (
           <Acompanhamento
             stats={stats} registros={registrosFiltrados} semana={semana}
@@ -168,11 +222,11 @@ export default function App() {
         )}
         {view === "follow" && (
           <FollowAcoes
-            reunioes={data.reunioes || []}
+            tarefas={data.tarefas || []}
             clientes={data.clientes}
-            gestores={data.gestores}
-            onSave={salvarReuniao}
-            onDelete={excluirReuniao}
+            pessoas={data.pessoas || []}
+            onSave={salvarTarefa}
+            onDelete={excluirTarefa}
             onToast={showToast}
           />
         )}
@@ -182,17 +236,21 @@ export default function App() {
             respDoCliente={respDoCliente}
           />
         )}
-        {view === "cadastros" && (
+        {view === "cadastros" && isAdmin && (
           <Cadastros
-            data={data}
+            data={{ ...data, registros: data.acompanhamentos }}
             onNovoCliente={() => setCliModal({ novo: true })}
             onEditarCliente={(c) => setCliModal(c)}
-            onToggleAtivo={toggleAtivo}
+            onToggleAtivo={(id) => { const c = cliById[id]; if (c) toggleAtivo(c); }}
             onNovoGestor={() => setGestModal({ novo: true })}
             onEditarGestor={(g) => setGestModal(g)}
+            onNovaPessoa={() => setPesModal({ novo: true })}
+            onEditarPessoa={(p) => setPesModal(p)}
             gestById={gestById}
-            onResetar={resetar}
           />
+        )}
+        {view === "admin" && isAdmin && (
+          <Admin perfis={data.perfis || []} onToast={showToast} onReload={recarregar} />
         )}
       </main>
 
@@ -203,14 +261,44 @@ export default function App() {
           respDoCliente={respDoCliente}
         />
       )}
-      {cliModal && (
+      {cliModal && isAdmin && (
         <ClienteModal base={cliModal} gestores={data.gestores} onClose={() => setCliModal(null)} onSave={salvarCliente} />
       )}
-      {gestModal && (
+      {gestModal && isAdmin && (
         <GestorModal base={gestModal} onClose={() => setGestModal(null)} onSave={salvarGestor} />
+      )}
+      {pesModal && isAdmin && (
+        <PessoaModal base={pesModal} onClose={() => setPesModal(null)} onSave={salvarPessoa} />
       )}
 
       {toast && <div className="toast"><Icon.Check stroke="#7ee0a6" /> {toast}</div>}
+    </div>
+  );
+}
+
+/* ====== telas auxiliares ====== */
+function FullLoader({ texto }) {
+  return <div className="login-wrap"><div className="full-loader">{texto}</div></div>;
+}
+
+function SetupNeeded() {
+  return (
+    <div className="login-wrap">
+      <div className="login-card" style={{ maxWidth: 460 }}>
+        <div className="login-brand">
+          <span className="mark">O</span>
+          <div>
+            <div className="login-name">OffChurn Yield Leads</div>
+            <div className="login-sub">Configuração necessária</div>
+          </div>
+        </div>
+        <p style={{ fontSize: 14, color: "var(--ink-soft)", lineHeight: 1.6 }}>
+          O sistema ainda não está conectado ao banco de dados. Defina as variáveis
+          <code> VITE_SUPABASE_URL </code> e <code> VITE_SUPABASE_ANON_KEY </code>
+          no arquivo <code>.env</code> (local) e nas variáveis de ambiente do Vercel.
+          Consulte o <strong>README</strong> para o passo a passo.
+        </p>
+      </div>
     </div>
   );
 }
@@ -360,14 +448,13 @@ function SemanaSelector({ clientes, semana, setSemana, respDoCliente }) {
 }
 
 /* ============ CADASTROS ============ */
-function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovoGestor, onEditarGestor, gestById, onResetar }) {
+function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onNovaPessoa, onEditarPessoa, gestById }) {
+  const pessoas = data.pessoas || [];
+  const tarefas = data.tarefas || [];
   return (
     <>
       <div className="page-head">
-        <div><h1>Cadastros</h1><p>Gerencie clientes ativos e gestores de tráfego.</p></div>
-        <div className="head-actions">
-          <button className="btn btn-danger" onClick={onResetar}>Restaurar exemplo</button>
-        </div>
+        <div><h1>Cadastros</h1><p>Gerencie clientes, gestores de tráfego e a equipe do Follow de Ações.</p></div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20 }} className="cad-grid">
         <div className="card">
@@ -393,24 +480,52 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
           </div>
         </div>
 
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 18px", borderBottom: "1px solid var(--line)" }}>
-            <h2 className="section-title" style={{ margin: 0 }}>Gestores ({data.gestores.length})</h2>
-            <button className="btn btn-primary btn-sm" onClick={onNovoGestor}><Icon.Plus /> Novo gestor</button>
-          </div>
-          <div>
-            {data.gestores.map((g) => {
-              const qtd = data.clientes.filter((c) => c.responsavelId === g.id).length;
-              return (
-                <div className="list-row" key={g.id}>
-                  <div>
-                    <div className="lr-name">{g.nome}</div>
-                    <div className="lr-meta">{qtd} cliente(s)</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 18px", borderBottom: "1px solid var(--line)" }}>
+              <h2 className="section-title" style={{ margin: 0 }}>Gestores ({data.gestores.length})</h2>
+              <button className="btn btn-primary btn-sm" onClick={onNovoGestor}><Icon.Plus /> Novo gestor</button>
+            </div>
+            <div>
+              {data.gestores.map((g) => {
+                const qtd = data.clientes.filter((c) => c.responsavelId === g.id).length;
+                return (
+                  <div className="list-row" key={g.id}>
+                    <div>
+                      <div className="lr-name">{g.nome}</div>
+                      <div className="lr-meta">{qtd} cliente(s)</div>
+                    </div>
+                    <button className="iconbtn" onClick={() => onEditarGestor(g)} aria-label="Editar"><Icon.Edit /></button>
                   </div>
-                  <button className="iconbtn" onClick={() => onEditarGestor(g)} aria-label="Editar"><Icon.Edit /></button>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 18px", borderBottom: "1px solid var(--line)" }}>
+              <h2 className="section-title" style={{ margin: 0 }}>Equipe ({pessoas.length})</h2>
+              <button className="btn btn-primary btn-sm" onClick={onNovaPessoa}><Icon.Plus /> Nova pessoa</button>
+            </div>
+            <div>
+              {pessoas.length === 0 ? (
+                <div className="list-row"><div className="lr-meta">Nenhuma pessoa cadastrada.</div></div>
+              ) : pessoas.map((p) => {
+                const qtd = tarefas.filter((t) => t.responsavelId === p.id || t.criadaPorId === p.id).length;
+                return (
+                  <div className="list-row" key={p.id}>
+                    <div>
+                      <div className="lr-name">{p.nome}</div>
+                      <div className="lr-meta">{qtd} tarefa(s) vinculada(s)</div>
+                    </div>
+                    <button className="iconbtn" onClick={() => onEditarPessoa(p)} aria-label="Editar"><Icon.Edit /></button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "10px 18px", borderTop: "1px solid var(--line)", fontSize: 12, color: "var(--ink-faint)" }}>
+              A equipe alimenta os campos "Criada por" e "Responsável" no Follow de Ações.
+            </div>
           </div>
         </div>
       </div>
@@ -555,6 +670,30 @@ function GestorModal({ base, onClose, onSave }) {
       <div className="form-row">
         <label>Nome do gestor</label>
         <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: João" autoFocus />
+      </div>
+    </Modal>
+  );
+}
+
+/* ============ MODAL: PESSOA (equipe) ============ */
+function PessoaModal({ base, onClose, onSave }) {
+  const [nome, setNome] = useState(base.nome || "");
+  const id = base.id || uid();
+  return (
+    <Modal
+      title={base.novo ? "Nova pessoa na equipe" : "Editar pessoa"}
+      onClose={onClose}
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+        <button className="btn btn-primary" onClick={() => nome.trim() && onSave({ id, nome: nome.trim() })} disabled={!nome.trim()}>Salvar</button>
+      </>}
+    >
+      <div className="form-row">
+        <label>Nome</label>
+        <input className="input" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Habiel" autoFocus />
+      </div>
+      <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+        Aparece nos campos "Criada por" e "Responsável" do Follow de Ações.
       </div>
     </Modal>
   );

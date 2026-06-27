@@ -5,14 +5,15 @@ const CRITICIDADES = ["Normal", "Baixo", "Alto", "Crítico"];
 const TIPOS_META = ["Faturamento", "Leads"];
 const ADERENCIAS = ["Ok", "Atenção", "Abaixo", "Sem dados"];
 
-// Etapas das ações no Follow de Ações. A ordem define a ordem nos gráficos.
+// Etapas (status) de cada tarefa no Follow de Ações. A ordem define a ordem nos gráficos.
 const ETAPAS = [
-  { key: "aExecutar", label: "A executar", cor: "var(--ink-faint)" },
-  { key: "emAndamento", label: "Em andamento", cor: "var(--green)" },
-  { key: "concluidas", label: "Concluídas", cor: "var(--green-dark)" },
-  { key: "atrasadas", label: "Atrasadas", cor: "var(--red)" },
-  { key: "canceladas", label: "Canceladas", cor: "var(--amber)" },
+  { key: "A executar", cor: "var(--ink-faint)" },
+  { key: "Em andamento", cor: "var(--green)" },
+  { key: "Concluída", cor: "var(--green-dark)" },
+  { key: "Atrasada", cor: "var(--red)" },
+  { key: "Cancelada", cor: "var(--amber)" },
 ];
+const ETAPA_KEYS = ETAPAS.map((e) => e.key);
 
 const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -106,30 +107,53 @@ function seed() {
   ];
 
   const cliId = (n) => clientes.find((c) => c.nome === n).id;
-  const reunioes = [
+
+  // Equipe: pessoas que criam e executam tarefas. Inclui os gestores + outros nomes.
+  const pessoas = [
+    { id: gJoao, nome: "João" },
+    { id: gAlberto, nome: "Alberto" },
+    { id: uid(), nome: "Habiel" },
+    { id: uid(), nome: "Tiago" },
+    { id: uid(), nome: "Marcelo" },
+    { id: uid(), nome: "Bruna" },
+    { id: uid(), nome: "Gabriele" },
+  ];
+  const pId = (n) => pessoas.find((p) => p.nome === n).id;
+
+  const tarefas = [
     {
-      id: uid(), data: "2026-06-15", gestorId: gJoao, clienteId: cliId("MDF na Web"),
-      criadas: 6, aExecutar: 2, emAndamento: 2, concluidas: 1, atrasadas: 1, canceladas: 0,
-      obs: "Abertura do funil e produção de novos criativos.", criadoEm: Date.now(),
+      id: uid(), data: "2026-06-15", criadaPorId: pId("Habiel"), responsavelId: pId("João"),
+      clienteId: cliId("MDF na Web"), acao: "Abrir todas as etapas do funil para análise de queda",
+      etapa: "Em andamento", criadoEm: Date.now(),
     },
     {
-      id: uid(), data: "2026-06-15", gestorId: gAlberto, clienteId: cliId("Pink Ninas"),
-      criadas: 4, aExecutar: 1, emAndamento: 1, concluidas: 2, atrasadas: 0, canceladas: 0,
-      obs: "Planejamento moda praia e inverno.", criadoEm: Date.now(),
+      id: uid(), data: "2026-06-15", criadaPorId: pId("Habiel"), responsavelId: pId("Gabriele"),
+      clienteId: cliId("MDF na Web"), acao: "Produzir novos vídeos e imagens bifrados",
+      etapa: "A executar", criadoEm: Date.now(),
     },
     {
-      id: uid(), data: "2026-06-15", gestorId: gAlberto, clienteId: cliId("Guilherme Garcia & Co"),
-      criadas: 5, aExecutar: 2, emAndamento: 1, concluidas: 1, atrasadas: 1, canceladas: 0,
-      obs: "Funil de VSL e criativos para consultoria paga.", criadoEm: Date.now(),
+      id: uid(), data: "2026-06-15", criadaPorId: pId("Tiago"), responsavelId: pId("Alberto"),
+      clienteId: cliId("Pink Ninas"), acao: "Planejamento de campanha moda praia e inverno",
+      etapa: "Em andamento", criadoEm: Date.now(),
     },
     {
-      id: uid(), data: "2026-06-12", gestorId: gJoao, clienteId: cliId("RG Multimarcas"),
-      criadas: 3, aExecutar: 0, emAndamento: 1, concluidas: 1, atrasadas: 0, canceladas: 1,
-      obs: "Troca de anúncios de veículos vendidos.", criadoEm: Date.now() - 1,
+      id: uid(), data: "2026-06-15", criadaPorId: pId("Alberto"), responsavelId: pId("Bruna"),
+      clienteId: cliId("Guilherme Garcia & Co"), acao: "Montar funil de VSL e bater estrutura",
+      etapa: "Atrasada", criadoEm: Date.now(),
+    },
+    {
+      id: uid(), data: "2026-06-15", criadaPorId: pId("Alberto"), responsavelId: pId("Marcelo"),
+      clienteId: cliId("Guilherme Garcia & Co"), acao: "Criativos direcionados à consultoria paga",
+      etapa: "A executar", criadoEm: Date.now(),
+    },
+    {
+      id: uid(), data: "2026-06-12", criadaPorId: pId("João"), responsavelId: pId("Tiago"),
+      clienteId: cliId("RG Multimarcas"), acao: "Pausar veículos vendidos e subir novos anúncios",
+      etapa: "Concluída", criadoEm: Date.now() - 1,
     },
   ];
 
-  return { gestores, clientes, registros, reunioes, version: 2 };
+  return { gestores, clientes, registros, pessoas, tarefas, version: 3 };
 }
 
 export function load() {
@@ -143,7 +167,12 @@ export function load() {
     const data = JSON.parse(raw);
     // Migração: garante campos novos para quem salvou versões anteriores.
     if (!Array.isArray(data.reunioes)) data.reunioes = [];
-    if (!data.version || data.version < 2) data.version = 2;
+    if (!Array.isArray(data.tarefas)) data.tarefas = [];
+    // v3: cria a "equipe" (pessoas) a partir dos gestores existentes, se ainda não houver.
+    if (!Array.isArray(data.pessoas) || data.pessoas.length === 0) {
+      data.pessoas = (data.gestores || []).map((g) => ({ id: g.id, nome: g.nome }));
+    }
+    if (!data.version || data.version < 3) data.version = 3;
     return data;
   } catch (e) {
     const data = seed();
@@ -161,4 +190,4 @@ export function resetAll() {
   return data;
 }
 
-export { CRITICIDADES, TIPOS_META, ADERENCIAS, ETAPAS, uid };
+export { CRITICIDADES, TIPOS_META, ADERENCIAS, ETAPAS, ETAPA_KEYS, uid };

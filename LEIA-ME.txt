@@ -1,0 +1,18 @@
+ATUALIZAÇÃO: BANCO DE DADOS + LOGIN + ADMIN
+============================================
+>>> Esta versão NÃO funciona sem configurar o Supabase.
+    Leia o README.md (passos 1 a 6) ANTES de subir o deploy.
+
+ARQUIVOS NOVOS:
+  supabase_schema.sql   -> rode no SQL Editor do Supabase
+  .env.example          -> modelo das chaves
+  README.md             -> passo a passo completo
+  src/supabaseClient.js  src/api.js  src/auth.js  src/Login.jsx  src/Admin.jsx
+
+ARQUIVOS ALTERADOS (substituir):
+  package.json  src/App.jsx  src/App.css  src/FollowAcoes.jsx  src/store.js
+
+DEPOIS DE SUBIR NO GITHUB:
+  1. Vercel: adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY e Redeploy.
+  2. Rode o supabase_schema.sql no Supabase.
+  3. Crie o primeiro admin (README, passo 6).
