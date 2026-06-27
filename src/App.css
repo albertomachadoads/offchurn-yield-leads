@@ -26,7 +26,7 @@ html, body, #root { margin: 0; height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; -webkit-font-smoothing: antialiased; }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
-.app { min-height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+.app { min-height: 100%; background: var(--bg); }
 .topbar { display: flex; align-items: center; gap: 16px; padding: 0 24px; height: 60px; background: var(--green-dark); color: #fff; position: sticky; top: 0; z-index: 30; }
 .brand { display: flex; align-items: baseline; gap: 9px; font-weight: 700; letter-spacing: -0.02em; }
 .brand .mark { font-size: 17px; background: #fff; color: var(--green-dark); width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; align-self: center; font-weight: 800; }
@@ -222,7 +222,7 @@ table.grid tbody tr:hover { background: var(--green-soft); }
 /* ============================================================
    LAYOUT COM SIDEBAR LATERAL (substitui a topbar)
    ============================================================ */
-.app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+.app-shell { display: flex; flex-direction: row; min-height: 100vh; align-items: stretch; }
 
 .sidebar {
   width: 248px; flex-shrink: 0;
