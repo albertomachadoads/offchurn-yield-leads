@@ -20,7 +20,17 @@ export function fmtValor(tipoMeta, v) {
 
 export function fmtData(iso) {
   if (!iso) return "—";
-  const [y, m, d] = iso.split("-");
+  // aceita string "yyyy-mm-dd", "yyyy-mm-ddTHH:MM:SS", ou objeto Date
+  let s = iso;
+  if (iso instanceof Date) {
+    s = `${iso.getFullYear()}-${String(iso.getMonth() + 1).padStart(2, "0")}-${String(iso.getDate()).padStart(2, "0")}`;
+  } else if (typeof iso !== "string") {
+    s = String(iso);
+  }
+  s = s.split("T")[0]; // remove parte de hora, se houver
+  const partes = s.split("-");
+  if (partes.length !== 3) return s; // formato inesperado: devolve como veio
+  const [y, m, d] = partes;
   return `${d}/${m}/${y}`;
 }
 

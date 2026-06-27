@@ -4,6 +4,7 @@ import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
 import { fmtData, fmtValor, hoje, exportarXLSX } from "./utils";
 import { Icon, AderenciaBadge, AderenciaBar, Modal } from "./components.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured } from "./supabaseClient";
@@ -215,7 +216,7 @@ export default function App() {
       </aside>
 
       <main className="main">
-
+        <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
         {view === "acompanhamento" && (
@@ -266,6 +267,7 @@ export default function App() {
         {view === "admin" && isAdmin && (
           <Admin perfis={data.perfis || []} onToast={showToast} onReload={recarregar} />
         )}
+        </ErrorBoundary>
       </main>
 
       {regModal && (

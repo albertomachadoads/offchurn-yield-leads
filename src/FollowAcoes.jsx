@@ -8,8 +8,10 @@ const corEtapa = (etapa) => ETAPAS.find((e) => e.key === etapa)?.cor || "var(--i
 // dias entre duas datas ISO (yyyy-mm-dd)
 function diasEntre(de, ate) {
   if (!de || !ate) return null;
-  const d1 = new Date(de + "T00:00:00");
-  const d2 = new Date(ate + "T00:00:00");
+  const limpa = (v) => String(v).split("T")[0];
+  const d1 = new Date(limpa(de) + "T00:00:00");
+  const d2 = new Date(limpa(ate) + "T00:00:00");
+  if (isNaN(d1) || isNaN(d2)) return null;
   return Math.round((d2 - d1) / 86400000);
 }
 
