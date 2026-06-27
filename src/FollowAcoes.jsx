@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ETAPAS, ETAPA_KEYS, uid } from "./store";
+import { ETAPAS, ETAPA_KEYS } from "./store";
 import { fmtData, hoje } from "./utils";
 import { Icon, Modal } from "./components.jsx";
 
@@ -266,7 +266,7 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
 /* ====== Modal de cadastro de tarefa ====== */
 function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
   const [f, setF] = useState(() => ({
-    id: base.id || uid(),
+    id: base.id || null,
     data: base.data || hoje(),
     criadaPorId: base.criadaPorId || pessoas[0]?.id || "",
     responsavelId: base.responsavelId || pessoas[0]?.id || "",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import "./App.css";
-import { CRITICIDADES, TIPOS_META, ADERENCIAS, uid } from "./store";
+import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
 import { fmtData, fmtValor, hoje, exportarXLSX } from "./utils";
 import { Icon, AderenciaBadge, AderenciaBar, Modal } from "./components.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
@@ -536,7 +536,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
 /* ============ MODAL: REGISTRO ============ */
 function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
   const [f, setF] = useState(() => ({
-    id: base.id || uid(),
+    id: base.id || null,
     data: base.data || hoje(),
     clienteId: base.clienteId || clientes[0]?.id || "",
     criticidade: base.criticidade || "Normal",
@@ -621,7 +621,7 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
 /* ============ MODAL: CLIENTE ============ */
 function ClienteModal({ base, gestores, onClose, onSave }) {
   const [f, setF] = useState(() => ({
-    id: base.id || uid(),
+    id: base.id || null,
     nome: base.nome || "",
     responsavelId: base.responsavelId || gestores[0]?.id || "",
     ativo: base.ativo ?? true,
@@ -657,14 +657,17 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
 /* ============ MODAL: GESTOR ============ */
 function GestorModal({ base, onClose, onSave }) {
   const [nome, setNome] = useState(base.nome || "");
-  const id = base.id || uid();
+  const salvar = () => {
+    if (!nome.trim()) return;
+    onSave(base.id ? { id: base.id, nome: nome.trim() } : { nome: nome.trim() });
+  };
   return (
     <Modal
       title={base.novo ? "Novo gestor de tráfego" : "Editar gestor"}
       onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => nome.trim() && onSave({ id, nome: nome.trim() })} disabled={!nome.trim()}>Salvar</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={!nome.trim()}>Salvar</button>
       </>}
     >
       <div className="form-row">
@@ -678,14 +681,17 @@ function GestorModal({ base, onClose, onSave }) {
 /* ============ MODAL: PESSOA (equipe) ============ */
 function PessoaModal({ base, onClose, onSave }) {
   const [nome, setNome] = useState(base.nome || "");
-  const id = base.id || uid();
+  const salvar = () => {
+    if (!nome.trim()) return;
+    onSave(base.id ? { id: base.id, nome: nome.trim() } : { nome: nome.trim() });
+  };
   return (
     <Modal
       title={base.novo ? "Nova pessoa na equipe" : "Editar pessoa"}
       onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => nome.trim() && onSave({ id, nome: nome.trim() })} disabled={!nome.trim()}>Salvar</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={!nome.trim()}>Salvar</button>
       </>}
     >
       <div className="form-row">
