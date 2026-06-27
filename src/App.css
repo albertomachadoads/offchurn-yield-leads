@@ -218,3 +218,87 @@ table.grid tbody tr:hover { background: var(--green-soft); }
   .user-info { display: none; }
   .nav { overflow-x: auto; }
 }
+
+/* ============================================================
+   LAYOUT COM SIDEBAR LATERAL (substitui a topbar)
+   ============================================================ */
+.app-shell { display: flex; min-height: 100vh; align-items: stretch; }
+
+.sidebar {
+  width: 248px; flex-shrink: 0;
+  background: var(--green-dark);
+  display: flex; flex-direction: column;
+  padding: 0; position: sticky; top: 0; height: 100vh;
+}
+.sidebar .brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 20px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+}
+.sidebar .brand .mark {
+  width: 30px; height: 30px; border-radius: 7px; font-size: 18px;
+  background: #fff; color: var(--green-dark);
+}
+.sidebar .brand .name { font-size: 15px; line-height: 1.2; }
+
+.sidebar .nav {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 14px 12px; margin: 0; flex: 1; overflow-y: auto;
+}
+.sidebar .nav button {
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; text-align: left;
+  background: transparent; border: none; color: #bfe3cd;
+  padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  transition: all .12s;
+}
+.sidebar .nav button svg { flex-shrink: 0; opacity: 0.85; }
+.sidebar .nav button:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.sidebar .nav button.active { background: #fff; color: var(--green-dark); font-weight: 600; }
+.sidebar .nav button.active svg { opacity: 1; }
+
+.sidebar-foot {
+  padding: 14px; border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.user-box { display: flex; align-items: center; gap: 10px; }
+.user-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: var(--green); color: #fff; font-weight: 700; font-size: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.user-info { display: flex; flex-direction: column; line-height: 1.25; overflow: hidden; }
+.user-nome { color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-papel { color: #a9d9bd; font-size: 11px; }
+.sidebar-sair { justify-content: center; color: #bfe3cd; border-color: rgba(255,255,255,0.2); width: 100%; }
+.sidebar-sair:hover { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.3); }
+
+.app-shell .main { flex: 1; max-width: none; margin: 0; padding: 28px 32px; overflow-x: hidden; }
+
+/* tiles de 6 colunas (Follow de Ações) */
+.tiles-6 { grid-template-columns: repeat(6, 1fr); }
+
+/* form grid de 3 colunas (datas) */
+.form-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+/* prazo / tempo */
+.prazo-furado { color: var(--red); font-weight: 600; }
+.tempo-badge { display: inline-block; background: var(--green-soft); color: var(--green-dark); font-weight: 600; font-size: 12px; padding: 2px 8px; border-radius: 12px; }
+
+/* responsivo: sidebar vira topo em telas estreitas */
+@media (max-width: 860px) {
+  .app-shell { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .sidebar .brand { border-bottom: none; flex: 1; }
+  .sidebar .nav { flex-direction: row; flex-wrap: wrap; flex: none; width: 100%; padding: 8px; }
+  .sidebar .nav button { width: auto; }
+  .sidebar-foot { border-top: none; flex-direction: row; align-items: center; width: 100%; padding: 8px 14px; }
+  .sidebar-foot .user-box { flex: 1; }
+  .sidebar-sair { width: auto; }
+  .tiles-6 { grid-template-columns: repeat(3, 1fr); }
+  .form-grid-3 { grid-template-columns: 1fr; }
+  .app-shell .main { padding: 18px; }
+}
+@media (max-width: 560px) {
+  .tiles-6 { grid-template-columns: repeat(2, 1fr); }
+}

@@ -179,30 +179,43 @@ export default function App() {
   if (!user) return <Login />;
 
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className="app app-shell">
+      <aside className="sidebar">
         <div className="brand">
           <span className="mark">O</span>
           <span className="name">OffChurn Yield Leads</span>
         </div>
         <nav className="nav">
-          <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>Acompanhamento</button>
-          <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>Follow de Ações</button>
-          <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>Clientes da semana</button>
-          {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>Cadastros</button>}
-          {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>Administradores</button>}
+          <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
+            <Icon.ListCheck /> Acompanhamento
+          </button>
+          <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
+            <Icon.Target /> Follow de Ações
+          </button>
+          <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>
+            <Icon.Calendar /> Clientes da semana
+          </button>
+          {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
+            <Icon.Folder /> Cadastros
+          </button>}
+          {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
+            <Icon.Users /> Administradores
+          </button>}
         </nav>
-        <div className="spacer" />
-        <div className="user-box">
-          <div className="user-info">
-            <span className="user-nome">{user.nome}</span>
-            <span className="user-papel">{isAdmin ? "Administrador" : "Gestor"}</span>
+        <div className="sidebar-foot">
+          <div className="user-box">
+            <div className="user-avatar">{(user.nome || "?").charAt(0).toUpperCase()}</div>
+            <div className="user-info">
+              <span className="user-nome">{user.nome}</span>
+              <span className="user-papel">{isAdmin ? "Administrador" : "Gestor"}</span>
+            </div>
           </div>
-          <button className="btn btn-sm btn-ghost" onClick={() => signOut()}>Sair</button>
+          <button className="btn btn-sm btn-ghost sidebar-sair" onClick={() => signOut()}>Sair</button>
         </div>
-      </header>
+      </aside>
 
       <main className="main">
+
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
         {view === "acompanhamento" && (
@@ -228,6 +241,7 @@ export default function App() {
             onSave={salvarTarefa}
             onDelete={excluirTarefa}
             onToast={showToast}
+            isAdmin={isAdmin}
           />
         )}
         {view === "semana" && (

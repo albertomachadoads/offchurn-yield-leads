@@ -12,6 +12,7 @@ const mapAcomp = (r) => ({
 const mapTarefa = (r) => ({
   id: r.id, data: r.data, criadaPorId: r.criada_por_id, responsavelId: r.responsavel_id,
   clienteId: r.cliente_id, acao: r.acao, etapa: r.etapa, autorId: r.autor_id, criadoEm: r.criado_em,
+  dataCriacao: r.data_criacao, prazo: r.prazo, dataConclusao: r.data_conclusao,
 });
 const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel });
 
@@ -98,6 +99,7 @@ export async function upsertTarefa(t, autorId) {
   const row = {
     data: t.data, criada_por_id: t.criadaPorId || null, responsavel_id: t.responsavelId || null,
     cliente_id: t.clienteId || null, acao: t.acao, etapa: t.etapa, autor_id: autorId || null,
+    data_criacao: t.dataCriacao || null, prazo: t.prazo || null, data_conclusao: t.dataConclusao || null,
   };
   if (t.id) row.id = t.id;
   const { data, error } = await supabase.from("tarefas").upsert(row).select().single();

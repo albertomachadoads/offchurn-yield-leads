@@ -5,6 +5,29 @@ import { Icon, Modal } from "./components.jsx";
 
 const corEtapa = (etapa) => ETAPAS.find((e) => e.key === etapa)?.cor || "var(--ink-faint)";
 
+// dias entre duas datas ISO (yyyy-mm-dd)
+function diasEntre(de, ate) {
+  if (!de || !ate) return null;
+  const d1 = new Date(de + "T00:00:00");
+  const d2 = new Date(ate + "T00:00:00");
+  return Math.round((d2 - d1) / 86400000);
+}
+
+// info de tempo de resolução e prazo de uma tarefa
+function infoTempo(t) {
+  const criacao = t.dataCriacao || t.data;
+  const dias = diasEntre(criacao, t.dataConclusao); // null se não concluída
+  let prazoStatus = null; // "no_prazo" | "atrasou" | "pendente"
+  if (t.prazo) {
+    if (t.dataConclusao) {
+      prazoStatus = t.dataConclusao <= t.prazo ? "no_prazo" : "atrasou";
+    } else {
+      prazoStatus = hoje() <= t.prazo ? "pendente" : "atrasou";
+    }
+  }
+  return { dias, prazoStatus };
+}
+
 /* ====== Gráfico de barras horizontais ====== */
 function BarrasHorizontais({ dados, cor = "var(--green)" }) {
   const max = Math.max(1, ...dados.map((d) => d.valor));
@@ -52,7 +75,7 @@ function EtapaBadge({ etapa }) {
   );
 }
 
-export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDelete, onToast }) {
+export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDelete, onToast, isAdmin }) {
   const [modal, setModal] = useState(null);
   const [fCriador, setFCriador] = useState("todos");
   const [fResp, setFResp] = useState("todos");
@@ -83,6 +106,16 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
   const atrasadas = cont("Atrasada");
   const canceladas = cont("Cancelada");
   const emAberto = total - concluidas - canceladas;
+
+  // tempo médio de resolução (entre criação e conclusão), só das concluídas com ambas as datas
+  const temposResolucao = filtradas
+    .map((t) => diasEntre(t.dataCriacao || t.data, t.dataConclusao))
+    .filter((d) => d != null && d >= 0);
+  const tempoMedio = temposResolucao.length
+    ? Math.round(temposResolucao.reduce((a, b) => a + b, 0) / temposResolucao.length)
+    : null;
+  // quantas furaram o prazo
+  const furaramPrazo = filtradas.filter((t) => infoTempo(t).prazoStatus === "atrasou").length;
 
   const porEtapa = ETAPAS.map((e) => ({ label: e.key, valor: cont(e.key), cor: e.cor }));
 
@@ -181,11 +214,12 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
       </div>
 
       {/* tiles de resumo */}
-      <div className="tiles tiles-5">
+      <div className="tiles tiles-6">
         <div className="tile"><div className="label">Tarefas</div><div className="value">{total}</div><div className="hint">no período</div></div>
         <div className="tile"><div className="label">Em aberto</div><div className="value">{emAberto}</div><div className="hint">não finalizadas</div></div>
         <div className="tile"><div className="label">Concluídas</div><div className="value">{concluidas}</div><div className="hint">finalizadas</div></div>
-        <div className="tile"><div className="label">Atrasadas</div><div className="value" style={{ color: atrasadas > 0 ? "var(--red)" : "inherit" }}>{atrasadas}</div><div className="hint">ação imediata</div></div>
+        <div className="tile"><div className="label">Tempo médio</div><div className="value">{tempoMedio != null ? tempoMedio : "—"}</div><div className="hint">{tempoMedio != null ? "dias p/ resolver" : "sem conclusões"}</div></div>
+        <div className="tile"><div className="label">Fora do prazo</div><div className="value" style={{ color: furaramPrazo > 0 ? "var(--red)" : "inherit" }}>{furaramPrazo}</div><div className="hint">furaram o prazo</div></div>
         <div className="tile"><div className="label">Canceladas</div><div className="value">{canceladas}</div><div className="hint">descartadas</div></div>
       </div>
 
@@ -226,19 +260,32 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
           <table className="grid">
             <thead>
               <tr>
-                <th>Data</th><th>Criada por</th><th>Responsável</th><th>Cliente</th>
-                <th>Ação</th><th>Etapa</th><th></th>
+                <th>Criação</th><th>Criada por</th><th>Responsável</th><th>Cliente</th>
+                <th>Ação</th><th>Etapa</th><th>Prazo</th><th>Conclusão</th><th>Tempo</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {filtradas.map((t) => (
+              {filtradas.map((t) => {
+                const { dias, prazoStatus } = infoTempo(t);
+                return (
                 <tr key={t.id}>
-                  <td className="cell-num">{fmtData(t.data)}</td>
+                  <td className="cell-num">{fmtData(t.dataCriacao || t.data)}</td>
                   <td>{nomePes(t.criadaPorId)}</td>
                   <td>{nomePes(t.responsavelId)}</td>
                   <td className="cell-cliente">{nomeCli(t.clienteId)}</td>
                   <td className="cell-acomp">{t.acao || "—"}</td>
                   <td><EtapaBadge etapa={t.etapa} /></td>
+                  <td className="cell-num">
+                    {t.prazo
+                      ? <span className={prazoStatus === "atrasou" ? "prazo-furado" : ""}>{fmtData(t.prazo)}</span>
+                      : "—"}
+                  </td>
+                  <td className="cell-num">{t.dataConclusao ? fmtData(t.dataConclusao) : "—"}</td>
+                  <td className="cell-num">
+                    {dias != null
+                      ? <span className="tempo-badge">{dias} {dias === 1 ? "dia" : "dias"}</span>
+                      : (prazoStatus === "atrasou" ? <span className="prazo-furado">em atraso</span> : "—")}
+                  </td>
                   <td>
                     <div style={{ display: "flex", gap: 2 }}>
                       <button className="iconbtn" onClick={() => setModal(t)} aria-label="Editar"><Icon.Edit /></button>
@@ -246,7 +293,7 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
                     </div>
                   </td>
                 </tr>
-              ))}
+              ); })}
             </tbody>
           </table>
         </div>
@@ -254,7 +301,7 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
 
       {modal && (
         <TarefaModal
-          base={modal} clientes={clientes} pessoas={pessoas}
+          base={modal} clientes={clientes} pessoas={pessoas} isAdmin={isAdmin}
           onClose={() => setModal(null)}
           onSave={(t) => { onSave(t); setModal(null); onToast(modal.novo ? "Tarefa cadastrada" : "Tarefa atualizada"); }}
         />
@@ -264,10 +311,14 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
 }
 
 /* ====== Modal de cadastro de tarefa ====== */
-function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
+function TarefaModal({ base, clientes, pessoas, onClose, onSave, isAdmin }) {
   const [f, setF] = useState(() => ({
     id: base.id || null,
+    // "data" mantém compatibilidade; dataCriacao é a data real de criação
     data: base.data || hoje(),
+    dataCriacao: base.dataCriacao || base.data || hoje(),
+    prazo: base.prazo || "",
+    dataConclusao: base.dataConclusao || "",
     criadaPorId: base.criadaPorId || pessoas[0]?.id || "",
     responsavelId: base.responsavelId || pessoas[0]?.id || "",
     clienteId: base.clienteId || clientes[0]?.id || "",
@@ -275,8 +326,27 @@ function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
     etapa: base.etapa || "A executar",
     criadoEm: base.criadoEm,
   }));
+
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
-  const valido = f.data && f.criadaPorId && f.responsavelId && f.clienteId && f.acao.trim();
+
+  // Ao mudar a etapa: se virar "Concluída" e não houver data de conclusão, preenche com hoje.
+  // Se sair de "Concluída", limpa a data de conclusão.
+  const mudarEtapa = (novaEtapa) => {
+    setF((s) => {
+      let dataConclusao = s.dataConclusao;
+      if (novaEtapa === "Concluída" && !dataConclusao) dataConclusao = hoje();
+      if (novaEtapa !== "Concluída") dataConclusao = "";
+      return { ...s, etapa: novaEtapa, dataConclusao };
+    });
+  };
+
+  const valido = f.dataCriacao && f.criadaPorId && f.responsavelId && f.clienteId && f.acao.trim();
+
+  function salvar() {
+    if (!valido) return;
+    // mantém "data" sincronizada com a data de criação (usada nos filtros/dashboards)
+    onSave({ ...f, data: f.dataCriacao, acao: f.acao.trim() });
+  }
 
   return (
     <Modal
@@ -284,7 +354,7 @@ function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
       onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => valido && onSave({ ...f, acao: f.acao.trim() })} disabled={!valido}>Salvar tarefa</button>
+        <button className="btn btn-primary" onClick={salvar} disabled={!valido}>Salvar tarefa</button>
       </>}
     >
       <div className="aviso-monday aviso-modal">
@@ -294,13 +364,15 @@ function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
 
       <div className="form-grid">
         <div className="form-row">
-          <label>Data</label>
-          <input type="date" className="input" value={f.data} onChange={(e) => set("data", e.target.value)} />
-        </div>
-        <div className="form-row">
           <label>Cliente</label>
           <select className="select" value={f.clienteId} onChange={(e) => set("clienteId", e.target.value)}>
             {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+          </select>
+        </div>
+        <div className="form-row">
+          <label>Etapa</label>
+          <select className="select" value={f.etapa} onChange={(e) => mudarEtapa(e.target.value)}>
+            {ETAPA_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
         </div>
         <div className="form-row">
@@ -322,12 +394,27 @@ function TarefaModal({ base, clientes, pessoas, onClose, onSave }) {
         <textarea className="input" rows={3} placeholder="Descreva a tarefa…" value={f.acao} onChange={(e) => set("acao", e.target.value)} />
       </div>
 
-      <div className="form-row">
-        <label>Etapa</label>
-        <select className="select" value={f.etapa} onChange={(e) => set("etapa", e.target.value)}>
-          {ETAPA_KEYS.map((k) => <option key={k} value={k}>{k}</option>)}
-        </select>
+      <div className="form-grid form-grid-3">
+        <div className="form-row">
+          <label>Data de criação {isAdmin ? "" : "(automática)"}</label>
+          <input type="date" className="input" value={f.dataCriacao}
+            disabled={!isAdmin}
+            onChange={(e) => set("dataCriacao", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Prazo</label>
+          <input type="date" className="input" value={f.prazo} onChange={(e) => set("prazo", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Data de conclusão</label>
+          <input type="date" className="input" value={f.dataConclusao} onChange={(e) => set("dataConclusao", e.target.value)} />
+        </div>
       </div>
+      {!isAdmin && (
+        <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+          A data de criação é registrada automaticamente. A data de conclusão é preenchida ao marcar a etapa como "Concluída".
+        </div>
+      )}
     </Modal>
   );
 }
