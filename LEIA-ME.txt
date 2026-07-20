@@ -15,4 +15,4 @@ ARQUIVOS ALTERADOS (substituir):
 DEPOIS DE SUBIR NO GITHUB:
   1. Vercel: adicione VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY e Redeploy.
   2. Rode o supabase_schema.sql no Supabase.
-  3. Crie o primeiro admin (README, passo 6).
+  3. Crie o primeiro admin (README, passo 6).    
