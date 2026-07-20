@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import "./App.css";
 import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
-import { fmtData, fmtValor, hoje, exportarXLSX } from "./utils";
-import { Icon, AderenciaBadge, AderenciaBar, Modal } from "./components.jsx";
+import { fmtData, fmtValor, fmtMoeda, hoje, exportarXLSX } from "./utils";
+import { Icon, Modal } from "./components.jsx";
+import { calcTaxas, corTaxa } from "./taxas";
+import Painel from "./Painel.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured } from "./supabaseClient";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
 
-const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [] };
+const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [] };
 
 export default function App() {
   // ----- sessão / auth -----
   const [booting, setBooting] = useState(true);
   const [user, setUser] = useState(null);
+  const [avisoLogin, setAvisoLogin] = useState("");
 
   // ----- dados (do Supabase) -----
   const [data, setData] = useState(EMPTY);
@@ -24,6 +28,15 @@ export default function App() {
 
   const [view, setView] = useState("acompanhamento");
   const [toast, setToast] = useState(null);
+  // sidebar recolhida por padrão; expande no hover ou fixada por botão
+  const [sidebarFixa, setSidebarFixa] = useState(false);
+  // tema (claro/escuro) — lê preferência salva
+  const [tema, setTema] = useState(() => {
+    try { return localStorage.getItem("offchurn_tema") || "claro"; } catch { return "claro"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("offchurn_tema", tema); } catch { /* ignore */ }
+  }, [tema]);
   const [semana, setSemana] = useState(new Set());
 
   // filtros do acompanhamento
@@ -50,13 +63,20 @@ export default function App() {
       try {
         const u = await getSessionUser();
         setUser(u);
+      } catch (e) {
+        if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
       } finally {
         setBooting(false);
       }
       unsub = onAuthChange(async (session) => {
         if (!session) { setUser(null); setData(EMPTY); return; }
-        const u = await getSessionUser();
-        setUser(u);
+        try {
+          const u = await getSessionUser();
+          setUser(u);
+          setAvisoLogin("");
+        } catch (e) {
+          if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
+        }
       });
     })();
     return () => { if (unsub) unsub(); };
@@ -167,6 +187,16 @@ export default function App() {
     catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
 
+  async function salvarPainel(dados) {
+    await api.upsertPainel(dados, user?.id);
+    recarregar();
+  }
+
+  const painelPorCliente = useMemo(
+    () => Object.fromEntries((data.painel || []).map((p) => [p.clienteId, p])),
+    [data.painel]
+  );
+
   function exportar() {
     const base = registrosFiltrados.length ? registrosFiltrados : data.acompanhamentos;
     exportarXLSX(base, data.clientes, data.gestores);
@@ -176,18 +206,28 @@ export default function App() {
   // ----- telas de gate -----
   if (!supabaseConfigured) return <SetupNeeded />;
   if (booting) return <FullLoader texto="Carregando…" />;
-  if (!user) return <Login />;
+  if (!user) return <Login aviso={avisoLogin} />;
 
   return (
-    <div className="app app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="mark">O</span>
-          <span className="name">OffChurn Yield Leads</span>
+    <div className={`app app-shell tema-${tema} ${sidebarFixa ? "sidebar-fixa" : "sidebar-mini"}`}>
+      <aside className="sidebar"
+        onMouseEnter={() => !sidebarFixa && document.body.classList.add("sb-hover")}
+        onMouseLeave={() => document.body.classList.remove("sb-hover")}>
+        <div className="sidebar-top">
+          <button className="sidebar-toggle" onClick={() => setSidebarFixa((v) => !v)} aria-label="Expandir/recolher menu" title="Expandir/recolher menu">
+            <Icon.Menu />
+          </button>
+          <div className="brand">
+            <span className="mark">O</span>
+            <span className="name">OffChurn Yield Leads</span>
+          </div>
         </div>
         <nav className="nav">
           <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
             <Icon.ListCheck /> Acompanhamento
+          </button>
+          <button className={view === "painel" ? "active" : ""} onClick={() => setView("painel")}>
+            <Icon.Chart /> Painel
           </button>
           <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
             <Icon.Target /> Follow de Ações
@@ -203,6 +243,9 @@ export default function App() {
           </button>}
         </nav>
         <div className="sidebar-foot">
+          <button className="btn btn-sm btn-ghost tema-toggle" onClick={() => setTema((t) => t === "claro" ? "escuro" : "claro")} title="Alternar tema">
+            {tema === "claro" ? <><Icon.Lua /> <span className="tt-label">Modo escuro</span></> : <><Icon.Sol /> <span className="tt-label">Modo claro</span></>}
+          </button>
           <div className="user-box">
             <div className="user-avatar">{(user.nome || "?").charAt(0).toUpperCase()}</div>
             <div className="user-info">
@@ -215,7 +258,7 @@ export default function App() {
       </aside>
 
       <main className="main">
-
+        <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
         {view === "acompanhamento" && (
@@ -227,10 +270,19 @@ export default function App() {
             fAder={fAder} setFAder={setFAder}
             fDe={fDe} setFDe={setFDe} fAte={fAte} setFAte={setFAte}
             gestores={data.gestores}
+            painelPorCliente={painelPorCliente}
             onNovo={() => setRegModal({ novo: true })}
             onEditar={(r) => setRegModal(r)}
             onExcluir={excluirRegistro}
             onExportar={exportar}
+          />
+        )}
+        {view === "painel" && (
+          <Painel
+            clientes={data.clientes}
+            painel={data.painel || []}
+            onSalvar={salvarPainel}
+            onToast={showToast}
           />
         )}
         {view === "follow" && (
@@ -264,8 +316,9 @@ export default function App() {
           />
         )}
         {view === "admin" && isAdmin && (
-          <Admin perfis={data.perfis || []} onToast={showToast} onReload={recarregar} />
+          <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
         )}
+        </ErrorBoundary>
       </main>
 
       {regModal && (
@@ -318,10 +371,31 @@ function SetupNeeded() {
 }
 
 /* ============ ACOMPANHAMENTO ============ */
+function TaxaQualBar({ pct }) {
+  if (pct == null) {
+    return <span className="ader-pct" style={{ color: "var(--ink-faint)" }}>— sem dados</span>;
+  }
+  return (
+    <div className="ader" style={{ minWidth: 130 }}>
+      <span className="ader-pct" style={{ color: corTaxa(pct) }}>{pct}%</span>
+      <div className="ader-bar">
+        <div className="ader-fill" style={{ width: `${Math.min(pct, 100)}%`, background: corTaxa(pct) }} />
+      </div>
+    </div>
+  );
+}
+
 function Acompanhamento(props) {
   const { stats, registros, semana, respDoCliente, cliById, busca, setBusca,
     fGestor, setFGestor, fAder, setFAder, fDe, setFDe, fAte, setFAte,
-    gestores, onNovo, onEditar, onExcluir, onExportar } = props;
+    gestores, painelPorCliente, onNovo, onEditar, onExcluir, onExportar } = props;
+
+  // taxa de qualificação do cliente, vinda do Painel
+  const taxaQualDoCliente = (clienteId) => {
+    const p = painelPorCliente?.[clienteId];
+    if (!p) return null;
+    return calcTaxas({ captados: p.captados, qualificados: p.qualificados, fechados: p.fechados }).qualificacao;
+  };
 
   return (
     <>
@@ -388,22 +462,20 @@ function Acompanhamento(props) {
           <table className="grid">
             <thead>
               <tr>
-                <th>Data</th><th>Responsável</th><th>Cliente</th><th>Criticidade</th>
-                <th>Meta</th><th>Realizado</th><th>Aderência</th><th>Status</th>
+                <th>Data</th><th>Responsável</th><th>Cliente</th>
+                <th>Taxa de Qualificação</th>
                 <th>Acompanhamento</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {registros.map((r) => (
+              {registros.map((r) => {
+                const pctQual = taxaQualDoCliente(r.clienteId);
+                return (
                 <tr key={r.id}>
                   <td className="cell-num">{fmtData(r.data)}</td>
                   <td>{respDoCliente(r.clienteId)}</td>
                   <td className="cell-cliente">{cliById[r.clienteId]?.nome || "—"}</td>
-                  <td><span className={`crit crit-${r.criticidade}`}>{r.criticidade}</span></td>
-                  <td className="cell-num">{fmtValor(r.tipoMeta, r.meta)}</td>
-                  <td className="cell-num">{fmtValor(r.tipoMeta, r.realizado)}</td>
-                  <td><AderenciaBar meta={r.meta} realizado={r.realizado} /></td>
-                  <td><AderenciaBadge value={r.aderencia} /></td>
+                  <td><TaxaQualBar pct={pctQual} /></td>
                   <td className="cell-acomp">{r.acompanhamento || "—"}</td>
                   <td>
                     <div style={{ display: "flex", gap: 2 }}>
@@ -412,7 +484,7 @@ function Acompanhamento(props) {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ); })}
             </tbody>
           </table>
         </div>
@@ -481,7 +553,15 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
               <div className="list-row" key={c.id}>
                 <div>
                   <div className="lr-name">{c.nome}</div>
-                  <div className="lr-meta">{gestById[c.responsavelId]?.nome || "Sem gestor"}</div>
+                  <div className="lr-meta">
+                    {gestById[c.responsavelId]?.nome || "Sem gestor"}
+                    {(c.verbaMensal != null || c.cpa != null) && (
+                      <span className="lr-extra">
+                        {c.verbaMensal != null && <> · Verba {fmtMoeda(c.verbaMensal)}</>}
+                        {c.cpa != null && <> · CPA {fmtMoeda(c.cpa)}</>}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span className={`pill ${c.ativo ? "" : "off"}`} onClick={() => onToggleAtivo(c.id)} style={{ cursor: "pointer" }}>
@@ -553,10 +633,11 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
     id: base.id || null,
     data: base.data || hoje(),
     clienteId: base.clienteId || clientes[0]?.id || "",
+    // campos legados mantidos com padrão (colunas ainda existem no banco)
     criticidade: base.criticidade || "Normal",
     tipoMeta: base.tipoMeta || "Faturamento",
-    meta: base.meta ?? "",
-    realizado: base.realizado ?? "",
+    meta: base.meta ?? null,
+    realizado: base.realizado ?? null,
     aderencia: base.aderencia || "Sem dados",
     acompanhamento: base.acompanhamento || "",
     criadoEm: base.criadoEm,
@@ -566,11 +647,7 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
 
   function submit() {
     if (!valido) return;
-    onSave({
-      ...f,
-      meta: f.meta === "" ? null : Number(f.meta),
-      realizado: f.realizado === "" ? null : Number(f.realizado),
-    });
+    onSave(f);
   }
 
   return (
@@ -593,40 +670,14 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
             {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         </div>
-        <div className="form-row">
-          <label>Criticidade</label>
-          <select className="select" value={f.criticidade} onChange={(e) => set("criticidade", e.target.value)}>
-            {CRITICIDADES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="form-row">
-          <label>Responsável</label>
-          <input className="input" value={f.clienteId ? respDoCliente(f.clienteId) : "—"} disabled />
-        </div>
-        <div className="form-row">
-          <label>Tipo de meta</label>
-          <select className="select" value={f.tipoMeta} onChange={(e) => set("tipoMeta", e.target.value)}>
-            {TIPOS_META.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div className="form-row">
-          <label>Aderência a meta</label>
-          <select className="select" value={f.aderencia} onChange={(e) => set("aderencia", e.target.value)}>
-            {ADERENCIAS.map((a) => <option key={a} value={a}>{a}</option>)}
-          </select>
-        </div>
-        <div className="form-row">
-          <label>Meta {f.tipoMeta === "Faturamento" ? "(R$)" : "(leads)"}</label>
-          <input type="number" className="input" placeholder="Opcional" value={f.meta} onChange={(e) => set("meta", e.target.value)} />
-        </div>
-        <div className="form-row">
-          <label>Realizado {f.tipoMeta === "Faturamento" ? "(R$)" : "(leads)"}</label>
-          <input type="number" className="input" placeholder="Opcional" value={f.realizado} onChange={(e) => set("realizado", e.target.value)} />
-        </div>
+      </div>
+      <div className="form-row">
+        <label>Responsável</label>
+        <input className="input" value={f.clienteId ? respDoCliente(f.clienteId) : "—"} disabled />
       </div>
       <div className="form-row">
         <label>Acompanhamento</label>
-        <textarea className="input" rows={4} placeholder="Comentários do responsável…" value={f.acompanhamento} onChange={(e) => set("acompanhamento", e.target.value)} />
+        <textarea className="input" rows={5} placeholder="Comentários do responsável…" value={f.acompanhamento} onChange={(e) => set("acompanhamento", e.target.value)} />
       </div>
     </Modal>
   );
@@ -639,6 +690,8 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     nome: base.nome || "",
     responsavelId: base.responsavelId || gestores[0]?.id || "",
     ativo: base.ativo ?? true,
+    cpa: base.cpa ?? "",
+    verbaMensal: base.verbaMensal ?? "",
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
@@ -659,6 +712,18 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
         <select className="select" value={f.responsavelId} onChange={(e) => set("responsavelId", e.target.value)}>
           {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
+      </div>
+      <div className="form-grid">
+        <div className="form-row">
+          <label>CPA (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 45,00"
+            value={f.cpa} onChange={(e) => set("cpa", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Verba mensal (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 10000,00"
+            value={f.verbaMensal} onChange={(e) => set("verbaMensal", e.target.value)} />
+        </div>
       </div>
       <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <input type="checkbox" id="ativo" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} />

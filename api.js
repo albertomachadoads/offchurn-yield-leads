@@ -1,7 +1,12 @@
 import { supabase } from "./supabaseClient";
 
 // ===== Mapeamento banco (snake_case) <-> app (camelCase) =====
-const mapCliente = (r) => ({ id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo });
+const mapCliente = (r) => ({ id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo, cpa: r.cpa, verbaMensal: r.verba_mensal });
+const mapPainel = (r) => ({
+  id: r.id, clienteId: r.cliente_id,
+  captados: r.leads_captados, qualificados: r.leads_qualificados, fechados: r.leads_fechados,
+  atualizadoEm: r.atualizado_em,
+});
 const mapGestor = (r) => ({ id: r.id, nome: r.nome });
 const mapPessoa = (r) => ({ id: r.id, nome: r.nome });
 const mapAcomp = (r) => ({
@@ -14,19 +19,20 @@ const mapTarefa = (r) => ({
   clienteId: r.cliente_id, acao: r.acao, etapa: r.etapa, autorId: r.autor_id, criadoEm: r.criado_em,
   dataCriacao: r.data_criacao, prazo: r.prazo, dataConclusao: r.data_conclusao,
 });
-const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel });
+const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel, bloqueado: r.bloqueado || false });
 
 // ===== Carga inicial de tudo =====
 export async function fetchAll() {
-  const [clientes, gestores, pessoas, acomp, tarefas, perfis] = await Promise.all([
+  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel] = await Promise.all([
     supabase.from("clientes").select("*").order("nome"),
     supabase.from("gestores").select("*").order("nome"),
     supabase.from("pessoas").select("*").order("nome"),
     supabase.from("acompanhamentos").select("*").order("data", { ascending: false }),
     supabase.from("tarefas").select("*").order("data", { ascending: false }),
     supabase.from("perfis").select("*").order("nome"),
+    supabase.from("painel").select("*"),
   ]);
-  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error;
+  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error;
   if (err) throw err;
   return {
     clientes: (clientes.data || []).map(mapCliente),
@@ -35,12 +41,17 @@ export async function fetchAll() {
     acompanhamentos: (acomp.data || []).map(mapAcomp),
     tarefas: (tarefas.data || []).map(mapTarefa),
     perfis: (perfis.data || []).map(mapPerfil),
+    painel: (painel.data || []).map(mapPainel),
   };
 }
 
 // ===== CLIENTES =====
 export async function upsertCliente(c) {
-  const row = { nome: c.nome, responsavel_id: c.responsavelId || null, ativo: c.ativo };
+  const row = {
+    nome: c.nome, responsavel_id: c.responsavelId || null, ativo: c.ativo,
+    cpa: (c.cpa === "" || c.cpa == null) ? null : Number(c.cpa),
+    verba_mensal: (c.verbaMensal === "" || c.verbaMensal == null) ? null : Number(c.verbaMensal),
+  };
   if (c.id) row.id = c.id;
   const { data, error } = await supabase.from("clientes").upsert(row).select().single();
   if (error) throw error;
@@ -111,6 +122,25 @@ export async function deleteTarefa(id) {
   if (error) throw error;
 }
 
+// ===== PAINEL (métricas por cliente) =====
+// Salva os números de um cliente. cliente_id é único, então usamos onConflict.
+export async function upsertPainel(p, autorId) {
+  const row = {
+    cliente_id: p.clienteId,
+    leads_captados: Number(p.captados) || 0,
+    leads_qualificados: Number(p.qualificados) || 0,
+    leads_fechados: Number(p.fechados) || 0,
+    atualizado_em: new Date().toISOString(),
+    atualizado_por: autorId || null,
+  };
+  const { data, error } = await supabase
+    .from("painel")
+    .upsert(row, { onConflict: "cliente_id" })
+    .select().single();
+  if (error) throw error;
+  return mapPainel(data);
+}
+
 // ===== Realtime: assina mudanças em todas as tabelas =====
 export function subscribeAll(onChange) {
   const ch = supabase
@@ -121,8 +151,9 @@ export function subscribeAll(onChange) {
     .on("postgres_changes", { event: "*", schema: "public", table: "gestores" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "pessoas" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "perfis" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "painel" }, onChange)
     .subscribe();
   return () => supabase.removeChannel(ch);
 }
 
-export { mapCliente, mapGestor, mapPessoa, mapAcomp, mapTarefa, mapPerfil };
+export { mapCliente, mapGestor, mapPessoa, mapAcomp, mapTarefa, mapPerfil, mapPainel };
