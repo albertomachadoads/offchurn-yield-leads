@@ -17,11 +17,19 @@ export async function getSessionUser() {
   if (!session) return null;
   const { data: perfil } = await supabase
     .from("perfis").select("*").eq("id", session.user.id).single();
+  // se o usuário foi bloqueado por um admin, encerra a sessão
+  if (perfil?.bloqueado) {
+    await supabase.auth.signOut();
+    const err = new Error("Acesso bloqueado. Fale com um administrador.");
+    err.bloqueado = true;
+    throw err;
+  }
   return {
     id: session.user.id,
     email: session.user.email,
     nome: perfil?.nome || session.user.email,
     papel: perfil?.papel || "gestor",
+    bloqueado: perfil?.bloqueado || false,
   };
 }
 
@@ -56,8 +64,22 @@ export async function adminCriarUsuario({ email, senha, nome, papel }) {
   return data;
 }
 
-// ===== Atualizar perfil (nome/papel) — admin =====
+// ===== Atualizar perfil (nome/papel/bloqueado) — admin =====
 export async function atualizarPerfil(id, campos) {
   const { error } = await supabase.from("perfis").update(campos).eq("id", id);
+  if (error) throw error;
+}
+
+// Bloqueia/desbloqueia um usuário (impede uso via app; o perfil marca bloqueado)
+export async function definirBloqueio(id, bloqueado) {
+  const { error } = await supabase.from("perfis").update({ bloqueado }).eq("id", id);
+  if (error) throw error;
+}
+
+// Exclui o PERFIL do usuário (remove da lista e do acesso ao app).
+// Observação: remover a conta de login em si (auth.users) exige a chave de
+// serviço no servidor; aqui removemos o perfil, o que já tira o acesso ao sistema.
+export async function excluirPerfil(id) {
+  const { error } = await supabase.from("perfis").delete().eq("id", id);
   if (error) throw error;
 }

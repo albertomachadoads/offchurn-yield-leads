@@ -1,12 +1,39 @@
 import { useState } from "react";
-import { adminCriarUsuario, atualizarPerfil } from "./auth";
+import { adminCriarUsuario, atualizarPerfil, definirBloqueio, excluirPerfil } from "./auth";
 import { Icon, Modal } from "./components.jsx";
 
-export default function Admin({ perfis, onToast, onReload }) {
+export default function Admin({ perfis, meuId, onToast, onReload }) {
   const [modal, setModal] = useState(null);
 
   const admins = perfis.filter((p) => p.papel === "admin");
   const gestores = perfis.filter((p) => p.papel === "gestor");
+
+  function LinhaUsuario({ p, papelLabel }) {
+    const euMesmo = p.id === meuId;
+    return (
+      <div className="list-row" key={p.id}>
+        <div>
+          <div className="lr-name">
+            {p.nome || "(sem nome)"}
+            {p.bloqueado && <span className="pill off" style={{ marginLeft: 8 }}>Bloqueado</span>}
+            {euMesmo && <span className="pill" style={{ marginLeft: 8 }}>Você</span>}
+          </div>
+          <div className="lr-meta">{papelLabel}</div>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <button className="btn btn-sm" onClick={() => mudarPapel(p, p.papel === "admin" ? "gestor" : "admin")} disabled={euMesmo} title={euMesmo ? "Você não pode alterar seu próprio papel" : ""}>
+            {p.papel === "admin" ? "Tornar gestor" : "Tornar admin"}
+          </button>
+          <button className="btn btn-sm" onClick={() => alternarBloqueio(p)} disabled={euMesmo} title={euMesmo ? "Você não pode se bloquear" : ""}>
+            <Icon.Ban /> {p.bloqueado ? "Desbloquear" : "Bloquear"}
+          </button>
+          <button className="btn btn-sm btn-danger" onClick={() => excluir(p)} disabled={euMesmo} title={euMesmo ? "Você não pode se excluir" : ""}>
+            <Icon.Trash />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -29,15 +56,7 @@ export default function Admin({ perfis, onToast, onReload }) {
           </div>
           {admins.length === 0
             ? <div className="list-row"><div className="lr-meta">Nenhum admin.</div></div>
-            : admins.map((p) => (
-              <div className="list-row" key={p.id}>
-                <div>
-                  <div className="lr-name">{p.nome || "(sem nome)"}</div>
-                  <div className="lr-meta">Administrador</div>
-                </div>
-                <button className="btn btn-sm" onClick={() => mudarPapel(p, "gestor")}>Tornar gestor</button>
-              </div>
-            ))}
+            : admins.map((p) => <LinhaUsuario key={p.id} p={p} papelLabel="Administrador" />)}
         </div>
 
         <div className="card">
@@ -46,21 +65,13 @@ export default function Admin({ perfis, onToast, onReload }) {
           </div>
           {gestores.length === 0
             ? <div className="list-row"><div className="lr-meta">Nenhum gestor.</div></div>
-            : gestores.map((p) => (
-              <div className="list-row" key={p.id}>
-                <div>
-                  <div className="lr-name">{p.nome || "(sem nome)"}</div>
-                  <div className="lr-meta">Gestor</div>
-                </div>
-                <button className="btn btn-sm" onClick={() => mudarPapel(p, "admin")}>Tornar admin</button>
-              </div>
-            ))}
+            : gestores.map((p) => <LinhaUsuario key={p.id} p={p} papelLabel="Gestor" />)}
         </div>
       </div>
 
       <div className="aviso-monday" style={{ marginTop: 20 }}>
         <span className="aviso-ico">i</span>
-        <span>Ao criar um usuário, informe o e-mail e a senha. A pessoa usa esses dados para entrar. Você pode alterar o papel (admin/gestor) a qualquer momento.</span>
+        <span>Bloquear impede o acesso sem apagar o usuário (dá para reverter). Excluir remove o acesso ao sistema de forma permanente. Você não pode alterar, bloquear ou excluir a si mesmo.</span>
       </div>
 
       {modal && (
@@ -81,6 +92,29 @@ export default function Admin({ perfis, onToast, onReload }) {
       onReload();
     } catch (e) {
       onToast("Erro: " + (e.message || "falha ao atualizar"));
+    }
+  }
+
+  async function alternarBloqueio(p) {
+    const acao = p.bloqueado ? "desbloquear" : "bloquear";
+    if (!confirm(`Deseja ${acao} ${p.nome || "este usuário"}?`)) return;
+    try {
+      await definirBloqueio(p.id, !p.bloqueado);
+      onToast(p.bloqueado ? "Usuário desbloqueado" : "Usuário bloqueado");
+      onReload();
+    } catch (e) {
+      onToast("Erro: " + (e.message || "falha"));
+    }
+  }
+
+  async function excluir(p) {
+    if (!confirm(`Excluir ${p.nome || "este usuário"} permanentemente? Esta ação remove o acesso ao sistema.`)) return;
+    try {
+      await excluirPerfil(p.id);
+      onToast("Usuário excluído");
+      onReload();
+    } catch (e) {
+      onToast("Erro: " + (e.message || "falha"));
     }
   }
 }

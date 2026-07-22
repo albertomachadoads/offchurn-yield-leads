@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { signIn } from "./auth";
 
-export default function Login() {
+export default function Login({ aviso }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -43,6 +43,7 @@ export default function Login() {
               onChange={(e) => setSenha(e.target.value)} placeholder="••••••••" />
           </div>
 
+          {aviso && <div className="login-erro">{aviso}</div>}
           {erro && <div className="login-erro">{erro}</div>}
 
           <button className="btn btn-primary login-btn" type="submit" disabled={carregando || !email || !senha}>
