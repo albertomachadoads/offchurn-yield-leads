@@ -369,6 +369,7 @@ export default function App() {
               recarregar();
             }}
             onSincronizarCliente={async () => { const r = await api.metaSincronizar(clienteAberto.id); recarregar(); return r; }}
+            onBuscarInsights={api.metaInsights}
             onToast={showToast}
           />
         )}

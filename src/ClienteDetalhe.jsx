@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { fmtMoeda, fmtData } from "./utils";
 import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
+import MetricasMeta from "./MetricasMeta.jsx";
 import {
   projecaoVerba, projecaoCPA, corVerba, corCPA,
   tempoDeCasa, faixaNPS, competencia,
@@ -19,7 +20,7 @@ function Info({ label, valor, cor }) {
 
 export default function ClienteDetalhe({
   cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin,
-  onListarContasMeta, onVincularConta, onSincronizarCliente, onToast,
+  onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights, onToast,
 }) {
   const comp = competencia();
   const [contasMeta, setContasMeta] = useState(null); // null = ainda não buscou
@@ -193,6 +194,8 @@ export default function ClienteDetalhe({
           </p>
         )}
       </div>
+
+      <MetricasMeta cliente={cliente} onBuscar={onBuscarInsights} onToast={onToast} />
 
       <div className="det-grid">
         {/* dados de cadastro */}

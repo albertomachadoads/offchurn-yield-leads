@@ -233,6 +233,15 @@ export async function metaSincronizar(clienteId) {
   return data; // { competencia, resultados: [...] }
 }
 
+export async function metaInsights(clienteId, since, until) {
+  const { data, error } = await supabase.functions.invoke("meta-sync", {
+    body: { action: "insights", clienteId, since, until },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.erro || "Falha ao buscar métricas");
+  return data; // { periodo, periodoAnterior, atual, anterior, campanhas }
+}
+
 // ===== Realtime: assina mudanças em todas as tabelas =====
 export function subscribeAll(onChange) {
   const ch = supabase
