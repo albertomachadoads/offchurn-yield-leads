@@ -374,6 +374,18 @@ export default function App() {
             funil={data.funil || []}
             onSalvarFunil={salvarFunil}
             onBuscarInsights={api.metaInsights}
+            onListarContasGoogle={api.googleListarContas}
+            onVincularContaGoogle={async (contaId, mccId) => {
+              const atual = data.clientes.find((c) => c.id === clienteAberto.id);
+              if (contaId) {
+                const dono = data.clientes.find((c) => c.googleAdCustomerId === contaId && c.id !== atual.id);
+                if (dono) await api.upsertCliente({ ...dono, googleAdCustomerId: null, googleMccId: null });
+              }
+              await api.upsertCliente({ ...atual, googleAdCustomerId: contaId, googleMccId: mccId });
+              recarregar();
+            }}
+            onSincronizarGoogle={async () => { const r = await api.googleSincronizar(clienteAberto.id); recarregar(); return r; }}
+            onBuscarInsightsGoogle={api.googleInsights}
             onToast={showToast}
           />
         )}

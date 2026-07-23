@@ -21,10 +21,15 @@ function Info({ label, valor, cor }) {
 
 export default function ClienteDetalhe({
   cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin,
-  onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights, funil, onSalvarFunil, onToast,
+  onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights,
+  onListarContasGoogle, onVincularContaGoogle, onSincronizarGoogle, onBuscarInsightsGoogle,
+  funil, onSalvarFunil, onToast,
 }) {
   const comp = competencia();
-  const [contasMeta, setContasMeta] = useState(null); // null = ainda não buscou
+  const [contasMeta, setContasMeta] = useState(null);
+  const [contasGoogle, setContasGoogle] = useState(null);
+  const [buscandoGoogle, setBuscandoGoogle] = useState(false);
+  const [sincGoogle, setSincGoogle] = useState(false); // null = ainda não buscou
   const [buscandoContas, setBuscandoContas] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -66,6 +71,27 @@ export default function ClienteDetalhe({
       setSincronizando(false);
     }
   }
+
+  async function carregarContasGoogle() {
+    setBuscandoGoogle(true);
+    try { setContasGoogle(await onListarContasGoogle()); }
+    catch (e) { onToast("Erro: " + (e.message || "falha")); setContasGoogle([]); }
+    finally { setBuscandoGoogle(false); }
+  }
+  async function vincularGoogle(contaId, mccId) {
+    try { await onVincularContaGoogle(contaId || null, mccId || null); onToast(contaId ? "Conta Google vinculada" : "Vínculo removido"); }
+    catch (e) { onToast("Erro: " + (e.message || "falha")); }
+  }
+  async function sincronizarGoogle() {
+    setSincGoogle(true);
+    try {
+      const r = await onSincronizarGoogle();
+      const item = (r?.resultados || [])[0];
+      onToast(item?.ok ? `Google sincronizado: ${item.conversoes || 0} conversões` : "Falha: " + (item?.erro || "sem dados"));
+    } catch (e) { onToast("Erro: " + (e.message || "falha")); }
+    finally { setSincGoogle(false); }
+  }
+
   const desemp = useMemo(
     () => (desempenho || []).find((d) => d.clienteId === cliente.id && d.competencia === comp),
     [desempenho, cliente.id, comp]
@@ -225,7 +251,55 @@ export default function ClienteDetalhe({
 
       </div>
 
-      <MetricasMeta cliente={cliente} onBuscar={onBuscarInsights} onToast={onToast} />
+      {/* integração Google Ads */}
+      <div className="card card-pad" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h3 className="dash-title" style={{ margin: 0 }}>Integração Google Ads</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-soft)" }}>
+              {cliente.googleAdCustomerId
+                ? <>Conta vinculada: <strong>{cliente.googleAdCustomerId}</strong></>
+                : "Nenhuma conta Google Ads vinculada."}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {contasGoogle === null ? (
+              <button className="btn btn-sm" onClick={carregarContasGoogle} disabled={buscandoGoogle}>
+                {buscandoGoogle ? "Buscando…" : (cliente.googleAdCustomerId ? "Trocar conta" : "Conectar conta")}
+              </button>
+            ) : (
+              <select className="select" style={{ maxWidth: 320 }}
+                value={cliente.googleAdCustomerId ? `${cliente.googleMccId || ""}|${cliente.googleAdCustomerId}` : ""}
+                onChange={(e) => {
+                  const [mcc, cid] = (e.target.value || "").split("|");
+                  vincularGoogle(cid || null, mcc || null);
+                }}>
+                <option value="">— sem vínculo —</option>
+                {(contasGoogle || []).map((mcc) => (
+                  <optgroup key={mcc.mccId} label={`📁 ${mcc.mccNome} (${mcc.mccId})`}>
+                    {mcc.contas.map((ct) => (
+                      <option key={ct.id} value={`${mcc.mccId}|${ct.id}`}>
+                        {ct.nome} ({ct.id})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+            <button className="btn btn-sm btn-primary" onClick={sincronizarGoogle}
+              disabled={sincGoogle || !cliente.googleAdCustomerId}>
+              {sincGoogle ? "Sincronizando…" : "↻ Sincronizar Google"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+            <MetricasMeta cliente={cliente} onBuscar={onBuscarInsights} onToast={onToast} />
+
+      {cliente.googleAdCustomerId && (
+        <MetricasMeta cliente={{...cliente, metaAdAccountId: cliente.googleAdCustomerId, _plataforma: "Google"}}
+          onBuscar={onBuscarInsightsGoogle} onToast={onToast} tituloExtra=" (Google Ads)" />
+      )}
 
       <FunilCliente cliente={cliente} funil={funil} onSalvar={onSalvarFunil} onToast={onToast} />
 

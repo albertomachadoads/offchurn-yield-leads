@@ -10,6 +10,8 @@ const mapCliente = (r) => ({
   nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
   cpaMeta: r.cpa_meta,
   metaAdAccountId: r.meta_ad_account_id,
+  googleAdCustomerId: r.google_ad_customer_id,
+  googleMccId: r.google_mcc_id,
   objetivo: r.objetivo || "Lead",
 });
 const mapFunil = (r) => ({
@@ -93,6 +95,8 @@ export async function upsertCliente(c) {
     plat_google: !!c.platGoogle,
     plat_meta: !!c.platMeta,
     objetivo: c.objetivo || "Lead",
+    google_mcc_id: (c.googleMccId === "" || c.googleMccId == null) ? null : String(c.googleMccId),
+    google_ad_customer_id: (c.googleAdCustomerId === "" || c.googleAdCustomerId == null) ? null : String(c.googleAdCustomerId),
     meta_ad_account_id: (c.metaAdAccountId === "" || c.metaAdAccountId == null) ? null : String(c.metaAdAccountId),
     cpa_meta: num(c.cpaMeta),
   };
@@ -270,6 +274,34 @@ export async function metaInsights(clienteId, since, until) {
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.erro || "Falha ao buscar métricas");
   return data; // { periodo, periodoAnterior, atual, anterior, campanhas }
+}
+
+// ===== INTEGRAÇÃO GOOGLE ADS (via Edge Function google-sync) =====
+export async function googleListarContas() {
+  const { data, error } = await supabase.functions.invoke("google-sync", {
+    body: { action: "contas" },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.erro || "Falha ao listar contas Google");
+  return data.mccs || []; // hierarquia: [{ mccId, mccNome, contas: [...] }]
+}
+
+export async function googleSincronizar(clienteId) {
+  const { data, error } = await supabase.functions.invoke("google-sync", {
+    body: clienteId ? { action: "sync", clienteId } : { action: "sync" },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.erro || "Falha ao sincronizar Google");
+  return data;
+}
+
+export async function googleInsights(clienteId, since, until) {
+  const { data, error } = await supabase.functions.invoke("google-sync", {
+    body: { action: "insights", clienteId, since, until },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.erro || "Falha ao buscar métricas Google");
+  return data;
 }
 
 // ===== Realtime: assina mudanças em todas as tabelas =====
