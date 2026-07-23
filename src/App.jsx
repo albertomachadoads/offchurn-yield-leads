@@ -162,8 +162,7 @@ export default function App() {
   async function excluirCliente(id) {
     if (!confirm("Excluir este cliente permanentemente? Todos os dados relacionados serão removidos.")) return;
     try {
-      const { error } = await supabase.from("clientes").delete().eq("id", id);
-      if (error) throw error;
+      await api.deleteCliente(id);
       showToast("Cliente excluído");
       recarregar();
     } catch (e) { showToast("Erro: " + (e.message || "falha")); }
@@ -262,26 +261,26 @@ export default function App() {
         </div>
         <nav className="nav">
           <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
-            <Icon.ListCheck /> Acompanhamento
+            <Icon.ListCheck /> <span>Acompanhamento</span>
           </button>
           <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
-            <Icon.Target /> Follow de Ações
+            <Icon.Target /> <span>Follow de Ações</span>
           </button>
           <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}>
-            <Icon.Grid /> Clientes
+            <Icon.Grid /> <span>Clientes</span>
           </button>
           <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
-            <Icon.Users /> Gestão de Clientes
+            <Icon.Users /> <span>Gestão de Clientes</span>
           </button>
           <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
-            <Icon.Cash /> Fluxo de Caixa
+            <Icon.Cash /> <span>Fluxo de Caixa</span>
           </button>
 
           {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
-            <Icon.Folder /> Cadastros
+            <Icon.Folder /> <span>Cadastros</span>
           </button>}
           {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-            <Icon.Users /> Administradores
+            <Icon.Users /> <span>Administradores</span>
           </button>}
         </nav>
         <div className="sidebar-foot">

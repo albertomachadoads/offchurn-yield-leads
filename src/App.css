@@ -129,19 +129,6 @@ table.grid tbody tr:hover { background: var(--green-soft); }
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 80; box-shadow: 0 8px 24px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px; }
 .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); margin: 0 0 12px; }
 
-/* sidebar mini: espaçamento dos ícones */
-.sidebar-mini .sidebar .nav {
-  padding: 14px 8px;
-  gap: 6px;
-}
-.sidebar-mini .sidebar .nav button {
-  justify-content: center;
-  padding: 12px 10px;
-  min-height: 42px;
-}
-.sidebar-mini .sidebar:hover .nav button {
-  justify-content: flex-start;
-}
 
 /* link clicável no nome do cliente (Acompanhamento) */
 .link-cliente {
@@ -150,6 +137,33 @@ table.grid tbody tr:hover { background: var(--green-soft); }
   text-decoration: none; font-weight: 600;
 }
 .link-cliente:hover { color: var(--green-deep); text-decoration: underline; }
+
+
+/* sidebar mini: só ícones visíveis, bem espaçados */
+.sidebar-mini .sidebar .nav {
+  padding: 14px 8px;
+  gap: 4px;
+  align-items: center;
+}
+.sidebar-mini .sidebar .nav button {
+  justify-content: center;
+  padding: 12px;
+  min-height: 44px;
+  width: 44px;
+  border-radius: 10px;
+}
+.sidebar-mini .sidebar .nav button span {
+  display: none;
+}
+/* quando expande (hover), mostra tudo */
+.sidebar-mini .sidebar:hover .nav button {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+}
+.sidebar-mini .sidebar:hover .nav button span {
+  display: inline;
+}
 
 @media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .main { padding: 16px; } .tiles { grid-template-columns: 1fr; } .topbar { padding: 0 14px; } }
