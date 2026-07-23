@@ -119,7 +119,7 @@ export default function App() {
 
   const registrosFiltrados = useMemo(() => {
     return (data.acompanhamentos || [])
-      .filter((r) => semana.size === 0 ? true : semana.has(r.clienteId))
+      .filter((r) => true) // todos os clientes ativos aparecem
       .filter((r) => {
         if (fGestor !== "todos" && cliById[r.clienteId]?.responsavelId !== fGestor) return false;
         if (fAder !== "todas" && r.aderencia !== fAder) return false;
@@ -159,6 +159,16 @@ export default function App() {
     if (!confirm("Excluir este registro do histórico?")) return;
     try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar(); }
     catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  async function excluirCliente(id) {
+    if (!confirm("Excluir este cliente permanentemente? Todos os dados relacionados serão removidos.")) return;
+    try {
+      const { error } = await supabase.from("clientes").delete().eq("id", id);
+      if (error) throw error;
+      showToast("Cliente excluído");
+      recarregar();
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+
   }
 
   async function salvarCliente(c) {
@@ -266,9 +276,7 @@ export default function App() {
           <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
             <Icon.Cash /> Fluxo de Caixa
           </button>
-          <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>
-            <Icon.Calendar /> Clientes da semana
-          </button>
+
           {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
             <Icon.Folder /> Cadastros
           </button>}
@@ -305,6 +313,7 @@ export default function App() {
             fDe={fDe} setFDe={setFDe} fAte={fAte} setFAte={setFAte}
             gestores={data.gestores}
             painelPorCliente={painelPorCliente}
+            onAbrirCliente={(c) => { if (c) { setClienteAberto(c); setView("clientes"); } }}
             onNovo={() => setRegModal({ novo: true })}
             onEditar={(r) => setRegModal(r)}
             onExcluir={excluirRegistro}
@@ -405,17 +414,12 @@ export default function App() {
             onToast={showToast}
           />
         )}
-        {view === "semana" && (
-          <SemanaSelector
-            clientes={data.clientes} semana={semana} setSemana={setSemana}
-            respDoCliente={respDoCliente}
-          />
-        )}
-        {view === "cadastros" && isAdmin && (
+                {view === "cadastros" && isAdmin && (
           <Cadastros
             data={{ ...data, registros: data.acompanhamentos }}
             onNovoCliente={() => setCliModal({ novo: true })}
             onEditarCliente={(c) => setCliModal(c)}
+            onExcluirCliente={excluirCliente}
             onToggleAtivo={(id) => { const c = cliById[id]; if (c) toggleAtivo(c); }}
             onNovoGestor={() => setGestModal({ novo: true })}
             onEditarGestor={(g) => setGestModal(g)}
@@ -497,7 +501,7 @@ function TaxaQualBar({ pct }) {
 function Acompanhamento(props) {
   const { stats, registros, semana, respDoCliente, cliById, busca, setBusca,
     fGestor, setFGestor, fAder, setFAder, fDe, setFDe, fAte, setFAte,
-    gestores, painelPorCliente, onNovo, onEditar, onExcluir, onExportar } = props;
+    gestores, painelPorCliente, onAbrirCliente, onNovo, onEditar, onExcluir, onExportar } = props;
 
   // taxa de qualificação do cliente, vinda do Painel
   const taxaQualDoCliente = (clienteId) => {
@@ -583,7 +587,7 @@ function Acompanhamento(props) {
                 <tr key={r.id}>
                   <td className="cell-num">{fmtData(r.data)}</td>
                   <td>{respDoCliente(r.clienteId)}</td>
-                  <td className="cell-cliente">{cliById[r.clienteId]?.nome || "—"}</td>
+                  <td className="cell-cliente"><button className="link-cliente" onClick={() => onAbrirCliente && onAbrirCliente(cliById[r.clienteId])}>{cliById[r.clienteId]?.nome || "—"}</button></td>
                   <td><TaxaQualBar pct={pctQual} /></td>
                   <td className="cell-acomp">{r.acompanhamento || "—"}</td>
                   <td>
@@ -643,7 +647,7 @@ function SemanaSelector({ clientes, semana, setSemana, respDoCliente }) {
 }
 
 /* ============ CADASTROS ============ */
-function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onNovaPessoa, onEditarPessoa, gestById }) {
+function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onNovaPessoa, onEditarPessoa, gestById }) {
   const pessoas = data.pessoas || [];
   const tarefas = data.tarefas || [];
   return (
@@ -677,6 +681,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
                     {c.ativo ? "Ativo" : "Inativo"}
                   </span>
                   <button className="iconbtn" onClick={() => onEditarCliente(c)} aria-label="Editar"><Icon.Edit /></button>
+                  <button className="iconbtn" onClick={() => onExcluirCliente(c.id)} aria-label="Excluir" title="Excluir cliente"><Icon.Trash /></button>
                 </div>
               </div>
             ))}
