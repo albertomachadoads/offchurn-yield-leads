@@ -51,6 +51,8 @@ const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export async function adminCriarUsuario({ email, senha, nome, papel }) {
+  if (!senha || senha.length < 6) throw new Error("A senha precisa ter pelo menos 6 caracteres.");
+  if (!email || !email.includes("@")) throw new Error("E-mail inválido.");
   // cliente temporário, sem persistir sessão, para não derrubar o admin logado
   const temp = createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },

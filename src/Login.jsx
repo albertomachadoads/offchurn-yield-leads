@@ -10,6 +10,7 @@ export default function Login({ aviso }) {
   async function entrar(e) {
     e?.preventDefault();
     setErro("");
+    if (senha.length < 6) { setErro("A senha precisa ter pelo menos 6 caracteres."); return; }
     setCarregando(true);
     try {
       await signIn(email.trim(), senha);
