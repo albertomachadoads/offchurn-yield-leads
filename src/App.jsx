@@ -159,6 +159,8 @@ export default function App() {
     if (!confirm("Excluir este registro do histórico?")) return;
     try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar(); }
     catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+
   async function excluirCliente(id) {
     if (!confirm("Excluir este cliente permanentemente? Todos os dados relacionados serão removidos.")) return;
     try {
@@ -166,8 +168,6 @@ export default function App() {
       showToast("Cliente excluído");
       recarregar();
     } catch (e) { showToast("Erro: " + (e.message || "falha")); }
-  }
-
   }
 
   async function salvarCliente(c) {
