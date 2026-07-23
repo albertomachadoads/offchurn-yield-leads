@@ -357,6 +357,19 @@ export default function App() {
             isAdmin={isAdmin}
             onVoltar={() => setClienteAberto(null)}
             onEditar={(c) => setCliModal(c)}
+            onListarContasMeta={api.metaListarContas}
+            onVincularConta={async (contaId) => {
+              const atual = data.clientes.find((c) => c.id === clienteAberto.id);
+              // desvincula quem tiver essa conta
+              if (contaId) {
+                const dono = data.clientes.find((c) => c.metaAdAccountId === contaId && c.id !== atual.id);
+                if (dono) await api.upsertCliente({ ...dono, metaAdAccountId: null });
+              }
+              await api.upsertCliente({ ...atual, metaAdAccountId: contaId });
+              recarregar();
+            }}
+            onSincronizarCliente={async () => { const r = await api.metaSincronizar(clienteAberto.id); recarregar(); return r; }}
+            onToast={showToast}
           />
         )}
         {view === "gestao" && (

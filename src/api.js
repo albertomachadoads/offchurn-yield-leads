@@ -13,7 +13,7 @@ const mapCliente = (r) => ({
 });
 const mapDesempenho = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
-  gasto: r.gasto, leads: r.leads,
+  gasto: r.gasto, leads: r.leads, cpaReal: r.cpa_real,
 });
 const mapRecebivel = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
@@ -224,9 +224,9 @@ export async function metaListarContas() {
   return data.contas || [];
 }
 
-export async function metaSincronizar() {
+export async function metaSincronizar(clienteId) {
   const { data, error } = await supabase.functions.invoke("meta-sync", {
-    body: { action: "sync" },
+    body: clienteId ? { action: "sync", clienteId } : { action: "sync" },
   });
   if (error) throw error;
   if (!data?.ok) throw new Error(data?.erro || "Falha ao sincronizar");

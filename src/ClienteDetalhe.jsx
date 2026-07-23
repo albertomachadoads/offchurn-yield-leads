@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { fmtMoeda, fmtData } from "./utils";
 import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
@@ -19,15 +19,58 @@ function Info({ label, valor, cor }) {
 
 export default function ClienteDetalhe({
   cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin,
+  onListarContasMeta, onVincularConta, onSincronizarCliente, onToast,
 }) {
   const comp = competencia();
+  const [contasMeta, setContasMeta] = useState(null); // null = ainda não buscou
+  const [buscandoContas, setBuscandoContas] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+
+  async function carregarContas() {
+    setBuscandoContas(true);
+    try {
+      const lista = await onListarContasMeta();
+      setContasMeta(lista);
+    } catch (e) {
+      onToast("Erro ao buscar contas: " + (e.message || "falha"));
+      setContasMeta([]);
+    } finally {
+      setBuscandoContas(false);
+    }
+  }
+
+  async function vincular(contaId) {
+    try {
+      await onVincularConta(contaId || null);
+      onToast(contaId ? "Conta vinculada" : "Vínculo removido");
+    } catch (e) {
+      onToast("Erro: " + (e.message || "falha"));
+    }
+  }
+
+  async function sincronizar() {
+    setSincronizando(true);
+    try {
+      const r = await onSincronizarCliente();
+      const item = (r?.resultados || [])[0];
+      if (item?.ok) {
+        onToast(`Sincronizado: ${fmtMoeda(item.gasto)} gastos, ${item.leads} resultados`);
+      } else {
+        onToast("Falha: " + (item?.erro || "sem retorno da Meta"));
+      }
+    } catch (e) {
+      onToast("Erro na sincronização: " + (e.message || "falha"));
+    } finally {
+      setSincronizando(false);
+    }
+  }
   const desemp = useMemo(
     () => (desempenho || []).find((d) => d.clienteId === cliente.id && d.competencia === comp),
     [desempenho, cliente.id, comp]
   );
 
   const pv = projecaoVerba(cliente.verbaMensal, desemp?.gasto);
-  const pc = projecaoCPA(cliente.cpaMeta, desemp?.gasto, desemp?.leads);
+  const pc = projecaoCPA(cliente.cpaMeta, desemp?.gasto, desemp?.leads, 10, desemp?.cpaReal);
   const nps = faixaNPS(cliente.nps);
   const tempo = tempoDeCasa(cliente.dataEntrada);
 
@@ -107,6 +150,48 @@ export default function ClienteDetalhe({
           <div className="value">{abertas}</div>
           <div className="hint">de {tarefasCliente.length} no total</div>
         </div>
+      </div>
+
+      {/* integração Meta deste cliente */}
+      <div className="card card-pad" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h3 className="dash-title" style={{ margin: 0 }}>Integração Meta</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-soft)" }}>
+              {cliente.metaAdAccountId
+                ? <>Conta vinculada: <strong>{cliente.metaAdAccountId}</strong></>
+                : "Nenhuma conta de anúncio vinculada a este cliente."}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {contasMeta === null ? (
+              <button className="btn btn-sm" onClick={carregarContas} disabled={buscandoContas}>
+                {buscandoContas ? "Buscando…" : (cliente.metaAdAccountId ? "Trocar conta" : "Conectar conta")}
+              </button>
+            ) : (
+              <select
+                className="select" style={{ maxWidth: 260 }}
+                value={cliente.metaAdAccountId || ""}
+                onChange={(e) => vincular(e.target.value)}
+              >
+                <option value="">— sem vínculo —</option>
+                {contasMeta.map((ct) => (
+                  <option key={ct.id} value={ct.id}>{ct.nome} ({ct.id})</option>
+                ))}
+              </select>
+            )}
+            <button className="btn btn-sm btn-primary" onClick={sincronizar}
+              disabled={sincronizando || !cliente.metaAdAccountId}
+              title={!cliente.metaAdAccountId ? "Vincule uma conta primeiro" : ""}>
+              {sincronizando ? "Sincronizando…" : "↻ Sincronizar dados"}
+            </button>
+          </div>
+        </div>
+        {desemp?.cpaReal != null && (
+          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--ink-faint)" }}>
+            CPA calculado pela Meta (custo médio por resultado das campanhas do mês): {fmtMoeda(desemp.cpaReal)}
+          </p>
+        )}
       </div>
 
       <div className="det-grid">

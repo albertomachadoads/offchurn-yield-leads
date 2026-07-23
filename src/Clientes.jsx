@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { fmtMoeda } from "./utils";
-import { Icon } from "./components.jsx";
+import { Icon, Modal } from "./components.jsx";
 import {
   projecaoVerba, projecaoCPA, corVerba, corCPA,
   iniciais, corAvatar, competencia, tempoDeCasa, faixaNPS,
@@ -65,7 +65,7 @@ function BarraProjecao({ titulo, valorTexto, alvoTexto, pct, pctMarca, cor, lege
 /* ===== Card de um cliente ===== */
 function CardCliente({ cliente, desemp, onAbrir }) {
   const pv = projecaoVerba(cliente.verbaMensal, desemp?.gasto, new Date());
-  const pc = projecaoCPA(cliente.cpaMeta, desemp?.gasto, desemp?.leads);
+  const pc = projecaoCPA(cliente.cpaMeta, desemp?.gasto, desemp?.leads, 10, desemp?.cpaReal);
   const nps = faixaNPS(cliente.nps);
 
   return (
@@ -168,7 +168,7 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVi
   }).length;
   const cpaCaro = lista.filter((c) => {
     const d = desempPorCliente[c.id];
-    const p = projecaoCPA(c.cpaMeta, d?.gasto, d?.leads);
+    const p = projecaoCPA(c.cpaMeta, d?.gasto, d?.leads, 10, d?.cpaReal);
     return p?.status === "acima";
   }).length;
 
@@ -280,13 +280,12 @@ function ContasMetaModal({ clientes, onClose, onListar, onSalvarVinculo, onToast
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h3>Contas de anúncio da Meta</h3>
-          <button className="iconbtn" onClick={onClose} aria-label="Fechar">✕</button>
-        </div>
-        <div className="modal-body">
+    <Modal
+      title="Contas de anúncio da Meta"
+      onClose={onClose}
+      footer={<button className="btn btn-ghost" onClick={onClose}>Fechar</button>}
+    >
+      <div>
           <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 0 }}>
             Estas são as contas que o acesso do OffChurn enxerga no seu portfólio.
             Vincule cada conta ao cliente correspondente — a sincronização usa esse vínculo
@@ -320,12 +319,8 @@ function ContasMetaModal({ clientes, onClose, onListar, onSalvarVinculo, onToast
               </select>
             </div>
           ))}
-        </div>
-        <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={onClose}>Fechar</button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 

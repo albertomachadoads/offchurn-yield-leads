@@ -60,13 +60,16 @@ export function projecaoVerba(verbaMensal, gasto, ref = new Date(), tolerancia =
  *  - desvioPct: % acima/abaixo do alvo (positivo = mais caro que o alvo)
  *  - status: "acima" (vermelho, CPA caro) | "abaixo" (verde, CPA barato) | "no_ritmo"
  */
-export function projecaoCPA(cpaMeta, gasto, leads, tolerancia = 10) {
+export function projecaoCPA(cpaMeta, gasto, leads, tolerancia = 10, cpaRealMeta = null) {
   const alvo = Number(cpaMeta) || 0;
   const g = Number(gasto) || 0;
   const l = Number(leads) || 0;
   if (!alvo) return null;
 
-  const cpaReal = l > 0 ? g / l : null;
+  // se a Meta já forneceu o custo por resultado médio, ele tem prioridade
+  const cpaReal = (cpaRealMeta != null && Number(cpaRealMeta) > 0)
+    ? Number(cpaRealMeta)
+    : (l > 0 ? g / l : null);
   if (cpaReal == null) {
     return { cpaReal: null, alvo, desvioPct: null, status: "sem_dados", pct: 0 };
   }
