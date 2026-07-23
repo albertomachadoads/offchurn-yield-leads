@@ -9,6 +9,7 @@ const mapCliente = (r) => ({
   linkDrive: r.link_drive,
   nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
   cpaMeta: r.cpa_meta,
+  metaAdAccountId: r.meta_ad_account_id,
 });
 const mapDesempenho = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
@@ -82,6 +83,7 @@ export async function upsertCliente(c) {
     nps: num(c.nps),
     plat_google: !!c.platGoogle,
     plat_meta: !!c.platMeta,
+    meta_ad_account_id: (c.metaAdAccountId === "" || c.metaAdAccountId == null) ? null : String(c.metaAdAccountId),
     cpa_meta: num(c.cpaMeta),
   };
   if (c.id) row.id = c.id;
@@ -211,6 +213,25 @@ export async function upsertDesempenho(d, autorId) {
   return mapDesempenho(data);
 }
 
+
+// ===== INTEGRAÇÃO META (via Edge Function meta-sync) =====
+export async function metaListarContas() {
+  const { data, error } = await supabase.functions.invoke("meta-sync", {
+    body: { action: "contas" },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.erro || "Falha ao listar contas");
+  return data.contas || [];
+}
+
+export async function metaSincronizar() {
+  const { data, error } = await supabase.functions.invoke("meta-sync", {
+    body: { action: "sync" },
+  });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.erro || "Falha ao sincronizar");
+  return data; // { competencia, resultados: [...] }
+}
 
 // ===== Realtime: assina mudanças em todas as tabelas =====
 export function subscribeAll(onChange) {

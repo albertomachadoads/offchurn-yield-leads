@@ -326,6 +326,22 @@ export default function App() {
             desempenho={data.desempenho || []}
             onAbrir={(c) => setClienteAberto(c)}
             onLancar={lancarDesempenho}
+            onVincularMeta={{
+              listar: api.metaListarContas,
+              salvar: async (contaId, clienteId) => {
+                // remove o vínculo de quem tinha essa conta e aplica no novo
+                const dono = data.clientes.find((c) => c.metaAdAccountId === contaId);
+                if (dono && dono.id !== clienteId) {
+                  await api.upsertCliente({ ...dono, metaAdAccountId: null });
+                }
+                if (clienteId) {
+                  const cli = data.clientes.find((c) => c.id === clienteId);
+                  if (cli) await api.upsertCliente({ ...cli, metaAdAccountId: contaId });
+                }
+                recarregar();
+              },
+            }}
+            onSincronizarMeta={async () => { const r = await api.metaSincronizar(); recarregar(); return r; }}
             onToast={showToast}
           />
         )}

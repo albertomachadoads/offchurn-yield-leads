@@ -128,10 +128,27 @@ function CardCliente({ cliente, desemp, onAbrir }) {
 }
 
 /* ===== Módulo principal ===== */
-export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onToast }) {
+export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVincularMeta, onSincronizarMeta, onToast }) {
   const [busca, setBusca] = useState("");
   const [modal, setModal] = useState(null);
+  const [modalMeta, setModalMeta] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
   const comp = competencia();
+
+  async function sincronizar() {
+    setSincronizando(true);
+    try {
+      const r = await onSincronizarMeta();
+      const ok = (r?.resultados || []).filter((x) => x.ok).length;
+      const falhas = (r?.resultados || []).filter((x) => !x.ok);
+      onToast(`Meta sincronizada: ${ok} cliente(s) atualizados${falhas.length ? `, ${falhas.length} com erro` : ""}`);
+      if (falhas.length) console.warn("Falhas na sincronização Meta:", falhas);
+    } catch (e) {
+      onToast("Erro na sincronização: " + (e.message || "falha"));
+    } finally {
+      setSincronizando(false);
+    }
+  }
 
   const desempPorCliente = useMemo(() => {
     const m = {};
@@ -163,6 +180,12 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onTo
           <p>Acompanhamento de verba e CPA do mês corrente. Clique num cliente para ver a ficha completa.</p>
         </div>
         <div className="head-actions">
+          <button className="btn" onClick={() => setModalMeta(true)}>
+            <Icon.Users /> Contas Meta
+          </button>
+          <button className="btn" onClick={sincronizar} disabled={sincronizando}>
+            {sincronizando ? "Sincronizando…" : <>↻ Sincronizar Meta</>}
+          </button>
           <button className="btn btn-primary" onClick={() => setModal({ novo: true })}>
             <Icon.Plus /> Lançar gasto / leads
           </button>
@@ -205,7 +228,104 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onTo
           onSalvar={async (d) => { await onLancar(d); onToast("Lançamento salvo"); setModal(null); }}
         />
       )}
+
+      {modalMeta && (
+        <ContasMetaModal
+          clientes={clientes}
+          onClose={() => setModalMeta(false)}
+          onListar={onVincularMeta.listar}
+          onSalvarVinculo={onVincularMeta.salvar}
+          onToast={onToast}
+        />
+      )}
     </>
+  );
+}
+
+/* ===== Modal: vincular contas de anúncio da Meta aos clientes ===== */
+function ContasMetaModal({ clientes, onClose, onListar, onSalvarVinculo, onToast }) {
+  const [contas, setContas] = useState(null);   // null = carregando
+  const [erro, setErro] = useState("");
+  const [salvandoId, setSalvandoId] = useState(null);
+
+  // vínculos atuais: conta -> cliente
+  const vinculoPorConta = useMemo(() => {
+    const m = {};
+    (clientes || []).forEach((c) => { if (c.metaAdAccountId) m[c.metaAdAccountId] = c.id; });
+    return m;
+  }, [clientes]);
+
+  useState(() => {
+    (async () => {
+      try {
+        const lista = await onListar();
+        setContas(lista);
+      } catch (e) {
+        setErro(e.message || "Falha ao buscar contas na Meta");
+        setContas([]);
+      }
+    })();
+  });
+
+  async function vincular(contaId, clienteId) {
+    setSalvandoId(contaId);
+    try {
+      await onSalvarVinculo(contaId, clienteId || null);
+      onToast(clienteId ? "Conta vinculada" : "Vínculo removido");
+    } catch (e) {
+      onToast("Erro: " + (e.message || "falha"));
+    } finally {
+      setSalvandoId(null);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h3>Contas de anúncio da Meta</h3>
+          <button className="iconbtn" onClick={onClose} aria-label="Fechar">✕</button>
+        </div>
+        <div className="modal-body">
+          <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 0 }}>
+            Estas são as contas que o acesso do OffChurn enxerga no seu portfólio.
+            Vincule cada conta ao cliente correspondente — a sincronização usa esse vínculo
+            para saber de quem é cada gasto.
+          </p>
+
+          {erro && <div className="login-erro">{erro}</div>}
+          {contas === null && <div style={{ padding: 20, textAlign: "center", color: "var(--ink-faint)" }}>Buscando contas na Meta…</div>}
+          {contas !== null && contas.length === 0 && !erro && (
+            <div style={{ padding: 20, textAlign: "center", color: "var(--ink-faint)" }}>
+              Nenhuma conta encontrada para este acesso.
+            </div>
+          )}
+
+          {(contas || []).map((ct) => (
+            <div className="list-row" key={ct.id}>
+              <div>
+                <div className="lr-name">{ct.nome}</div>
+                <div className="lr-meta">{ct.id}{ct.moeda ? ` · ${ct.moeda}` : ""}</div>
+              </div>
+              <select
+                className="select" style={{ maxWidth: 220 }}
+                disabled={salvandoId === ct.id}
+                value={vinculoPorConta[ct.id] || ""}
+                onChange={(e) => vincular(ct.id, e.target.value)}
+              >
+                <option value="">— sem vínculo —</option>
+                {(clientes || []).filter((c) => c.ativo).map((c) => (
+                  <option key={c.id} value={c.id}>{c.nome}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+        <div className="modal-foot">
+          <button className="btn btn-ghost" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
