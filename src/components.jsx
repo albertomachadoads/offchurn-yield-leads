@@ -88,6 +88,11 @@ export const Icon = {
       <circle cx="12" cy="12" r="9" /><path d="M5.6 5.6l12.8 12.8" />
     </svg>
   ),
+  Cash: (p) => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
+      <rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" />
+    </svg>
+  ),
 };
 
 export function AderenciaBadge({ value }) {

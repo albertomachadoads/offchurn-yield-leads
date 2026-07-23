@@ -5,6 +5,8 @@ import { fmtData, fmtValor, fmtMoeda, hoje, exportarXLSX } from "./utils";
 import { Icon, Modal } from "./components.jsx";
 import { calcTaxas, corTaxa } from "./taxas";
 import Painel from "./Painel.jsx";
+import GestaoClientes from "./GestaoClientes.jsx";
+import FluxoCaixa from "./FluxoCaixa.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Login from "./Login.jsx";
@@ -13,7 +15,7 @@ import { supabaseConfigured } from "./supabaseClient";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
 
-const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [] };
+const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [], recebiveis: [] };
 
 export default function App() {
   // ----- sessão / auth -----
@@ -192,6 +194,11 @@ export default function App() {
     recarregar();
   }
 
+  async function marcarPago(dados) {
+    await api.upsertRecebivel(dados, user?.id);
+    recarregar();
+  }
+
   const painelPorCliente = useMemo(
     () => Object.fromEntries((data.painel || []).map((p) => [p.clienteId, p])),
     [data.painel]
@@ -231,6 +238,12 @@ export default function App() {
           </button>
           <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
             <Icon.Target /> Follow de Ações
+          </button>
+          <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
+            <Icon.Users /> Gestão de Clientes
+          </button>
+          <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
+            <Icon.Cash /> Fluxo de Caixa
           </button>
           <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>
             <Icon.Calendar /> Clientes da semana
@@ -294,6 +307,22 @@ export default function App() {
             onDelete={excluirTarefa}
             onToast={showToast}
             isAdmin={isAdmin}
+          />
+        )}
+        {view === "gestao" && (
+          <GestaoClientes
+            clientes={data.clientes}
+            gestById={gestById}
+            isAdmin={isAdmin}
+            onEditar={(c) => setCliModal(c)}
+          />
+        )}
+        {view === "fluxo" && (
+          <FluxoCaixa
+            clientes={data.clientes}
+            recebiveis={data.recebiveis || []}
+            onMarcarPago={marcarPago}
+            onToast={showToast}
           />
         )}
         {view === "semana" && (
@@ -692,6 +721,13 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     ativo: base.ativo ?? true,
     cpa: base.cpa ?? "",
     verbaMensal: base.verbaMensal ?? "",
+    nicho: base.nicho || "",
+    dataEntrada: base.dataEntrada || "",
+    dataSaidaPrevista: base.dataSaidaPrevista || "",
+    ticket: base.ticket ?? "",
+    recorrencia: base.recorrencia || "Mensal",
+    diaPagamento: base.diaPagamento ?? "",
+    linkDrive: base.linkDrive || "",
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
@@ -703,16 +739,58 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
         <button className="btn btn-primary" onClick={() => f.nome.trim() && onSave(f)} disabled={!f.nome.trim()}>Salvar</button>
       </>}
     >
-      <div className="form-row">
-        <label>Nome do cliente</label>
-        <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Pink Ninas" autoFocus />
+      <div className="form-grid">
+        <div className="form-row">
+          <label>Nome do cliente</label>
+          <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Pink Ninas" autoFocus />
+        </div>
+        <div className="form-row">
+          <label>Nicho</label>
+          <input className="input" value={f.nicho} onChange={(e) => set("nicho", e.target.value)} placeholder="Ex.: Moda, Advocacia" />
+        </div>
       </div>
+
       <div className="form-row">
         <label>Gestor responsável</label>
         <select className="select" value={f.responsavelId} onChange={(e) => set("responsavelId", e.target.value)}>
           {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
       </div>
+
+      <div className="modal-sec">Contrato</div>
+      <div className="form-grid">
+        <div className="form-row">
+          <label>Data de entrada</label>
+          <input type="date" className="input" value={f.dataEntrada} onChange={(e) => set("dataEntrada", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Saída prevista</label>
+          <input type="date" className="input" value={f.dataSaidaPrevista} onChange={(e) => set("dataSaidaPrevista", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-grid form-grid-3">
+        <div className="form-row">
+          <label>Ticket (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 2500,00"
+            value={f.ticket} onChange={(e) => set("ticket", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Recorrência</label>
+          <select className="select" value={f.recorrencia} onChange={(e) => set("recorrencia", e.target.value)}>
+            <option value="Mensal">Mensal</option>
+            <option value="Único">Pagamento único</option>
+          </select>
+        </div>
+        <div className="form-row">
+          <label>Dia do pagamento</label>
+          <input type="number" min="1" max="31" className="input" placeholder="Ex.: 10"
+            value={f.diaPagamento} onChange={(e) => set("diaPagamento", e.target.value)}
+            disabled={f.recorrencia === "Único"} />
+        </div>
+      </div>
+
+      <div className="modal-sec">Tráfego</div>
       <div className="form-grid">
         <div className="form-row">
           <label>CPA (R$)</label>
@@ -725,6 +803,13 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
             value={f.verbaMensal} onChange={(e) => set("verbaMensal", e.target.value)} />
         </div>
       </div>
+
+      <div className="form-row">
+        <label>Link do Drive</label>
+        <input className="input" value={f.linkDrive} onChange={(e) => set("linkDrive", e.target.value)}
+          placeholder="https://drive.google.com/..." />
+      </div>
+
       <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <input type="checkbox" id="ativo" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} />
         <label htmlFor="ativo" style={{ margin: 0 }}>Cliente ativo (aparece no seletor da semana)</label>

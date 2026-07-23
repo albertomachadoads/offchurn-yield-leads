@@ -396,3 +396,49 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
   .sidebar-mini .sidebar .tt-label { opacity: 1; }
   .sidebar-mini .sidebar { width: 100%; }
 }
+
+/* ============================================================
+   FLUXO DE CAIXA
+   ============================================================ */
+.fluxo-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.fluxo-nav { display: flex; align-items: center; gap: 12px; }
+.fluxo-total { font-size: 13px; color: var(--ink-soft); }
+.fluxo-total strong { color: var(--green-deep); font-size: 15px; }
+
+.meses-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.mes-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 12px 10px; cursor: pointer; text-align: center; transition: all .12s;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.mes-card:hover { border-color: var(--green); }
+.mes-card.on { border-color: var(--green); background: var(--green-softer); box-shadow: 0 0 0 2px var(--green-soft); }
+.mes-card.atual { border-color: var(--green-deep); }
+.mes-nome { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+.mes-valor { font-size: 13px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.mes-card.on .mes-valor { color: var(--green-deep); }
+
+.fluxo-resumo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.fr-item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px; display: flex; flex-direction: column; gap: 4px; }
+.fr-item span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; }
+.fr-item strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.fr-item.ok strong { color: var(--green); }
+.fr-item.pend strong { color: var(--amber); }
+
+/* seções dentro de modais */
+.modal-sec {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-faint); border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px;
+}
+
+/* tema escuro para as novas telas */
+.tema-escuro .mes-card { background: var(--surface); }
+.tema-escuro .mes-card.on { background: var(--green-soft); }
+.tema-escuro .fr-item { background: var(--surface); }
+
+@media (max-width: 1024px) { .meses-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 860px) {
+  .meses-grid { grid-template-columns: repeat(3, 1fr); }
+  .fluxo-resumo { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) { .meses-grid { grid-template-columns: repeat(2, 1fr); } }

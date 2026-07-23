@@ -1,7 +1,17 @@
 import { supabase } from "./supabaseClient";
 
 // ===== Mapeamento banco (snake_case) <-> app (camelCase) =====
-const mapCliente = (r) => ({ id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo, cpa: r.cpa, verbaMensal: r.verba_mensal });
+const mapCliente = (r) => ({
+  id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo,
+  cpa: r.cpa, verbaMensal: r.verba_mensal,
+  nicho: r.nicho, dataEntrada: r.data_entrada, dataSaidaPrevista: r.data_saida_prevista,
+  ticket: r.ticket, recorrencia: r.recorrencia || "Mensal", diaPagamento: r.dia_pagamento,
+  linkDrive: r.link_drive,
+});
+const mapRecebivel = (r) => ({
+  id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
+  valor: r.valor, pago: r.pago, dataPagamento: r.data_pagamento, observacao: r.observacao,
+});
 const mapPainel = (r) => ({
   id: r.id, clienteId: r.cliente_id,
   captados: r.leads_captados, qualificados: r.leads_qualificados, fechados: r.leads_fechados,
@@ -23,7 +33,7 @@ const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel, bloqueado: r
 
 // ===== Carga inicial de tudo =====
 export async function fetchAll() {
-  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel] = await Promise.all([
+  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis] = await Promise.all([
     supabase.from("clientes").select("*").order("nome"),
     supabase.from("gestores").select("*").order("nome"),
     supabase.from("pessoas").select("*").order("nome"),
@@ -31,8 +41,9 @@ export async function fetchAll() {
     supabase.from("tarefas").select("*").order("data", { ascending: false }),
     supabase.from("perfis").select("*").order("nome"),
     supabase.from("painel").select("*"),
+    supabase.from("recebiveis").select("*"),
   ]);
-  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error;
+  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error;
   if (err) throw err;
   return {
     clientes: (clientes.data || []).map(mapCliente),
@@ -42,15 +53,24 @@ export async function fetchAll() {
     tarefas: (tarefas.data || []).map(mapTarefa),
     perfis: (perfis.data || []).map(mapPerfil),
     painel: (painel.data || []).map(mapPainel),
+    recebiveis: (recebiveis.data || []).map(mapRecebivel),
   };
 }
 
 // ===== CLIENTES =====
 export async function upsertCliente(c) {
+  const num = (v) => (v === "" || v == null ? null : Number(v));
+  const txt = (v) => (v === "" || v == null ? null : v);
   const row = {
     nome: c.nome, responsavel_id: c.responsavelId || null, ativo: c.ativo,
-    cpa: (c.cpa === "" || c.cpa == null) ? null : Number(c.cpa),
-    verba_mensal: (c.verbaMensal === "" || c.verbaMensal == null) ? null : Number(c.verbaMensal),
+    cpa: num(c.cpa), verba_mensal: num(c.verbaMensal),
+    nicho: txt(c.nicho),
+    data_entrada: txt(c.dataEntrada),
+    data_saida_prevista: txt(c.dataSaidaPrevista),
+    ticket: num(c.ticket),
+    recorrencia: c.recorrencia || "Mensal",
+    dia_pagamento: num(c.diaPagamento),
+    link_drive: txt(c.linkDrive),
   };
   if (c.id) row.id = c.id;
   const { data, error } = await supabase.from("clientes").upsert(row).select().single();
@@ -141,6 +161,26 @@ export async function upsertPainel(p, autorId) {
   return mapPainel(data);
 }
 
+// ===== RECEBÍVEIS (fluxo de caixa) =====
+export async function upsertRecebivel(r, autorId) {
+  const row = {
+    cliente_id: r.clienteId,
+    competencia: r.competencia,
+    valor: (r.valor === "" || r.valor == null) ? null : Number(r.valor),
+    pago: !!r.pago,
+    data_pagamento: r.dataPagamento || null,
+    observacao: r.observacao || null,
+    atualizado_em: new Date().toISOString(),
+    atualizado_por: autorId || null,
+  };
+  const { data, error } = await supabase
+    .from("recebiveis")
+    .upsert(row, { onConflict: "cliente_id,competencia" })
+    .select().single();
+  if (error) throw error;
+  return mapRecebivel(data);
+}
+
 // ===== Realtime: assina mudanças em todas as tabelas =====
 export function subscribeAll(onChange) {
   const ch = supabase
@@ -152,8 +192,9 @@ export function subscribeAll(onChange) {
     .on("postgres_changes", { event: "*", schema: "public", table: "pessoas" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "perfis" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "painel" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "recebiveis" }, onChange)
     .subscribe();
   return () => supabase.removeChannel(ch);
 }
 
-export { mapCliente, mapGestor, mapPessoa, mapAcomp, mapTarefa, mapPerfil, mapPainel };
+export { mapCliente, mapGestor, mapPessoa, mapAcomp, mapTarefa, mapPerfil, mapPainel, mapRecebivel };
