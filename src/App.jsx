@@ -10,6 +10,8 @@ import Clientes from "./Clientes.jsx";
 import ClienteDetalhe from "./ClienteDetalhe.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
+import Logs from "./Logs.jsx";
+import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured } from "./supabaseClient";
@@ -37,6 +39,9 @@ export default function App() {
   const [tema, setTema] = useState(() => {
     try { return localStorage.getItem("offchurn_tema") || "claro"; } catch { return "claro"; }
   });
+  // instalar captura global de erros (uma vez)
+  useEffect(() => { instalarCaptura(); }, []);
+
   useEffect(() => {
     try { localStorage.setItem("offchurn_tema", tema); } catch { /* ignore */ }
   }, [tema]);
@@ -67,6 +72,7 @@ export default function App() {
       try {
         const u = await getSessionUser();
         setUser(u);
+        if (u) setLogUser(u.id, u.nome);
       } catch (e) {
         if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
       } finally {
@@ -78,6 +84,7 @@ export default function App() {
           const u = await getSessionUser();
           setUser(u);
           setAvisoLogin("");
+          if (u) { setLogUser(u.id, u.nome); logAcao("login", `${u.nome} entrou no sistema`); }
         } catch (e) {
           if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
         }
@@ -282,6 +289,9 @@ export default function App() {
           {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
             <Icon.Users /> <span>Administradores</span>
           </button>}
+          {isAdmin && <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}>
+            <Icon.List /> <span>Logs</span>
+          </button>}
         </nav>
         <div className="sidebar-foot">
           <button className="btn btn-sm btn-ghost tema-toggle" onClick={() => setTema((t) => t === "claro" ? "escuro" : "claro")} title="Alternar tema">
@@ -429,6 +439,9 @@ export default function App() {
         )}
         {view === "admin" && isAdmin && (
           <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
+        )}
+        {view === "logs" && isAdmin && (
+          <Logs onToast={showToast} />
         )}
         </ErrorBoundary>
       </main>

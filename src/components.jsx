@@ -99,6 +99,16 @@ export const Icon = {
       <rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 12h.01M18 12h.01" />
     </svg>
   ),
+  List: (p) => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
+      <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+    </svg>
+  ),
+  Search: (p) => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
+      <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+    </svg>
+  ),
 };
 
 export function AderenciaBadge({ value }) {
