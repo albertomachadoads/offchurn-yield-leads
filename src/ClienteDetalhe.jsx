@@ -94,12 +94,23 @@ export default function ClienteDetalhe({
   const acompCliente = useMemo(
     () => (acompanhamentos || [])
       .filter((a) => a.clienteId === cliente.id)
-      .sort((a, b) => (a.data < b.data ? 1 : -1))
-      .slice(0, 5),
+      .sort((a, b) => (a.data < b.data ? 1 : -1)),
     [acompanhamentos, cliente.id]
   );
 
   const abertas = tarefasCliente.filter((t) => t.etapa !== "Concluída" && t.etapa !== "Cancelada").length;
+
+  // aba ativa da página do cliente
+  const [aba, setAba] = useState("dashboard");
+
+  // tarefas atrasadas: etapa "Atrasada" OU prazo vencido sem conclusão
+  const hojeISO = (() => { const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+  const atrasadas = tarefasCliente.filter((t) => {
+    if (t.etapa === "Concluída" || t.etapa === "Cancelada") return false;
+    if (t.etapa === "Atrasada") return true;
+    return t.prazo && String(t.prazo).split("T")[0] < hojeISO;
+  });
 
   return (
     <>
@@ -125,6 +136,16 @@ export default function ClienteDetalhe({
           {isAdmin && <button className="btn btn-primary" onClick={() => onEditar(cliente)}><Icon.Edit /> Editar cadastro</button>}
         </div>
       </div>
+
+      {atrasadas.length > 0 && (
+        <div className="alerta-atraso">
+          <span className="alerta-ico">!</span>
+          <span>
+            <strong>{atrasadas.length} tarefa{atrasadas.length > 1 ? "s" : ""} atrasada{atrasadas.length > 1 ? "s" : ""}</strong> para este cliente.
+          </span>
+          <button className="btn btn-sm" onClick={() => setAba("tarefas")}>Ver tarefas</button>
+        </div>
+      )}
 
       {/* indicadores do mês */}
       <div className="tiles">
@@ -154,6 +175,18 @@ export default function ClienteDetalhe({
         </div>
       </div>
 
+      {/* abas da página do cliente */}
+      <div className="det-abas">
+        <button className={aba === "dashboard" ? "on" : ""} onClick={() => setAba("dashboard")}>Dashboard</button>
+        <button className={aba === "tarefas" ? "on" : ""} onClick={() => setAba("tarefas")}>
+          Tarefas {atrasadas.length > 0 && <span className="aba-alerta">{atrasadas.length}</span>}
+        </button>
+        {isAdmin && (
+          <button className={aba === "cadastro" ? "on" : ""} onClick={() => setAba("cadastro")}>Dados de cadastro</button>
+        )}
+      </div>
+
+      {aba === "dashboard" && (<>
       {/* integração Meta deste cliente */}
       <div className="card card-pad" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -196,47 +229,15 @@ export default function ClienteDetalhe({
 
       <FunilCliente cliente={cliente} funil={funil} onSalvar={onSalvarFunil} onToast={onToast} />
 
-      <div className="det-grid">
-        {/* dados de cadastro */}
-        <div className="card card-pad">
-          <h3 className="dash-title">Dados de cadastro</h3>
-          <div className="info-grid">
-            <Info label="Gestor responsável" valor={gestById?.[cliente.responsavelId]?.nome} />
-            <Info label="Nicho" valor={cliente.nicho} />
-            <Info label="Entrada" valor={cliente.dataEntrada ? fmtData(cliente.dataEntrada) : null} />
-            <Info label="Saída prevista" valor={cliente.dataSaidaPrevista ? fmtData(cliente.dataSaidaPrevista) : null} />
-            <Info label="Ticket" valor={cliente.ticket ? fmtMoeda(cliente.ticket) : null} />
-            <Info label="Recorrência" valor={cliente.ticket ? (cliente.recorrencia === "Único" ? "Pagamento único" : `Mensal · dia ${cliente.diaPagamento || "?"}`) : null} />
-            <Info label="Verba mensal" valor={cliente.verbaMensal ? fmtMoeda(cliente.verbaMensal) : null} />
-            <Info label="CPA alvo" valor={cliente.cpaMeta ? fmtMoeda(cliente.cpaMeta) : null} />
-            <Info label="Plataformas" valor={[cliente.platGoogle && "Google", cliente.platMeta && "Meta"].filter(Boolean).join(" · ") || null} />
-          </div>
-        </div>
-
-        {/* funil (do Painel) */}
-        <div className="card card-pad">
-          <h3 className="dash-title">Funil de leads</h3>
-          {registroPainel ? (
-            <div className="info-grid">
-              <Info label="Captados" valor={registroPainel.captados} />
-              <Info label="Qualificados" valor={registroPainel.qualificados} />
-              <Info label="Fechados" valor={registroPainel.fechados} />
-              <Info label="Qualificação" valor={taxas.qualificacao != null ? `${taxas.qualificacao}%` : null} cor={corTaxa(taxas.qualificacao)} />
-              <Info label="Fechamento" valor={taxas.fechamento != null ? `${taxas.fechamento}%` : null} cor={corTaxa(taxas.fechamento)} />
-              <Info label="Conversão" valor={taxas.conversao != null ? `${taxas.conversao}%` : null} cor={corTaxa(taxas.conversao)} />
-            </div>
-          ) : (
-            <div className="proj-vazia">Nenhum número lançado no Painel para este cliente.</div>
-          )}
-        </div>
-      </div>
+      {/* Dashboards: funis por plataforma, visão mensal */}
+      <DashboardsFunil cliente={cliente} funil={funil} />
 
       {/* últimos acompanhamentos */}
       <h3 className="dash-title" style={{ marginTop: 22 }}>Últimos acompanhamentos</h3>
       {acompCliente.length === 0 ? (
         <div className="card"><div className="empty"><p>Nenhum acompanhamento registrado.</p></div></div>
       ) : (
-        <div className="card">
+        <div className="card acomp-scroll">
           {acompCliente.map((a) => (
             <div className="list-row" key={a.id}>
               <div>
@@ -248,8 +249,29 @@ export default function ClienteDetalhe({
         </div>
       )}
 
-      {/* tarefas do cliente */}
-      <h3 className="dash-title" style={{ marginTop: 22 }}>Tarefas ({tarefasCliente.length})</h3>
+      </>)}
+
+      {aba === "cadastro" && isAdmin && (
+        <div className="card card-pad">
+          <h3 className="dash-title">Dados de cadastro</h3>
+          <div className="info-grid">
+            <Info label="Gestor responsável" valor={gestById?.[cliente.responsavelId]?.nome} />
+            <Info label="Nicho" valor={cliente.nicho} />
+            <Info label="Objetivo" valor={cliente.objetivo} />
+            <Info label="Entrada" valor={cliente.dataEntrada ? fmtData(cliente.dataEntrada) : null} />
+            <Info label="Saída prevista" valor={cliente.dataSaidaPrevista ? fmtData(cliente.dataSaidaPrevista) : null} />
+            <Info label="Ticket" valor={cliente.ticket ? fmtMoeda(cliente.ticket) : null} />
+            <Info label="Recorrência" valor={cliente.ticket ? (cliente.recorrencia === "Único" ? "Pagamento único" : `Mensal · dia ${cliente.diaPagamento || "?"}`) : null} />
+            <Info label="Verba mensal" valor={cliente.verbaMensal ? fmtMoeda(cliente.verbaMensal) : null} />
+            <Info label="CPA alvo" valor={cliente.cpaMeta ? fmtMoeda(cliente.cpaMeta) : null} />
+            <Info label="Plataformas" valor={[cliente.platGoogle && "Google", cliente.platMeta && "Meta"].filter(Boolean).join(" · ") || null} />
+            <Info label="Conta Meta vinculada" valor={cliente.metaAdAccountId} />
+          </div>
+        </div>
+      )}
+
+      {aba === "tarefas" && (<>
+      <h3 className="dash-title" style={{ marginTop: 4 }}>Tarefas ({tarefasCliente.length})</h3>
       {tarefasCliente.length === 0 ? (
         <div className="card"><div className="empty"><p>Nenhuma tarefa criada para este cliente.</p></div></div>
       ) : (
@@ -273,6 +295,80 @@ export default function ClienteDetalhe({
           </table>
         </div>
       )}
+      </>)}
     </>
+  );
+}
+
+
+/* ============================================================
+   Dashboards — gráfico de funil por plataforma, visão mensal.
+   Usa os dados salvos no Painel de Qualificação (funil_mensal).
+   ============================================================ */
+function GraficoFunil({ titulo, classe, captados, qualificados, vendidos }) {
+  const max = Math.max(1, Number(captados) || 0);
+  const etapas = [
+    { rotulo: "Total de leads", valor: Number(captados) || 0 },
+    { rotulo: "Qualificados", valor: Number(qualificados) || 0 },
+    { rotulo: "Fechados", valor: Number(vendidos) || 0 },
+  ];
+  const t = calcTaxas({ captados, qualificados, fechados: vendidos });
+  const vazio = etapas.every((e) => e.valor === 0);
+  return (
+    <div className="funilg">
+      <div className={`funil-plat ${classe}`}>{titulo}</div>
+      {vazio ? (
+        <div className="proj-vazia" style={{ marginTop: 10 }}>Sem lançamentos neste mês.</div>
+      ) : (
+        <>
+          <div className="funilg-barras">
+            {etapas.map((e, i) => (
+              <div className="funilg-linha" key={e.rotulo}>
+                <span className="funilg-rotulo">{e.rotulo}</span>
+                <div className="funilg-trilha">
+                  <div className={`funilg-barra n${i}`} style={{ width: `${Math.max((e.valor / max) * 100, e.valor > 0 ? 6 : 0)}%` }}>
+                    <span>{e.valor.toLocaleString("pt-BR")}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="funil-taxas" style={{ marginTop: 10 }}>
+            <span>Qualificação: <strong style={{ color: corTaxa(t.qualificacao) }}>{t.qualificacao != null ? `${t.qualificacao}%` : "—"}</strong></span>
+            <span>Fechamento: <strong style={{ color: corTaxa(t.fechamento) }}>{t.fechamento != null ? `${t.fechamento}%` : "—"}</strong></span>
+            <span>Conversão: <strong style={{ color: corTaxa(t.conversao) }}>{t.conversao != null ? `${t.conversao}%` : "—"}</strong></span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function DashboardsFunil({ cliente, funil }) {
+  const compAtual = (() => { const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
+  const [comp, setComp] = useState(compAtual);
+
+  if ((cliente.objetivo || "Lead") !== "Lead") return null; // funil de leads só para objetivo Lead
+
+  const daComp = (plat) =>
+    (funil || []).find((f) => f.clienteId === cliente.id && f.competencia === comp && f.plataforma === plat) || {};
+
+  const meta = daComp("Meta");
+  const google = daComp("Google");
+
+  return (
+    <div className="card card-pad" style={{ marginBottom: 20 }}>
+      <div className="mm-head">
+        <h3 className="dash-title" style={{ margin: 0 }}>Dashboards</h3>
+        <input type="month" className="input" style={{ width: "auto" }} value={comp} onChange={(e) => setComp(e.target.value)} />
+      </div>
+      <div className="funil-grid">
+        <GraficoFunil titulo="Meta" classe="plat-meta"
+          captados={meta.captados} qualificados={meta.qualificados} vendidos={meta.vendidos} />
+        <GraficoFunil titulo="Google" classe="plat-google"
+          captados={google.captados} qualificados={google.qualificados} vendidos={google.vendidos} />
+      </div>
+    </div>
   );
 }
