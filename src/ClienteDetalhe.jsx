@@ -3,6 +3,7 @@ import { fmtMoeda, fmtData } from "./utils";
 import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
 import MetricasMeta from "./MetricasMeta.jsx";
+import FunilCliente from "./FunilCliente.jsx";
 import {
   projecaoVerba, projecaoCPA, corVerba, corCPA,
   tempoDeCasa, faixaNPS, competencia,
@@ -20,7 +21,7 @@ function Info({ label, valor, cor }) {
 
 export default function ClienteDetalhe({
   cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin,
-  onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights, onToast,
+  onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights, funil, onSalvarFunil, onToast,
 }) {
   const comp = competencia();
   const [contasMeta, setContasMeta] = useState(null); // null = ainda não buscou
@@ -188,14 +189,12 @@ export default function ClienteDetalhe({
             </button>
           </div>
         </div>
-        {desemp?.cpaReal != null && (
-          <p style={{ margin: "10px 0 0", fontSize: 12, color: "var(--ink-faint)" }}>
-            CPA calculado pela Meta (custo médio por resultado das campanhas do mês): {fmtMoeda(desemp.cpaReal)}
-          </p>
-        )}
+
       </div>
 
       <MetricasMeta cliente={cliente} onBuscar={onBuscarInsights} onToast={onToast} />
+
+      <FunilCliente cliente={cliente} funil={funil} onSalvar={onSalvarFunil} onToast={onToast} />
 
       <div className="det-grid">
         {/* dados de cadastro */}

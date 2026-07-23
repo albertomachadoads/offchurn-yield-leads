@@ -4,7 +4,6 @@ import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
 import { fmtData, fmtValor, fmtMoeda, hoje, exportarXLSX } from "./utils";
 import { Icon, Modal } from "./components.jsx";
 import { calcTaxas, corTaxa } from "./taxas";
-import Painel from "./Painel.jsx";
 import GestaoClientes from "./GestaoClientes.jsx";
 import FluxoCaixa from "./FluxoCaixa.jsx";
 import Clientes from "./Clientes.jsx";
@@ -192,6 +191,11 @@ export default function App() {
     catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
 
+  async function salvarFunil(dados) {
+    await api.upsertFunil(dados, user?.id);
+    recarregar();
+  }
+
   async function salvarPainel(dados) {
     await api.upsertPainel(dados, user?.id);
     recarregar();
@@ -207,10 +211,19 @@ export default function App() {
     recarregar();
   }
 
-  const painelPorCliente = useMemo(
-    () => Object.fromEntries((data.painel || []).map((p) => [p.clienteId, p])),
-    [data.painel]
-  );
+  const painelPorCliente = useMemo(() => {
+    const d = new Date();
+    const comp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const m = {};
+    (data.funil || []).filter((f) => f.competencia === comp).forEach((f) => {
+      const x = m[f.clienteId] || { captados: 0, qualificados: 0, fechados: 0 };
+      x.captados += f.captados || 0;
+      x.qualificados += f.qualificados || 0;
+      x.fechados += f.vendidos || 0;
+      m[f.clienteId] = x;
+    });
+    return m;
+  }, [data.funil]);
 
   function exportar() {
     const base = registrosFiltrados.length ? registrosFiltrados : data.acompanhamentos;
@@ -240,9 +253,6 @@ export default function App() {
         <nav className="nav">
           <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
             <Icon.ListCheck /> Acompanhamento
-          </button>
-          <button className={view === "painel" ? "active" : ""} onClick={() => setView("painel")}>
-            <Icon.Chart /> Painel
           </button>
           <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
             <Icon.Target /> Follow de Ações
@@ -301,15 +311,7 @@ export default function App() {
             onExportar={exportar}
           />
         )}
-        {view === "painel" && (
-          <Painel
-            clientes={data.clientes}
-            painel={data.painel || []}
-            onSalvar={salvarPainel}
-            onToast={showToast}
-          />
-        )}
-        {view === "follow" && (
+                {view === "follow" && (
           <FollowAcoes
             tarefas={data.tarefas || []}
             clientes={data.clientes}
@@ -369,6 +371,8 @@ export default function App() {
               recarregar();
             }}
             onSincronizarCliente={async () => { const r = await api.metaSincronizar(clienteAberto.id); recarregar(); return r; }}
+            funil={data.funil || []}
+            onSalvarFunil={salvarFunil}
             onBuscarInsights={api.metaInsights}
             onToast={showToast}
           />
@@ -786,6 +790,7 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     cpa: base.cpa ?? "",
     verbaMensal: base.verbaMensal ?? "",
     nicho: base.nicho || "",
+    objetivo: base.objetivo || "Lead",
     dataEntrada: base.dataEntrada || "",
     dataSaidaPrevista: base.dataSaidaPrevista || "",
     ticket: base.ticket ?? "",
@@ -816,6 +821,15 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
           <label>Nicho</label>
           <input className="input" value={f.nicho} onChange={(e) => set("nicho", e.target.value)} placeholder="Ex.: Moda, Advocacia" />
         </div>
+      </div>
+
+      <div className="form-row">
+        <label>Objetivo do cliente</label>
+        <select className="select" value={f.objetivo} onChange={(e) => set("objetivo", e.target.value)}>
+          <option value="Lead">Lead (funil de leads e taxas)</option>
+          <option value="Faturamento">Faturamento (vendas, VGV e ROAS)</option>
+          <option value="Não metrificado">Resultado não metrificado (painel em branco)</option>
+        </select>
       </div>
 
       <div className="form-row">

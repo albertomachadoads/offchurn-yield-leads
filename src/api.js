@@ -10,6 +10,13 @@ const mapCliente = (r) => ({
   nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
   cpaMeta: r.cpa_meta,
   metaAdAccountId: r.meta_ad_account_id,
+  objetivo: r.objetivo || "Lead",
+});
+const mapFunil = (r) => ({
+  id: r.id, clienteId: r.cliente_id, competencia: r.competencia, plataforma: r.plataforma,
+  captados: Number(r.leads_captados) || 0, qualificados: Number(r.leads_qualificados) || 0,
+  vendidos: Number(r.leads_vendidos) || 0,
+  vendas: Number(r.vendas) || 0, vgv: Number(r.vgv) || 0, custo: Number(r.custo) || 0,
 });
 const mapDesempenho = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
@@ -40,7 +47,7 @@ const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel, bloqueado: r
 
 // ===== Carga inicial de tudo =====
 export async function fetchAll() {
-  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis, desempenho] = await Promise.all([
+  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis, desempenho, funil] = await Promise.all([
     supabase.from("clientes").select("*").order("nome"),
     supabase.from("gestores").select("*").order("nome"),
     supabase.from("pessoas").select("*").order("nome"),
@@ -50,8 +57,9 @@ export async function fetchAll() {
     supabase.from("painel").select("*"),
     supabase.from("recebiveis").select("*"),
     supabase.from("desempenho").select("*"),
+    supabase.from("funil_mensal").select("*"),
   ]);
-  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error || desempenho.error;
+  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error || desempenho.error || funil.error;
   if (err) throw err;
   return {
     clientes: (clientes.data || []).map(mapCliente),
@@ -63,6 +71,7 @@ export async function fetchAll() {
     painel: (painel.data || []).map(mapPainel),
     recebiveis: (recebiveis.data || []).map(mapRecebivel),
     desempenho: (desempenho.data || []).map(mapDesempenho),
+    funil: (funil.data || []).map(mapFunil),
   };
 }
 
@@ -83,6 +92,7 @@ export async function upsertCliente(c) {
     nps: num(c.nps),
     plat_google: !!c.platGoogle,
     plat_meta: !!c.platMeta,
+    objetivo: c.objetivo || "Lead",
     meta_ad_account_id: (c.metaAdAccountId === "" || c.metaAdAccountId == null) ? null : String(c.metaAdAccountId),
     cpa_meta: num(c.cpaMeta),
   };
@@ -233,6 +243,26 @@ export async function metaSincronizar(clienteId) {
   return data; // { competencia, resultados: [...] }
 }
 
+export async function upsertFunil(f, autorId) {
+  const row = {
+    cliente_id: f.clienteId, competencia: f.competencia, plataforma: f.plataforma,
+    leads_captados: Number(f.captados) || 0,
+    leads_qualificados: Number(f.qualificados) || 0,
+    leads_vendidos: Number(f.vendidos) || 0,
+    vendas: Number(f.vendas) || 0,
+    vgv: Number(f.vgv) || 0,
+    custo: Number(f.custo) || 0,
+    atualizado_em: new Date().toISOString(),
+    atualizado_por: autorId || null,
+  };
+  const { data, error } = await supabase
+    .from("funil_mensal")
+    .upsert(row, { onConflict: "cliente_id,competencia,plataforma" })
+    .select().single();
+  if (error) throw error;
+  return mapFunil(data);
+}
+
 export async function metaInsights(clienteId, since, until) {
   const { data, error } = await supabase.functions.invoke("meta-sync", {
     body: { action: "insights", clienteId, since, until },
@@ -255,6 +285,7 @@ export function subscribeAll(onChange) {
     .on("postgres_changes", { event: "*", schema: "public", table: "painel" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "recebiveis" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "desempenho" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "funil_mensal" }, onChange)
     .subscribe();
   return () => supabase.removeChannel(ch);
 }

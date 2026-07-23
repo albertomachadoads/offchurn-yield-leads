@@ -55,6 +55,63 @@ export function corVariacao(pct, menorMelhor) {
   return melhorou ? "var(--green)" : "var(--red)";
 }
 
+/** Gera insights em texto a partir das métricas do período vs anterior.
+    Regras determinísticas, foco em leituras positivas e acionáveis. */
+export function gerarInsights(atual = {}, anterior = {}) {
+  const out = [];
+  const pct = (a, b) => (a == null || b == null || Number(b) === 0 ? null : ((a - b) / b) * 100);
+  const abs = (v) => Math.abs(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  const moeda = (v) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
+
+  // 1. Custo por resultado (ou por conversa) melhorou -> projeção de mais resultados
+  const cr = atual.custoResultado ?? atual.custoConversa;
+  const crAnt = anterior.custoResultado ?? anterior.custoConversa;
+  const vCr = pct(cr, crAnt);
+  if (vCr != null && vCr <= -3) {
+    let projecao = "";
+    if (atual.gasto && cr > 0 && crAnt > 0) {
+      const extras = Math.round(atual.gasto / cr - atual.gasto / crAnt);
+      if (extras > 0) projecao = ` Com o mesmo investimento, isso projeta ~${extras} resultado(s) a mais por período — mais volume entrando no funil e mais oportunidades de fechamento.`;
+    }
+    out.push(`O custo por resultado melhorou ${abs(vCr)}% (de ${moeda(crAnt)} para ${moeda(cr)}).${projecao}`);
+  }
+
+  // 2. CPM caiu -> leilão mais barato, momento de escalar
+  const vCpm = pct(atual.cpm, anterior.cpm);
+  if (vCpm != null && vCpm <= -3) {
+    out.push(`O CPM caiu ${abs(vCpm)}% — o leilão está mais barato. Momento favorável para escalar a verba e aproveitar o custo de mídia reduzido.`);
+  }
+
+  // 3. CPC caiu
+  const vCpc = pct(atual.cpc, anterior.cpc);
+  if (vCpc != null && vCpc <= -3) {
+    out.push(`O CPC caiu ${abs(vCpc)}% — cada clique está custando menos, sinal de anúncios mais eficientes.`);
+  }
+
+  // 4. CTR subiu -> criativos performando
+  const vCtr = pct(atual.ctrLink, anterior.ctrLink);
+  if (vCtr != null && vCtr >= 3) {
+    out.push(`O CTR de cliques no link subiu ${abs(vCtr)}% — os criativos estão mais atrativos para o público.`);
+  }
+
+  // 5. Conversas cresceram
+  const vConv = pct(atual.conversas, anterior.conversas);
+  if (vConv != null && vConv >= 3) {
+    out.push(`As conversas iniciadas cresceram ${abs(vConv)}% (${anterior.conversas} → ${atual.conversas}) — mais pessoas chegando até o atendimento.`);
+  }
+
+  // 6. Alcance cresceu
+  const vAlc = pct(atual.alcance, anterior.alcance);
+  if (vAlc != null && vAlc >= 5) {
+    out.push(`O alcance cresceu ${abs(vAlc)}% — a marca está impactando mais pessoas no período.`);
+  }
+
+  if (out.length === 0) {
+    out.push("Período sem evoluções positivas relevantes em relação ao anterior. Vale revisar criativos e segmentações para buscar a próxima melhora.");
+  }
+  return out;
+}
+
 function CardMetrica({ def, atual, anterior }) {
   const v = atual?.[def.chave];
   const vAnt = anterior?.[def.chave];
@@ -178,6 +235,8 @@ export default function MetricasMeta({ cliente, onBuscar, onToast }) {
             ))}
           </div>
 
+          <InsightsBloco atual={dados.atual} anterior={dados.anterior} onToast={onToast} />
+
           <h4 className="mm-sub">Campanhas no período</h4>
           {(dados.campanhas || []).length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>Nenhuma campanha com dados neste período.</p>
@@ -211,6 +270,32 @@ export default function MetricasMeta({ cliente, onBuscar, onToast }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+
+/* ---- Insights para compartilhar com o cliente ---- */
+function InsightsBloco({ atual, anterior, onToast }) {
+  const insights = gerarInsights(atual, anterior);
+  function copiar() {
+    const texto = insights.map((i) => `• ${i}`).join("\n");
+    try {
+      navigator.clipboard.writeText(texto);
+      onToast("Insights copiados — é só colar na conversa com o cliente");
+    } catch {
+      onToast("Não foi possível copiar automaticamente");
+    }
+  }
+  return (
+    <div className="insights-box">
+      <div className="insights-head">
+        <h4 className="mm-sub" style={{ margin: 0 }}>Insights para compartilhar com o cliente</h4>
+        <button className="btn btn-sm" onClick={copiar}>Copiar insights</button>
+      </div>
+      <ul className="insights-lista">
+        {insights.map((i, k) => <li key={k}>{i}</li>)}
+      </ul>
     </div>
   );
 }
