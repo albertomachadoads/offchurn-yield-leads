@@ -7,6 +7,12 @@ const mapCliente = (r) => ({
   nicho: r.nicho, dataEntrada: r.data_entrada, dataSaidaPrevista: r.data_saida_prevista,
   ticket: r.ticket, recorrencia: r.recorrencia || "Mensal", diaPagamento: r.dia_pagamento,
   linkDrive: r.link_drive,
+  nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
+  cpaMeta: r.cpa_meta,
+});
+const mapDesempenho = (r) => ({
+  id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
+  gasto: r.gasto, leads: r.leads,
 });
 const mapRecebivel = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia,
@@ -33,7 +39,7 @@ const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel, bloqueado: r
 
 // ===== Carga inicial de tudo =====
 export async function fetchAll() {
-  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis] = await Promise.all([
+  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis, desempenho] = await Promise.all([
     supabase.from("clientes").select("*").order("nome"),
     supabase.from("gestores").select("*").order("nome"),
     supabase.from("pessoas").select("*").order("nome"),
@@ -42,8 +48,9 @@ export async function fetchAll() {
     supabase.from("perfis").select("*").order("nome"),
     supabase.from("painel").select("*"),
     supabase.from("recebiveis").select("*"),
+    supabase.from("desempenho").select("*"),
   ]);
-  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error;
+  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error || desempenho.error;
   if (err) throw err;
   return {
     clientes: (clientes.data || []).map(mapCliente),
@@ -54,6 +61,7 @@ export async function fetchAll() {
     perfis: (perfis.data || []).map(mapPerfil),
     painel: (painel.data || []).map(mapPainel),
     recebiveis: (recebiveis.data || []).map(mapRecebivel),
+    desempenho: (desempenho.data || []).map(mapDesempenho),
   };
 }
 
@@ -71,6 +79,10 @@ export async function upsertCliente(c) {
     recorrencia: c.recorrencia || "Mensal",
     dia_pagamento: num(c.diaPagamento),
     link_drive: txt(c.linkDrive),
+    nps: num(c.nps),
+    plat_google: !!c.platGoogle,
+    plat_meta: !!c.platMeta,
+    cpa_meta: num(c.cpaMeta),
   };
   if (c.id) row.id = c.id;
   const { data, error } = await supabase.from("clientes").upsert(row).select().single();
@@ -181,6 +193,25 @@ export async function upsertRecebivel(r, autorId) {
   return mapRecebivel(data);
 }
 
+// ===== DESEMPENHO (gasto e leads do mês, por cliente) =====
+export async function upsertDesempenho(d, autorId) {
+  const row = {
+    cliente_id: d.clienteId,
+    competencia: d.competencia,
+    gasto: Number(d.gasto) || 0,
+    leads: Number(d.leads) || 0,
+    atualizado_em: new Date().toISOString(),
+    atualizado_por: autorId || null,
+  };
+  const { data, error } = await supabase
+    .from("desempenho")
+    .upsert(row, { onConflict: "cliente_id,competencia" })
+    .select().single();
+  if (error) throw error;
+  return mapDesempenho(data);
+}
+
+
 // ===== Realtime: assina mudanças em todas as tabelas =====
 export function subscribeAll(onChange) {
   const ch = supabase
@@ -193,8 +224,9 @@ export function subscribeAll(onChange) {
     .on("postgres_changes", { event: "*", schema: "public", table: "perfis" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "painel" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "recebiveis" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "desempenho" }, onChange)
     .subscribe();
   return () => supabase.removeChannel(ch);
 }
 
-export { mapCliente, mapGestor, mapPessoa, mapAcomp, mapTarefa, mapPerfil, mapPainel, mapRecebivel };
+export { mapCliente, mapGestor, mapPessoa, mapAcomp, mapTarefa, mapPerfil, mapPainel, mapRecebivel, mapDesempenho };

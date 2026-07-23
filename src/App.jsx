@@ -7,6 +7,8 @@ import { calcTaxas, corTaxa } from "./taxas";
 import Painel from "./Painel.jsx";
 import GestaoClientes from "./GestaoClientes.jsx";
 import FluxoCaixa from "./FluxoCaixa.jsx";
+import Clientes from "./Clientes.jsx";
+import ClienteDetalhe from "./ClienteDetalhe.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Login from "./Login.jsx";
@@ -15,7 +17,7 @@ import { supabaseConfigured } from "./supabaseClient";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
 
-const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [], recebiveis: [] };
+const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [], recebiveis: [], desempenho: [] };
 
 export default function App() {
   // ----- sessão / auth -----
@@ -53,6 +55,7 @@ export default function App() {
   const [cliModal, setCliModal] = useState(null);
   const [gestModal, setGestModal] = useState(null);
   const [pesModal, setPesModal] = useState(null);
+  const [clienteAberto, setClienteAberto] = useState(null);
 
   const isAdmin = user?.papel === "admin";
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -194,6 +197,11 @@ export default function App() {
     recarregar();
   }
 
+  async function lancarDesempenho(dados) {
+    await api.upsertDesempenho(dados, user?.id);
+    recarregar();
+  }
+
   async function marcarPago(dados) {
     await api.upsertRecebivel(dados, user?.id);
     recarregar();
@@ -238,6 +246,9 @@ export default function App() {
           </button>
           <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
             <Icon.Target /> Follow de Ações
+          </button>
+          <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}>
+            <Icon.Grid /> Clientes
           </button>
           <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
             <Icon.Users /> Gestão de Clientes
@@ -307,6 +318,29 @@ export default function App() {
             onDelete={excluirTarefa}
             onToast={showToast}
             isAdmin={isAdmin}
+          />
+        )}
+        {view === "clientes" && !clienteAberto && (
+          <Clientes
+            clientes={data.clientes}
+            desempenho={data.desempenho || []}
+            onAbrir={(c) => setClienteAberto(c)}
+            onLancar={lancarDesempenho}
+            onToast={showToast}
+          />
+        )}
+        {view === "clientes" && clienteAberto && (
+          <ClienteDetalhe
+            cliente={data.clientes.find((c) => c.id === clienteAberto.id) || clienteAberto}
+            gestById={gestById}
+            desempenho={data.desempenho || []}
+            tarefas={data.tarefas || []}
+            pessoas={data.pessoas || []}
+            painel={data.painel || []}
+            acompanhamentos={data.acompanhamentos || []}
+            isAdmin={isAdmin}
+            onVoltar={() => setClienteAberto(null)}
+            onEditar={(c) => setCliModal(c)}
           />
         )}
         {view === "gestao" && (
@@ -728,6 +762,10 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     recorrencia: base.recorrencia || "Mensal",
     diaPagamento: base.diaPagamento ?? "",
     linkDrive: base.linkDrive || "",
+    nps: base.nps ?? "",
+    platGoogle: base.platGoogle ?? false,
+    platMeta: base.platMeta ?? false,
+    cpaMeta: base.cpaMeta ?? "",
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
@@ -791,17 +829,38 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
       </div>
 
       <div className="modal-sec">Tráfego</div>
-      <div className="form-grid">
-        <div className="form-row">
-          <label>CPA (R$)</label>
-          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 45,00"
-            value={f.cpa} onChange={(e) => set("cpa", e.target.value)} />
-        </div>
+      <div className="form-grid form-grid-3">
         <div className="form-row">
           <label>Verba mensal (R$)</label>
           <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 10000,00"
             value={f.verbaMensal} onChange={(e) => set("verbaMensal", e.target.value)} />
         </div>
+        <div className="form-row">
+          <label>CPA alvo (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 45,00"
+            value={f.cpaMeta} onChange={(e) => set("cpaMeta", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>NPS (0 a 100)</label>
+          <input type="number" min="0" max="100" className="input" placeholder="Ex.: 80"
+            value={f.nps} onChange={(e) => set("nps", e.target.value)} />
+        </div>
+      </div>
+      <div className="form-row">
+        <label>Plataformas conectadas</label>
+        <div style={{ display: "flex", gap: 18, paddingTop: 4 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 500, cursor: "pointer" }}>
+            <input type="checkbox" checked={f.platGoogle} onChange={(e) => set("platGoogle", e.target.checked)} /> Google Ads
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 500, cursor: "pointer" }}>
+            <input type="checkbox" checked={f.platMeta} onChange={(e) => set("platMeta", e.target.checked)} /> Meta Ads
+          </label>
+        </div>
+      </div>
+      <div className="form-row">
+        <label>CPA histórico (R$) — referência antiga</label>
+        <input type="number" min="0" step="0.01" className="input" placeholder="opcional"
+          value={f.cpa} onChange={(e) => set("cpa", e.target.value)} />
       </div>
 
       <div className="form-row">

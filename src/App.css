@@ -442,3 +442,74 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
   .fluxo-resumo { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) { .meses-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ============================================================
+   MÓDULO CLIENTES — cards, avatar, plataformas, projeções
+   ============================================================ */
+.cli-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+
+.cli-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px; cursor: pointer; transition: all .14s; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.cli-card:hover { border-color: var(--green); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(12,85,48,0.12); }
+
+.cli-head { display: flex; align-items: center; gap: 12px; }
+.cli-avatar {
+  border-radius: 50%; color: #fff; font-weight: 700; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; letter-spacing: -0.02em;
+}
+.cli-ident { flex: 1; min-width: 0; }
+.cli-nome { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cli-nps { text-align: center; flex-shrink: 0; }
+.cli-nps span { display: block; font-size: 19px; font-weight: 800; line-height: 1; }
+.cli-nps small { font-size: 9px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+
+.cli-plats { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+.plat {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600;
+  padding: 2px 8px; border-radius: 20px; border: 1px solid var(--line);
+}
+.plat-google { color: #b8492f; background: #fdf0ed; border-color: #f5d5cd; }
+.plat-meta { color: #1a5fb4; background: #eaf1fc; border-color: #cfdff7; }
+.plat-off { color: var(--ink-faint); background: var(--gray-soft); }
+
+.cli-projs { display: flex; flex-direction: column; gap: 14px; }
+.proj-bloco { display: flex; flex-direction: column; gap: 5px; }
+.proj-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.proj-titulo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+.proj-valor { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.proj-trilha { position: relative; height: 9px; background: var(--gray-soft); border-radius: 5px; overflow: visible; }
+.proj-preenchida { height: 100%; border-radius: 5px; transition: width .45s ease, background .3s; }
+.proj-marca {
+  position: absolute; top: -3px; width: 2px; height: 15px; background: var(--ink);
+  opacity: 0.55; border-radius: 1px;
+}
+.proj-legenda { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ink-faint); }
+.proj-vazia { font-size: 12px; color: var(--ink-faint); padding: 8px 0; font-style: italic; }
+
+.cli-rodape {
+  display: flex; justify-content: space-between; align-items: center;
+  border-top: 1px solid var(--line); padding-top: 12px; font-size: 12px; color: var(--ink-faint);
+}
+.cli-abrir { color: var(--green-deep); font-weight: 600; }
+
+/* ===== Página de detalhe do cliente ===== */
+.det-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 20px; }
+.info-item { display: flex; flex-direction: column; gap: 2px; }
+.info-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 700; }
+.info-valor { font-size: 14px; font-weight: 600; }
+
+/* tema escuro */
+.tema-escuro .cli-card { background: var(--surface); }
+.tema-escuro .plat-google { background: #2a1a16; border-color: #4a2a22; }
+.tema-escuro .plat-meta { background: #16233a; border-color: #223a5e; }
+.tema-escuro .proj-marca { background: var(--ink); }
+
+@media (max-width: 1024px) { .det-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .cli-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+}
