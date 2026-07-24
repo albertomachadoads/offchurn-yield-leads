@@ -808,3 +808,16 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 /* sidebar mini: esconde o filtro de agência */
 .sidebar-mini .sidebar .ag-filtro { display: none; }
 .sidebar-mini .sidebar:hover .ag-filtro { display: flex; }
+
+/* ============================================================
+   CRM PARÂMETROS
+   ============================================================ */
+.param-secao { margin-bottom: 16px; }
+.param-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.param-desc { font-size: 12px; color: var(--ink-faint); margin: 4px 0 0; }
+.param-vazio { font-size: 13px; color: var(--ink-faint); margin: 8px 0 0; }
+.param-lista { display: flex; flex-direction: column; gap: 6px; }
+.param-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.param-acoes { display: flex; gap: 4px; flex-shrink: 0; }
+.param-badge { font-size: 10px; background: var(--amber, #e6a817); color: #fff; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700; }
+.tema-escuro .param-item { background: var(--surface-alt, var(--surface)); }

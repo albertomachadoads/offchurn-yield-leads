@@ -12,6 +12,7 @@ import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Logs from "./Logs.jsx";
 import OBZ from "./OBZ.jsx";
+import CRMParametros from "./CRMParametros.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
@@ -330,6 +331,20 @@ export default function App() {
             </button>
           </div>
 
+          {/* COMERCIAL */}
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Comercial</div>
+            <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}>
+              <Icon.Users /> <span>CRM</span>
+            </button>
+            <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
+              <Icon.Settings /> <span>Parâmetros de CRM</span>
+            </button>
+            <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
+              <Icon.Chart /> <span>Análises</span>
+            </button>
+          </div>
+
           {/* FINANCEIRO */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Financeiro</div>
@@ -517,6 +532,24 @@ export default function App() {
         {view === "admin" && isAdmin && (
           <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
         )}
+        {view === "crm-params" && (
+          <CRMParametros onToast={showToast} />
+        )}
+
+        {view === "crm" && (
+          <>
+            <div className="page-head"><div><h1>CRM</h1><p>Kanban de leads — em construção (Fase 2).</p></div></div>
+            <div className="empty"><p>O CRM Kanban será construído na próxima fase. Configure os parâmetros primeiro.</p></div>
+          </>
+        )}
+
+        {view === "crm-analises" && (
+          <>
+            <div className="page-head"><div><h1>Análises do CRM</h1><p>Dashboards de performance — em construção (Fase 3).</p></div></div>
+            <div className="empty"><p>Os dashboards serão construídos após o CRM Kanban estar operacional.</p></div>
+          </>
+        )}
+
         {view === "obz" && (
           <OBZ
             despesas={data.despesas || []}

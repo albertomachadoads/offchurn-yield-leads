@@ -340,6 +340,78 @@ export async function googleInsights(clienteId, since, until) {
   return data;
 }
 
+
+// ===== CRM =====
+const mapFunil_crm = (r) => ({ id: r.id, nome: r.nome, descricao: r.descricao, ativo: r.ativo, ordem: r.ordem });
+const mapEtapa = (r) => ({ id: r.id, funilId: r.funil_id, nome: r.nome, ordem: r.ordem, tipo: r.tipo, cor: r.cor });
+const mapTag = (r) => ({ id: r.id, nome: r.nome, cor: r.cor });
+const mapMotivoPerda = (r) => ({ id: r.id, nome: r.nome, exigirJustificativa: r.exigir_justificativa, ativo: r.ativo });
+const mapCampo = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, opcoes: r.opcoes, obrigatorio: r.obrigatorio, ordem: r.ordem, ativo: r.ativo });
+const mapOrigem = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, ativo: r.ativo });
+const mapLead = (r) => ({ id: r.id, nome: r.nome, email: r.email, whatsapp: r.whatsapp,
+  funilId: r.funil_id, etapaId: r.etapa_id, origemId: r.origem_id, responsavelId: r.responsavel_id,
+  clienteId: r.cliente_id, valor: Number(r.valor)||0, motivoPerdaId: r.motivo_perda_id,
+  justificativaPerda: r.justificativa_perda, tags: r.tags, camposCustom: r.campos_custom,
+  utmSource: r.utm_source, utmMedium: r.utm_medium, utmCampaign: r.utm_campaign,
+  utmTerm: r.utm_term, utmContent: r.utm_content, criadoEm: r.criado_em, atualizadoEm: r.atualizado_em });
+const mapAtividade = (r) => ({ id: r.id, leadId: r.lead_id, tipo: r.tipo, descricao: r.descricao, autorNome: r.autor_nome, criadoEm: r.criado_em });
+
+export async function fetchCRM() {
+  const [funis, etapas, tags, motivos, campos, origens, leads, atividades] = await Promise.all([
+    supabase.from("crm_funis").select("*").order("ordem"),
+    supabase.from("crm_etapas").select("*").order("ordem"),
+    supabase.from("crm_tags").select("*").order("nome"),
+    supabase.from("crm_motivos_perda").select("*").order("nome"),
+    supabase.from("crm_campos").select("*").order("ordem"),
+    supabase.from("crm_origens").select("*").order("nome"),
+    supabase.from("crm_leads").select("*").order("criado_em", { ascending: false }),
+    supabase.from("crm_atividades").select("*").order("criado_em", { ascending: false }).limit(500),
+  ]);
+  return {
+    funis: (funis.data||[]).map(mapFunil_crm), etapas: (etapas.data||[]).map(mapEtapa),
+    tags: (tags.data||[]).map(mapTag), motivos: (motivos.data||[]).map(mapMotivoPerda),
+    campos: (campos.data||[]).map(mapCampo), origens: (origens.data||[]).map(mapOrigem),
+    leads: (leads.data||[]).map(mapLead), atividades: (atividades.data||[]).map(mapAtividade),
+  };
+}
+
+// CRUD genérico do CRM
+async function crmUpsert(tabela, row) {
+  const { data, error } = await supabase.from(tabela).upsert(row).select().single();
+  if (error) throw error; return data;
+}
+async function crmDelete(tabela, id) {
+  const { error } = await supabase.from(tabela).delete().eq("id", id);
+  if (error) throw error;
+}
+export const crmFunilSave = (f) => crmUpsert("crm_funis", { id: f.id||undefined, nome: f.nome, descricao: f.descricao||null, ativo: f.ativo??true, ordem: f.ordem||0 });
+export const crmFunilDelete = (id) => crmDelete("crm_funis", id);
+export const crmEtapaSave = (e) => crmUpsert("crm_etapas", { id: e.id||undefined, funil_id: e.funilId, nome: e.nome, ordem: e.ordem||0, tipo: e.tipo||"normal", cor: e.cor||"#22c55e" });
+export const crmEtapaDelete = (id) => crmDelete("crm_etapas", id);
+export const crmTagSave = (t) => crmUpsert("crm_tags", { id: t.id||undefined, nome: t.nome, cor: t.cor||"#22c55e" });
+export const crmTagDelete = (id) => crmDelete("crm_tags", id);
+export const crmMotivoSave = (m) => crmUpsert("crm_motivos_perda", { id: m.id||undefined, nome: m.nome, exigir_justificativa: m.exigirJustificativa||false, ativo: m.ativo??true });
+export const crmMotivoDelete = (id) => crmDelete("crm_motivos_perda", id);
+export const crmCampoSave = (c) => crmUpsert("crm_campos", { id: c.id||undefined, nome: c.nome, tipo: c.tipo||"texto", opcoes: c.opcoes||null, obrigatorio: c.obrigatorio||false, ordem: c.ordem||0, ativo: c.ativo??true });
+export const crmCampoDelete = (id) => crmDelete("crm_campos", id);
+export const crmOrigemSave = (o) => crmUpsert("crm_origens", { id: o.id||undefined, nome: o.nome, tipo: o.tipo||"campanha", ativo: o.ativo??true });
+export const crmOrigemDelete = (id) => crmDelete("crm_origens", id);
+export const crmLeadSave = (l) => crmUpsert("crm_leads", {
+  id: l.id||undefined, nome: l.nome, email: l.email||null, whatsapp: l.whatsapp||null,
+  funil_id: l.funilId, etapa_id: l.etapaId, origem_id: l.origemId||null,
+  responsavel_id: l.responsavelId||null, cliente_id: l.clienteId||null, valor: l.valor||0,
+  motivo_perda_id: l.motivoPerdaId||null, justificativa_perda: l.justificativaPerda||null,
+  tags: l.tags||"[]", campos_custom: l.camposCustom||"{}",
+  utm_source: l.utmSource||null, utm_medium: l.utmMedium||null, utm_campaign: l.utmCampaign||null,
+  utm_term: l.utmTerm||null, utm_content: l.utmContent||null, atualizado_em: new Date().toISOString(),
+});
+export const crmLeadDelete = (id) => crmDelete("crm_leads", id);
+export const crmAtividadeSave = (a) => crmUpsert("crm_atividades", {
+  id: a.id||undefined, lead_id: a.leadId, tipo: a.tipo||"nota", descricao: a.descricao,
+  autor_id: a.autorId||null, autor_nome: a.autorNome||null,
+});
+
+
 // ===== Realtime: assina mudanças em todas as tabelas =====
 export function subscribeAll(onChange) {
   const ch = supabase
