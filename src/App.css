@@ -926,3 +926,41 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 /* sistema no histórico */
 .lt-item.lt-sistema { opacity: 0.7; }
 .lt-item.lt-sistema .lt-desc { font-style: italic; }
+
+/* atividades como cards */
+.atv-lista { display: flex; flex-direction: column; gap: 8px; }
+.atv-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.atv-card.atv-atrasada { border-color: var(--red); background: #fef2f2; }
+.atv-card.atv-concluida { opacity: 0.6; border-color: var(--green); }
+.atv-card.atv-cancelada { opacity: 0.5; text-decoration: line-through; }
+.atv-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 13px; }
+.atv-card-desc { font-size: 13px; line-height: 1.5; }
+.atv-card-meta { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+.atv-card-acoes { display: flex; gap: 6px; margin-top: 8px; }
+.atv-badge-atraso { font-size: 9px; font-weight: 800; color: #fff; background: var(--red); padding: 2px 8px; border-radius: 4px; animation: pulse-red 1.5s infinite; }
+.atv-badge-ok { font-size: 9px; font-weight: 800; color: #fff; background: var(--green); padding: 2px 8px; border-radius: 4px; }
+.atv-badge-cancel { font-size: 9px; font-weight: 800; color: #fff; background: #6b7280; padding: 2px 8px; border-radius: 4px; }
+@keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.tema-escuro .atv-card { background: var(--surface-alt, #1a2b22); }
+.tema-escuro .atv-card.atv-atrasada { background: #3a1f1a; }
+
+/* anotações como chat */
+.notas-chat { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
+.nota-msg { background: var(--green-softer); border-radius: 8px 8px 8px 2px; padding: 8px 12px; max-width: 85%; }
+.nota-autor { font-size: 10px; font-weight: 700; color: var(--green-deep); margin-bottom: 2px; }
+.nota-texto { font-size: 13px; line-height: 1.5; }
+.tema-escuro .nota-msg { background: var(--green-soft); }
+
+/* alerta de campos vazios */
+.campos-alerta {
+  background: #fef2f2; border: 2px solid var(--red); border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 16px; font-size: 13px; font-weight: 700;
+  color: var(--red); text-align: center;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3), 0 0 24px rgba(239, 68, 68, 0.15);
+  animation: neon-pulse 2s ease-in-out infinite;
+}
+@keyframes neon-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.3), 0 0 24px rgba(239, 68, 68, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.25); }
+}
+.tema-escuro .campos-alerta { background: #3a1f1a; }

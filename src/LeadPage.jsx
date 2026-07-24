@@ -1,90 +1,71 @@
-import { useEffect, useState, useRef } from "react";
+import { useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
 
-/* ============================================================
-   Página do Lead — contato editável, campos personalizados,
-   atividades com data/responsável, anotações, histórico
-   completo e confetes na venda.
-   ============================================================ */
+const fmtDH = (iso) => { if (!iso) return "—"; const d = new Date(iso); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const whatsLink = (num) => { if (!num) return null; const c = num.replace(/\D/g, ""); return `https://wa.me/${c.startsWith("55") ? c : "55" + c}`; };
+const mascaraTel = (v) => { const n = v.replace(/\D/g, "").slice(0, 11); if (n.length <= 2) return `(${n}`; if (n.length <= 7) return `(${n.slice(0,2)}) ${n.slice(2)}`; return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`; };
 
-const fmtDH = (iso) => {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  const p = (n) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
-};
-const whatsLink = (num) => {
-  if (!num) return null;
-  const c = num.replace(/\D/g, "");
-  return `https://wa.me/${c.startsWith("55") ? c : "55" + c}`;
-};
-const mascaraTel = (v) => {
-  const n = v.replace(/\D/g, "").slice(0, 11);
-  if (n.length <= 2) return `(${n}`;
-  if (n.length <= 7) return `(${n.slice(0,2)}) ${n.slice(2)}`;
-  return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
-};
+const WhatsIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#25d366" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    <path d="M9.49 10.07c.13-.28.49-.35.8-.08l.6.55c.18.16.18.43 0 .6l-.3.3c-.1.1-.1.26 0 .4a6.4 6.4 0 002.17 2.17c.14.1.3.1.4 0l.3-.3c.17-.18.44-.18.6 0l.55.6c.27.31.2.67-.08.8a2.5 2.5 0 01-2.64-.42 8 8 0 01-2.4-2.4 2.5 2.5 0 01-.42-2.64z" fill="#25d366" stroke="none" />
+  </svg>
+);
 
 /* ---- Confetes ---- */
 function dispararConfetes() {
-  const container = document.createElement("div");
-  container.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden";
-  document.body.appendChild(container);
+  const ct = document.createElement("div");
+  ct.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden";
+  document.body.appendChild(ct);
   const cores = ["#22c55e","#f59e0b","#3b82f6","#ef4444","#8b5cf6","#ec4899","#14b8a6","#ffd700"];
   for (let i = 0; i < 120; i++) {
-    const c = document.createElement("div");
-    const cor = cores[Math.floor(Math.random() * cores.length)];
-    const x = Math.random() * 100;
-    const delay = Math.random() * 0.8;
-    const dur = 2 + Math.random() * 2;
-    const size = 6 + Math.random() * 8;
-    const rot = Math.random() * 360;
-    c.style.cssText = `position:absolute;top:-20px;left:${x}%;width:${size}px;height:${size * 0.6}px;background:${cor};border-radius:2px;transform:rotate(${rot}deg);animation:confetti-fall ${dur}s ${delay}s ease-out forwards;opacity:0.9`;
-    container.appendChild(c);
+    const c = document.createElement("div"); const cor = cores[Math.floor(Math.random() * cores.length)];
+    c.style.cssText = `position:absolute;top:-20px;left:${Math.random()*100}%;width:${6+Math.random()*8}px;height:${4+Math.random()*5}px;background:${cor};border-radius:2px;transform:rotate(${Math.random()*360}deg);animation:confetti-fall ${2+Math.random()*2}s ${Math.random()*0.8}s ease-out forwards;opacity:0.9`;
+    ct.appendChild(c);
   }
-  setTimeout(() => container.remove(), 5000);
+  setTimeout(() => ct.remove(), 5000);
 }
 
-/* ---- Modal de edição de contato ---- */
+/* ---- Modais ---- */
 function EditarContatoModal({ lead, onSave, onClose }) {
-  const [nome, setNome] = useState(lead.nome || "");
-  const [whatsapp, setWhatsapp] = useState(lead.whatsapp || "");
-  const [email, setEmail] = useState(lead.email || "");
-  const [valor, setValor] = useState(lead.valor ?? "");
+  const [f, setF] = useState({ nome: lead.nome || "", whatsapp: lead.whatsapp || "", email: lead.email || "", valor: lead.valor ?? "" });
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
-    <Modal title="Editar dados de contato" onClose={onClose} footer={
-      <><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-      <button className="btn btn-primary" disabled={!nome.trim() || !whatsapp.trim()} onClick={() => {
-        onSave({ nome, whatsapp, email, valor: Number(valor) || 0 });
-      }}>Salvar</button></>
-    }>
-      <div className="form-row"><label>Nome *</label><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus /></div>
-      <div className="form-row"><label>WhatsApp *</label><input className="input" value={whatsapp} onChange={(e) => setWhatsapp(mascaraTel(e.target.value))} maxLength={16} /></div>
-      <div className="form-row"><label>Email</label><input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-      <div className="form-row"><label>Valor (R$)</label><input className="input" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} /></div>
+    <Modal title="Editar contato" onClose={onClose} footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      <button className="btn btn-primary" disabled={!f.nome.trim()||!f.whatsapp.trim()} onClick={() => onSave(f)}>Salvar</button></>}>
+      <div className="form-row"><label>Nome *</label><input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} autoFocus /></div>
+      <div className="form-row"><label>WhatsApp *</label><input className="input" value={f.whatsapp} onChange={(e) => set("whatsapp", mascaraTel(e.target.value))} maxLength={16} /></div>
+      <div className="form-row"><label>Email</label><input className="input" type="email" value={f.email} onChange={(e) => set("email", e.target.value)} /></div>
+      <div className="form-row"><label>Valor (R$)</label><input className="input" type="number" min="0" step="0.01" value={f.valor} onChange={(e) => set("valor", e.target.value)} /></div>
     </Modal>
   );
 }
 
-/* ---- Modal de nova atividade (ligação/email/tarefa) ---- */
-function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
-  const labels = { ligacao: "Ligação", email: "E-mail", tarefa: "Tarefa" };
-  const [desc, setDesc] = useState("");
-  const [dataPrevista, setDataPrevista] = useState("");
-  const [responsavelId, setResponsavelId] = useState("");
+function EditarOrigemModal({ lead, origens, onSave, onClose }) {
+  const [origemId, setOrigemId] = useState(lead.origemId || "");
   return (
-    <Modal title={`Nova ${labels[tipo] || tipo}`} onClose={onClose} footer={
-      <><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-      <button className="btn btn-primary" disabled={!desc.trim()} onClick={() => onSave({ desc, dataPrevista, responsavelId })}>Criar</button></>
-    }>
-      <div className="form-row"><label>Descrição *</label><textarea className="input" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} autoFocus placeholder="Descreva a atividade…" /></div>
+    <Modal title="Editar origem" onClose={onClose} footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      <button className="btn btn-primary" onClick={() => onSave(origemId)}>Salvar</button></>}>
+      <div className="form-row"><label>Origem</label><select className="select" value={origemId} onChange={(e) => setOrigemId(e.target.value)}>
+        <option value="">— sem origem —</option>{(origens || []).map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
+      </select></div>
+    </Modal>
+  );
+}
+
+function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
+  const labels = { ligacao: "📞 Ligação", email: "✉️ E-mail", tarefa: "✅ Tarefa" };
+  const [desc, setDesc] = useState(""); const [dataPrev, setDataPrev] = useState(""); const [respId, setRespId] = useState("");
+  return (
+    <Modal title={`Nova ${labels[tipo] || tipo}`} onClose={onClose} footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      <button className="btn btn-primary" disabled={!desc.trim()} onClick={() => onSave({ desc, dataPrev, respId })}>Criar</button></>}>
+      <div className="form-row"><label>Descrição *</label><textarea className="input" rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} autoFocus placeholder="Descreva…" /></div>
       <div className="form-grid">
-        <div className="form-row"><label>Data prevista</label><input className="input" type="datetime-local" value={dataPrevista} onChange={(e) => setDataPrevista(e.target.value)} /></div>
-        <div className="form-row"><label>Responsável</label><select className="select" value={responsavelId} onChange={(e) => setResponsavelId(e.target.value)}>
-          <option value="">— selecione —</option>
-          {(pessoas || []).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+        <div className="form-row"><label>Data prevista</label><input className="input" type="datetime-local" value={dataPrev} onChange={(e) => setDataPrev(e.target.value)} /></div>
+        <div className="form-row"><label>Responsável</label><select className="select" value={respId} onChange={(e) => setRespId(e.target.value)}>
+          <option value="">— selecione —</option>{(pessoas || []).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
         </select></div>
       </div>
     </Modal>
@@ -94,36 +75,33 @@ function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
 /* ---- Componente principal ---- */
 export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas, atividades, onVoltar, onSave, onToast, userName, isAdmin }) {
   const [editContato, setEditContato] = useState(false);
-  const [modalAtiv, setModalAtiv] = useState(null); // "ligacao"|"email"|"tarefa"
+  const [editOrigem, setEditOrigem] = useState(false);
+  const [modalAtiv, setModalAtiv] = useState(null);
   const [nota, setNota] = useState("");
-  const [atvsLocal, setAtvsLocal] = useState(
-    (atividades || []).filter((a) => a.leadId === lead.id).sort((a, b) => (a.criadoEm < b.criadoEm ? 1 : -1))
-  );
+  const [camposForm, setCamposForm] = useState(() => { try { return JSON.parse(lead.camposCustom || "{}"); } catch { return {}; } });
+  const [atvsLocal, setAtvsLocal] = useState((atividades || []).filter((a) => a.leadId === lead.id).sort((a, b) => (a.criadoEm < b.criadoEm ? 1 : -1)));
 
   const tagMap = Object.fromEntries((tags || []).map((t) => [t.id, t]));
   const pesMap = Object.fromEntries((pessoas || []).map((p) => [p.id, p]));
   const etapaAtual = etapas.find((e) => e.id === lead.etapaId);
-
   let leadTags = []; try { leadTags = JSON.parse(lead.tags || "[]"); } catch {}
-  let camposCustom = {}; try { camposCustom = JSON.parse(lead.camposCustom || "{}"); } catch {}
 
-  async function registrar(tipo, descricao, extra) {
-    const atv = { leadId: lead.id, tipo, descricao, autorNome: userName, ...(extra || {}) };
-    try {
-      await api.crmAtividadeSave(atv);
-      setAtvsLocal((prev) => [{ ...atv, id: Date.now().toString(), criadoEm: new Date().toISOString() }, ...prev]);
-    } catch {}
+  // campos não preenchidos
+  const camposVazios = campos.filter((c) => !camposForm[c.id] || !String(camposForm[c.id]).trim());
+
+  async function reg(tipo, descricao) {
+    const atv = { leadId: lead.id, tipo, descricao, autorNome: userName };
+    try { await api.crmAtividadeSave(atv); setAtvsLocal((p) => [{ ...atv, id: Date.now().toString(), criadoEm: new Date().toISOString() }, ...p]); } catch {}
   }
 
   async function mudarEtapa(etapaId) {
-    const nomeEtapa = etapas.find((e) => e.id === etapaId)?.nome || "?";
+    const nome = etapas.find((e) => e.id === etapaId)?.nome || "?";
     const tipo = etapas.find((e) => e.id === etapaId)?.tipo;
     try {
-      await onSave({ ...lead, etapaId });
-      await registrar("sistema", `Movido para "${nomeEtapa}"`);
+      await onSave({ ...lead, etapaId }); await reg("sistema", `Movido para "${nome}"`);
       if (tipo === "ganho") { dispararConfetes(); onToast("🎉 VENDA MARCADA! Parabéns!"); }
-      else if (tipo === "perdido") { onToast("Lead marcado como perdido"); }
-      else { onToast("Etapa atualizada"); }
+      else if (tipo === "perdido") onToast("Lead marcado como perdido");
+      else onToast("Etapa atualizada");
     } catch (e) { onToast("Erro: " + e.message); }
   }
 
@@ -132,45 +110,62 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
     if (dados.nome !== lead.nome) mudancas.push(`Nome: "${lead.nome}" → "${dados.nome}"`);
     if (dados.whatsapp !== lead.whatsapp) mudancas.push("WhatsApp atualizado");
     if (dados.email !== lead.email) mudancas.push("Email atualizado");
-    if (dados.valor !== lead.valor) mudancas.push(`Valor: ${fmtMoeda(lead.valor || 0)} → ${fmtMoeda(dados.valor)}`);
-    try {
-      await onSave({ ...lead, ...dados });
-      if (mudancas.length > 0) await registrar("sistema", `Dados editados: ${mudancas.join(", ")}`);
-      setEditContato(false); onToast("Dados atualizados");
-    } catch (e) { onToast("Erro: " + e.message); }
+    if (Number(dados.valor) !== Number(lead.valor)) mudancas.push(`Valor: ${fmtMoeda(lead.valor||0)} → ${fmtMoeda(dados.valor)}`);
+    try { await onSave({ ...lead, ...dados }); if (mudancas.length) await reg("sistema", `Contato editado: ${mudancas.join(", ")}`); setEditContato(false); onToast("Contato atualizado"); } catch (e) { onToast("Erro: " + e.message); }
   }
 
-  async function salvarCampoCustom(campoId, valor) {
-    const novosCampos = { ...camposCustom, [campoId]: valor };
-    const nomeCampo = campos.find((c) => c.id === campoId)?.nome || campoId;
-    try {
-      await onSave({ ...lead, camposCustom: JSON.stringify(novosCampos) });
-      await registrar("sistema", `Campo "${nomeCampo}" atualizado`);
-    } catch (e) { onToast("Erro: " + e.message); }
+  async function salvarOrigem(origemId) {
+    const nome = origens.find((o) => o.id === origemId)?.nome || "nenhuma";
+    try { await onSave({ ...lead, origemId: origemId || null }); await reg("sistema", `Origem alterada para "${nome}"`); setEditOrigem(false); onToast("Origem atualizada"); } catch (e) { onToast("Erro: " + e.message); }
+  }
+
+  async function toggleTag(tid) {
+    const s = new Set(leadTags); s.has(tid) ? s.delete(tid) : s.add(tid);
+    const novas = [...s]; const nome = tagMap[tid]?.nome || "?";
+    try { await onSave({ ...lead, tags: JSON.stringify(novas) }); await reg("sistema", `Tag ${s.has(tid) ? "adicionada" : "removida"}: "${nome}"`); onToast("Tags atualizadas"); } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function salvarResponsavel(respId) {
-    const nomeResp = pesMap[respId]?.nome || "ninguém";
-    try {
-      await onSave({ ...lead, responsavelId: respId || null });
-      await registrar("sistema", `Responsável alterado para ${nomeResp}`);
-    } catch (e) { onToast("Erro: " + e.message); }
+    const nome = pesMap[respId]?.nome || "ninguém";
+    try { await onSave({ ...lead, responsavelId: respId || null }); await reg("sistema", `Responsável alterado para ${nome}`); } catch (e) { onToast("Erro: " + e.message); }
+  }
+
+  async function salvarCamposPersonalizados() {
+    try { await onSave({ ...lead, camposCustom: JSON.stringify(camposForm) }); await reg("sistema", "Campos personalizados atualizados"); onToast("Campos salvos"); } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function criarAtividade(tipo, dados) {
-    const respNome = pesMap[dados.responsavelId]?.nome || "";
-    const desc = `${dados.desc}${dados.dataPrevista ? ` · Prevista: ${fmtDH(dados.dataPrevista)}` : ""}${respNome ? ` · Resp: ${respNome}` : ""}`;
-    await registrar(tipo, desc);
-    setModalAtiv(null);
-    onToast("Atividade criada");
+    const respNome = pesMap[dados.respId]?.nome || "";
+    const desc = `${dados.desc}${dados.dataPrev ? ` · Prevista: ${fmtDH(dados.dataPrev)}` : ""}${respNome ? ` · Resp: ${respNome}` : ""}`;
+    await reg(tipo, desc); setModalAtiv(null); onToast("Atividade criada");
+  }
+
+  async function concluirAtividade(atvId) {
+    const atv = atvsLocal.find((a) => a.id === atvId); if (!atv) return;
+    await reg("sistema", `Atividade concluída: "${atv.descricao.slice(0,50)}"`);
+    setAtvsLocal((p) => p.map((a) => a.id === atvId ? { ...a, tipo: "sistema", descricao: `✅ CONCLUÍDA: ${a.descricao}` } : a));
+  }
+
+  async function cancelarAtividade(atvId) {
+    const atv = atvsLocal.find((a) => a.id === atvId); if (!atv) return;
+    await reg("sistema", `Atividade cancelada: "${atv.descricao.slice(0,50)}"`);
+    setAtvsLocal((p) => p.map((a) => a.id === atvId ? { ...a, tipo: "sistema", descricao: `❌ CANCELADA: ${a.descricao}` } : a));
   }
 
   async function addNota() {
-    if (!nota.trim()) return;
-    await registrar("nota", nota);
-    setNota("");
-    onToast("Anotação salva");
+    if (!nota.trim()) return; await reg("nota", nota); setNota(""); onToast("Anotação salva");
   }
+
+  const ativTarefas = atvsLocal.filter((a) => ["ligacao", "email", "tarefa"].includes(a.tipo));
+  const anotacoes = atvsLocal.filter((a) => a.tipo === "nota");
+  const historico = atvsLocal.filter((a) => a.tipo === "sistema");
+
+  const isAtrasada = (atv) => {
+    const match = atv.descricao.match(/Prevista: (\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/);
+    if (!match) return false;
+    const [d, m, y, h, min] = match[1].split(/[\/\s:]/);
+    return new Date(y, m - 1, d, h, min) < new Date();
+  };
 
   return (
     <>
@@ -179,85 +174,60 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
           <button className="btn btn-sm btn-ghost" onClick={onVoltar}>‹ Voltar</button>
           <div>
             <h1 style={{ margin: 0 }}>{lead.nome}</h1>
-            <p style={{ margin: 0 }}>
-              {etapaAtual && <span className="pill" style={{ background: etapaAtual.cor, color: "#fff", marginRight: 6 }}>{etapaAtual.nome}</span>}
-              Criado em {fmtDH(lead.criadoEm)}
-            </p>
+            <p style={{ margin: 0 }}>{etapaAtual && <span className="pill" style={{ background: etapaAtual.cor, color: "#fff", marginRight: 6 }}>{etapaAtual.nome}</span>} Criado em {fmtDH(lead.criadoEm)}</p>
           </div>
         </div>
         <div className="head-actions">
-          {etapaAtual?.tipo !== "ganho" && (
-            <button className="btn btn-sm btn-primary" onClick={() => {
-              const g = etapas.find((e) => e.tipo === "ganho");
-              if (g) mudarEtapa(g.id); else onToast("Configure uma etapa 'Lead ganho' nos Parâmetros");
-            }}>★ Marcar venda</button>
-          )}
-          {etapaAtual?.tipo !== "perdido" && (
-            <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => {
-              const p = etapas.find((e) => e.tipo === "perdido");
-              if (p) mudarEtapa(p.id); else onToast("Configure uma etapa 'Lead perdido' nos Parâmetros");
-            }}>✕ Marcar perda</button>
-          )}
+          {etapaAtual?.tipo !== "ganho" && <button className="btn btn-sm btn-primary" onClick={() => { const g = etapas.find((e) => e.tipo === "ganho"); if (g) mudarEtapa(g.id); else onToast("Configure etapa 'ganho'"); }}>★ Marcar venda</button>}
+          {etapaAtual?.tipo !== "perdido" && <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => { const p = etapas.find((e) => e.tipo === "perdido"); if (p) mudarEtapa(p.id); else onToast("Configure etapa 'perdido'"); }}>✕ Marcar perda</button>}
         </div>
       </div>
 
       {/* PIPELINE */}
       <div className="lead-pipeline">
-        {etapas.map((et) => (
-          <button key={et.id} className={`lp-etapa ${et.id === lead.etapaId ? "lp-atual" : ""} ${et.tipo === "ganho" ? "lp-ganho" : et.tipo === "perdido" ? "lp-perdido" : ""}`}
-            style={{ "--ec": et.cor }} onClick={() => mudarEtapa(et.id)}>
-            {et.nome}
-          </button>
-        ))}
+        {etapas.map((et) => <button key={et.id} className={`lp-etapa ${et.id === lead.etapaId ? "lp-atual" : ""}`} style={{ "--ec": et.cor }} onClick={() => mudarEtapa(et.id)}>{et.nome}</button>)}
       </div>
 
       <div className="lead-layout">
-        {/* SIDEBAR */}
         <div className="lead-sidebar">
           {/* Contato */}
           <div className="lead-section">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 className="lead-sec-title" style={{ margin: 0 }}>Contato</h3>
-              <button className="iconbtn" onClick={() => setEditContato(true)} title="Editar"><Icon.Edit /></button>
+              <button className="iconbtn" onClick={() => setEditContato(true)}><Icon.Edit /></button>
             </div>
             <div className="lead-campo"><span className="lead-label">Nome</span><span className="lead-valor">{lead.nome}</span></div>
-            <div className="lead-campo">
-              <span className="lead-label">WhatsApp</span>
-              <span className="lead-valor">
-                {lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" className="kc-whats"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
-                  {lead.whatsapp}</a> : "—"}
-              </span>
-            </div>
+            <div className="lead-campo"><span className="lead-label">WhatsApp</span><span className="lead-valor">{lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}><WhatsIcon size={16} /> {lead.whatsapp}</a> : "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Email</span><span className="lead-valor">{lead.email || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Valor</span><span className="lead-valor">{lead.valor > 0 ? fmtMoeda(lead.valor) : "—"}</span></div>
           </div>
 
           {/* Atribuição */}
           <div className="lead-section">
-            <h3 className="lead-sec-title">Atribuição</h3>
-            <div className="lead-campo">
-              <span className="lead-label">Responsável</span>
-              <select className="select" style={{ fontSize: 12 }} value={lead.responsavelId || ""}
-                onChange={(e) => salvarResponsavel(e.target.value)}>
-                <option value="">— sem responsável —</option>
-                {(pessoas || []).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 className="lead-sec-title" style={{ margin: 0 }}>Atribuição</h3>
+              <button className="iconbtn" onClick={() => setEditOrigem(true)}><Icon.Edit /></button>
+            </div>
+            <div className="lead-campo"><span className="lead-label">Responsável</span>
+              <select className="select" style={{ fontSize: 12 }} value={lead.responsavelId || ""} onChange={(e) => salvarResponsavel(e.target.value)}>
+                <option value="">— sem responsável —</option>{(pessoas || []).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
             </div>
             <div className="lead-campo"><span className="lead-label">Origem</span><span className="lead-valor">{origens.find((o) => o.id === lead.origemId)?.nome || "—"}</span></div>
           </div>
 
-          {/* Tags */}
-          {tags.length > 0 && (
-            <div className="lead-section">
-              <h3 className="lead-sec-title">Tags</h3>
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {leadTags.map((tid) => tagMap[tid] && <span key={tid} className="kc-tag" style={{ background: tagMap[tid].cor }}>{tagMap[tid].nome}</span>)}
-                {leadTags.length === 0 && <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>Sem tags</span>}
-              </div>
+          {/* Tags (editável) */}
+          <div className="lead-section">
+            <h3 className="lead-sec-title">Tags</h3>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {tags.map((t) => (
+                <button key={t.id} onClick={() => toggleTag(t.id)} style={{ padding: "3px 10px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: leadTags.includes(t.id) ? t.cor : "var(--gray-soft)", color: leadTags.includes(t.id) ? "#fff" : "var(--ink-faint)" }}>
+                  {t.nome}
+                </button>
+              ))}
+              {tags.length === 0 && <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>Nenhuma tag configurada neste funil</span>}
             </div>
-          )}
+          </div>
 
           {/* UTMs */}
           {(lead.utmSource || lead.utmMedium || lead.utmCampaign) && (
@@ -272,7 +242,14 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
 
         {/* MAIN */}
         <div className="lead-main">
-          {/* Campos personalizados (só admin edita) */}
+          {/* Alerta campos vazios */}
+          {camposVazios.length > 0 && (
+            <div className="campos-alerta">
+              ⚠ {camposVazios.length} campo{camposVazios.length > 1 ? "s" : ""} personalizado{camposVazios.length > 1 ? "s" : ""} sem preenchimento
+            </div>
+          )}
+
+          {/* Campos personalizados */}
           {campos.length > 0 && (
             <div className="card card-pad" style={{ marginBottom: 16 }}>
               <h3 className="lead-sec-title" style={{ marginBottom: 10 }}>Campos personalizados</h3>
@@ -281,59 +258,87 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
                   <div key={c.id} className="lead-campo">
                     <span className="lead-label">{c.nome}{c.obrigatorio && " *"}</span>
                     {isAdmin ? (
-                      <input className="input" style={{ fontSize: 12, padding: "4px 8px" }}
-                        defaultValue={camposCustom[c.id] || ""} placeholder="—"
-                        onBlur={(e) => salvarCampoCustom(c.id, e.target.value)} />
-                    ) : (
-                      <span className="lead-valor">{camposCustom[c.id] || "—"}</span>
-                    )}
+                      <input className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={camposForm[c.id] || ""} placeholder="—"
+                        onChange={(e) => setCamposForm((p) => ({ ...p, [c.id]: e.target.value }))} />
+                    ) : <span className="lead-valor">{camposForm[c.id] || "—"}</span>}
                   </div>
                 ))}
               </div>
+              {isAdmin && <button className="btn btn-sm btn-primary" style={{ marginTop: 10 }} onClick={salvarCamposPersonalizados}>Salvar campos</button>}
             </div>
           )}
 
           {/* Nova atividade */}
           <div className="card card-pad" style={{ marginBottom: 16 }}>
-            <h3 className="lead-sec-title" style={{ marginBottom: 10 }}>Nova atividade</h3>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <h3 className="lead-sec-title" style={{ marginBottom: 10 }}>Atividades</h3>
+            <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
               <button className="btn btn-sm" onClick={() => setModalAtiv("ligacao")}>📞 Ligação</button>
               <button className="btn btn-sm" onClick={() => setModalAtiv("email")}>✉️ E-mail</button>
               <button className="btn btn-sm" onClick={() => setModalAtiv("tarefa")}>✅ Tarefa</button>
             </div>
+            {ativTarefas.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Nenhuma atividade criada.</p> : (
+              <div className="atv-lista">
+                {ativTarefas.map((a) => {
+                  const atrasada = isAtrasada(a);
+                  const concluida = a.descricao.startsWith("✅ CONCLUÍDA");
+                  const cancelada = a.descricao.startsWith("❌ CANCELADA");
+                  const icons = { ligacao: "📞", email: "✉️", tarefa: "✅" };
+                  return (
+                    <div key={a.id} className={`atv-card ${atrasada && !concluida && !cancelada ? "atv-atrasada" : ""} ${concluida ? "atv-concluida" : ""} ${cancelada ? "atv-cancelada" : ""}`}>
+                      <div className="atv-card-top">
+                        <span>{icons[a.tipo] || "•"} <strong>{a.tipo === "ligacao" ? "Ligação" : a.tipo === "email" ? "E-mail" : "Tarefa"}</strong></span>
+                        {atrasada && !concluida && !cancelada && <span className="atv-badge-atraso">ATRASADA</span>}
+                        {concluida && <span className="atv-badge-ok">CONCLUÍDA</span>}
+                        {cancelada && <span className="atv-badge-cancel">CANCELADA</span>}
+                      </div>
+                      <div className="atv-card-desc">{a.descricao.replace(/^(✅ CONCLUÍDA: |❌ CANCELADA: )/, "")}</div>
+                      <div className="atv-card-meta">{a.autorNome} · {fmtDH(a.criadoEm)}</div>
+                      {!concluida && !cancelada && (
+                        <div className="atv-card-acoes">
+                          <button className="btn btn-sm btn-primary" onClick={() => concluirAtividade(a.id)}>Concluir</button>
+                          <button className="btn btn-sm btn-ghost" onClick={() => cancelarAtividade(a.id)}>Cancelar</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Anotações */}
+          {/* Anotações (chat) */}
           <div className="card card-pad" style={{ marginBottom: 16 }}>
             <h3 className="lead-sec-title" style={{ marginBottom: 10 }}>Anotações</h3>
-            <div style={{ display: "flex", gap: 8 }}>
-              <textarea className="input" rows={2} style={{ flex: 1 }} placeholder="Escreva um comentário sobre este lead…"
-                value={nota} onChange={(e) => setNota(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addNota(); } }} />
-              <button className="btn btn-primary btn-sm" style={{ alignSelf: "flex-end" }}
-                disabled={!nota.trim()} onClick={addNota}>Enviar</button>
+            <div className="notas-chat">
+              {anotacoes.length === 0 && <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "0 0 10px" }}>Nenhuma anotação.</p>}
+              {anotacoes.map((a) => (
+                <div key={a.id} className="nota-msg">
+                  <div className="nota-autor">{a.autorNome || "Sistema"} · {fmtDH(a.criadoEm)}</div>
+                  <div className="nota-texto">{a.descricao}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <input className="input" style={{ flex: 1 }} placeholder="Escreva uma anotação…" value={nota} onChange={(e) => setNota(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNota(); } }} />
+              <button className="btn btn-primary btn-sm" disabled={!nota.trim()} onClick={addNota}>Enviar</button>
             </div>
           </div>
 
           {/* Histórico */}
           <div className="card card-pad">
             <h3 className="lead-sec-title" style={{ marginBottom: 12 }}>Histórico completo</h3>
-            {atvsLocal.length === 0 ? (
-              <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>Nenhuma atividade registrada.</p>
-            ) : (
+            {historico.length === 0 ? <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>Nenhuma movimentação.</p> : (
               <div className="lead-timeline">
-                {atvsLocal.map((a) => {
-                  const icons = { nota: "📝", ligacao: "📞", email: "✉️", reuniao: "📅", tarefa: "✅", sistema: "⚙️" };
-                  return (
-                    <div key={a.id} className={`lt-item ${a.tipo === "sistema" ? "lt-sistema" : ""}`}>
-                      <div className="lt-icon">{icons[a.tipo] || "•"}</div>
-                      <div className="lt-content">
-                        <div className="lt-desc">{a.descricao}</div>
-                        <div className="lt-meta">{a.autorNome || "Sistema"} · {fmtDH(a.criadoEm)}</div>
-                      </div>
+                {historico.map((a) => (
+                  <div key={a.id} className="lt-item lt-sistema">
+                    <div className="lt-icon">⚙️</div>
+                    <div className="lt-content">
+                      <div className="lt-desc">{a.descricao}</div>
+                      <div className="lt-meta">{a.autorNome || "Sistema"} · {fmtDH(a.criadoEm)}</div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -341,6 +346,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
       </div>
 
       {editContato && <EditarContatoModal lead={lead} onSave={salvarContato} onClose={() => setEditContato(false)} />}
+      {editOrigem && <EditarOrigemModal lead={lead} origens={origens} onSave={salvarOrigem} onClose={() => setEditOrigem(false)} />}
       {modalAtiv && <NovaAtividadeModal tipo={modalAtiv} pessoas={pessoas} onSave={(d) => criarAtividade(modalAtiv, d)} onClose={() => setModalAtiv(null)} />}
     </>
   );
