@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import * as api from "./api.js";
+import { fmtMoeda } from "./utils";
 
 /* ============================================================
    Parâmetros de CRM — centrado no FUNIL.
@@ -51,6 +52,23 @@ function ParamList({ items, renderItem, onDel }) {
 /* ================================================================
    EDITOR DE FUNIL (página inteira dedicada ao funil selecionado)
    ================================================================ */
+function ProdutoInline({ funilId, onAdd, onToast }) {
+  const [nome, setNome] = useState("");
+  const [valor, setValor] = useState("");
+  async function salvar() {
+    if (!nome.trim() || !valor) return;
+    try { await api.crmProdutoSave({ nome, valor: Number(valor), funilId }); setNome(""); setValor(""); onAdd(); }
+    catch (e) { onToast("Erro: " + e.message); }
+  }
+  return (
+    <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+      <input className="input" style={{ flex: 1, minWidth: 120 }} placeholder="Nome do produto" value={nome} onChange={(e) => setNome(e.target.value)} />
+      <input className="input" style={{ width: 100 }} type="number" min="0" step="0.01" placeholder="Valor R$" value={valor} onChange={(e) => setValor(e.target.value)} />
+      <button className="btn btn-sm" disabled={!nome.trim() || !valor} onClick={salvar}>Adicionar</button>
+    </div>
+  );
+}
+
 function FunilEditor({ funil, crm, onToast, onVoltar }) {
   const [nome, setNome] = useState(funil.nome);
   const [desc, setDesc] = useState(funil.descricao || "");
@@ -200,6 +218,16 @@ function FunilEditor({ funil, crm, onToast, onVoltar }) {
           </label>
         </div>
         <AddInline placeholder="Nome do campo" onAdd={async (nome) => { try { await api.crmCampoSave({ nome, tipo: tipoCampo, obrigatorio: campoObrig, funilId: fid }); reload(); } catch (e) { onToast("Erro: " + e.message); } }} />
+      </div>
+
+
+      {/* PRODUTOS */}
+      <div className="card card-pad param-secao">
+        <h3 className="dash-title" style={{ margin: "0 0 8px" }}>Produtos</h3>
+        <p className="param-desc">Produtos com valores em R$ para atrelar aos leads. O valor preenche automaticamente.</p>
+        <ParamList items={(data.produtos || []).filter((p) => p.funilId === fid)} onDel={async (id) => { await api.crmProdutoDelete(id); reload(); }}
+          renderItem={(p) => <div><strong>{p.nome}</strong> — <span style={{ color: "var(--green-deep)", fontWeight: 700 }}>{fmtMoeda(p.valor)}</span></div>} />
+        <ProdutoInline funilId={fid} onAdd={async () => reload()} onToast={onToast} />
       </div>
 
       {/* ORIGENS E CAMPANHAS */}

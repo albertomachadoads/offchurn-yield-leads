@@ -906,9 +906,9 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 
 /* card icons (só ícones, sem número) */
 .kc-icons { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
-.kc-whats-icon { color: #25d366; display: flex; }
-.kc-whats-icon:hover { color: #128c7e; }
-.kc-email-icon { font-size: 16px; color: var(--ink-faint); }
+
+
+
 
 .tema-escuro .lead-section { background: var(--surface); }
 .tema-escuro .lp-etapa { background: var(--surface); }
@@ -964,3 +964,20 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
   50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.25); }
 }
 .tema-escuro .campos-alerta { background: #3a1f1a; }
+
+/* ============================================================
+   CARD CRM REDESENHADO
+   ============================================================ */
+.lead-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: #e5e7eb;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tema-escuro .lead-avatar { background: #374151; }
+
+.kc-row-top { display: flex; gap: 10px; align-items: flex-start; }
+.kc-info-col { flex: 1; min-width: 0; }
+.kc-icons-row { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+.kc-icons-row a, .kc-email-ico { display: flex; cursor: pointer; }
+.kc-email-ico { font-size: 14px; color: var(--ink-faint); }
+.kc-produto { font-size: 11px; color: var(--ink-faint); font-weight: 400; }
+.kc-bottom { font-size: 10px; color: var(--ink-faint); margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
+import { logAcao } from "./logger.js";
 
 const fmtDH = (iso) => { if (!iso) return "—"; const d = new Date(iso); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const whatsLink = (num) => { if (!num) return null; const c = num.replace(/\D/g, ""); return `https://wa.me/${c.startsWith("55") ? c : "55" + c}`; };
@@ -73,7 +74,7 @@ function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas, atividades, onVoltar, onSave, onToast, userName, isAdmin }) {
+export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, onVoltar, onSave, onToast, userName, isAdmin }) {
   const [editContato, setEditContato] = useState(false);
   const [editOrigem, setEditOrigem] = useState(false);
   const [modalAtiv, setModalAtiv] = useState(null);
@@ -99,8 +100,8 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
     const tipo = etapas.find((e) => e.id === etapaId)?.tipo;
     try {
       await onSave({ ...lead, etapaId }); await reg("sistema", `Movido para "${nome}"`);
-      if (tipo === "ganho") { dispararConfetes(); onToast("🎉 VENDA MARCADA! Parabéns!"); }
-      else if (tipo === "perdido") onToast("Lead marcado como perdido");
+      if (tipo === "ganho") { dispararConfetes(); logAcao("crm", `VENDA: Lead "${lead.nome}"`); onToast("🎉 VENDA MARCADA! Parabéns!"); }
+      else if (tipo === "perdido") { logAcao("crm", `PERDA: Lead "${lead.nome}"`); onToast("Lead marcado como perdido"); }
       else onToast("Etapa atualizada");
     } catch (e) { onToast("Erro: " + e.message); }
   }
@@ -111,7 +112,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
     if (dados.whatsapp !== lead.whatsapp) mudancas.push("WhatsApp atualizado");
     if (dados.email !== lead.email) mudancas.push("Email atualizado");
     if (Number(dados.valor) !== Number(lead.valor)) mudancas.push(`Valor: ${fmtMoeda(lead.valor||0)} → ${fmtMoeda(dados.valor)}`);
-    try { await onSave({ ...lead, ...dados }); if (mudancas.length) await reg("sistema", `Contato editado: ${mudancas.join(", ")}`); setEditContato(false); onToast("Contato atualizado"); } catch (e) { onToast("Erro: " + e.message); }
+    try { await onSave({ ...lead, ...dados }); if (mudancas.length) await reg("sistema", `Contato editado: ${mudancas.join(", ")}`); logAcao("crm", "Lead contato editado: " + lead.nome); setEditContato(false); onToast("Contato atualizado"); } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function salvarOrigem(origemId) {
@@ -200,6 +201,22 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, pessoas,
             <div className="lead-campo"><span className="lead-label">WhatsApp</span><span className="lead-valor">{lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}><WhatsIcon size={16} /> {lead.whatsapp}</a> : "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Email</span><span className="lead-valor">{lead.email || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Valor</span><span className="lead-valor">{lead.valor > 0 ? fmtMoeda(lead.valor) : "—"}</span></div>
+            {produtos && produtos.length > 0 && (
+              <div className="lead-campo"><span className="lead-label">Produto</span>
+                <select className="select" style={{ fontSize: 12 }} value={lead.produtoId || ""}
+                  onChange={async (e) => {
+                    const pid = e.target.value;
+                    const prod = produtos.find((p) => p.id === pid);
+                    try { await onSave({ ...lead, produtoId: pid || null, valor: prod ? prod.valor : lead.valor });
+                      await reg("sistema", `Produto alterado para "${prod?.nome || "nenhum"}"`);
+                      onToast("Produto atualizado");
+                    } catch (err) { onToast("Erro: " + err.message); }
+                  }}>
+                  <option value="">— sem produto —</option>
+                  {produtos.map((p) => <option key={p.id} value={p.id}>{p.nome} ({fmtMoeda(p.valor)})</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Atribuição */}

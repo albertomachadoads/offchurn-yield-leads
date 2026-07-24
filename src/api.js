@@ -347,23 +347,25 @@ const mapEtapa = (r) => ({ id: r.id, funilId: r.funil_id, nome: r.nome, ordem: r
 const mapTag = (r) => ({ id: r.id, nome: r.nome, cor: r.cor, funilId: r.funil_id });
 const mapMotivoPerda = (r) => ({ id: r.id, nome: r.nome, exigirJustificativa: r.exigir_justificativa, ativo: r.ativo, funilId: r.funil_id });
 const mapCampo = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, opcoes: r.opcoes, obrigatorio: r.obrigatorio, ordem: r.ordem, ativo: r.ativo, funilId: r.funil_id });
+const mapProduto = (r) => ({ id: r.id, nome: r.nome, valor: Number(r.valor)||0, ativo: r.ativo, funilId: r.funil_id });
 const mapOrigem = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, ativo: r.ativo, funilId: r.funil_id });
 const mapLead = (r) => ({ id: r.id, nome: r.nome, email: r.email, whatsapp: r.whatsapp,
   funilId: r.funil_id, etapaId: r.etapa_id, origemId: r.origem_id, responsavelId: r.responsavel_id,
   clienteId: r.cliente_id, valor: Number(r.valor)||0, motivoPerdaId: r.motivo_perda_id,
   justificativaPerda: r.justificativa_perda, tags: r.tags, camposCustom: r.campos_custom,
   utmSource: r.utm_source, utmMedium: r.utm_medium, utmCampaign: r.utm_campaign,
-  utmTerm: r.utm_term, utmContent: r.utm_content, criadoEm: r.criado_em, atualizadoEm: r.atualizado_em });
+  utmTerm: r.utm_term, utmContent: r.utm_content, produtoId: r.produto_id, criadoEm: r.criado_em, atualizadoEm: r.atualizado_em });
 const mapAtividade = (r) => ({ id: r.id, leadId: r.lead_id, tipo: r.tipo, descricao: r.descricao, autorNome: r.autor_nome, criadoEm: r.criado_em });
 
 export async function fetchCRM() {
-  const [funis, etapas, tags, motivos, campos, origens, leads, atividades] = await Promise.all([
+  const [funis, etapas, tags, motivos, campos, origens, produtos, leads, atividades] = await Promise.all([
     supabase.from("crm_funis").select("*").order("ordem"),
     supabase.from("crm_etapas").select("*").order("ordem"),
     supabase.from("crm_tags").select("*").order("nome"),
     supabase.from("crm_motivos_perda").select("*").order("nome"),
     supabase.from("crm_campos").select("*").order("ordem"),
     supabase.from("crm_origens").select("*").order("nome"),
+    supabase.from("crm_produtos").select("*").order("nome"),
     supabase.from("crm_leads").select("*").order("criado_em", { ascending: false }),
     supabase.from("crm_atividades").select("*").order("criado_em", { ascending: false }).limit(500),
   ]);
@@ -395,6 +397,8 @@ export const crmMotivoDelete = (id) => crmDelete("crm_motivos_perda", id);
 export const crmCampoSave = (c) => crmUpsert("crm_campos", { id: c.id||undefined, nome: c.nome, tipo: c.tipo||"texto", opcoes: c.opcoes||null, obrigatorio: c.obrigatorio||false, ordem: c.ordem||0, ativo: c.ativo??true, funil_id: c.funilId||null });
 export const crmCampoDelete = (id) => crmDelete("crm_campos", id);
 export const crmOrigemSave = (o) => crmUpsert("crm_origens", { id: o.id||undefined, nome: o.nome, tipo: o.tipo||"campanha", ativo: o.ativo??true, funil_id: o.funilId||null });
+export const crmProdutoSave = (p) => crmUpsert("crm_produtos", { id: p.id||undefined, nome: p.nome, valor: Number(p.valor)||0, ativo: p.ativo??true, funil_id: p.funilId||null });
+export const crmProdutoDelete = (id) => crmDelete("crm_produtos", id);
 export const crmOrigemDelete = (id) => crmDelete("crm_origens", id);
 export const crmLeadSave = (l) => crmUpsert("crm_leads", {
   id: l.id||undefined, nome: l.nome, email: l.email||null, whatsapp: l.whatsapp||null,
@@ -403,7 +407,7 @@ export const crmLeadSave = (l) => crmUpsert("crm_leads", {
   motivo_perda_id: l.motivoPerdaId||null, justificativa_perda: l.justificativaPerda||null,
   tags: l.tags||"[]", campos_custom: l.camposCustom||"{}",
   utm_source: l.utmSource||null, utm_medium: l.utmMedium||null, utm_campaign: l.utmCampaign||null,
-  utm_term: l.utmTerm||null, utm_content: l.utmContent||null, atualizado_em: new Date().toISOString(),
+  utm_term: l.utmTerm||null, utm_content: l.utmContent||null, produto_id: l.produtoId||null, atualizado_em: new Date().toISOString(),
 });
 export const crmLeadDelete = (id) => crmDelete("crm_leads", id);
 export const crmAtividadeSave = (a) => crmUpsert("crm_atividades", {
