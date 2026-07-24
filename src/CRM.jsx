@@ -120,7 +120,7 @@ function LeadModal({ base, etapas, tags, origens, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function CRM({ pessoas, onToast, userName }) {
+export default function CRM({ pessoas, onToast, userName, isAdmin }) {
   const [crm, setCrm] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [funilId, setFunilId] = useState(null);
@@ -212,6 +212,7 @@ export default function CRM({ pessoas, onToast, userName }) {
           campos={(crm.campos || []).filter((c) => c.funilId === funil.id)}
           pessoas={pessoas} atividades={crm.atividades || []}
           userName={userName}
+          isAdmin={isAdmin}
           onVoltar={() => { setLeadAberto(null); carregar(); }}
           onSave={async (d) => { await api.crmLeadSave({ ...d, funilId: funil.id }); carregar(); }}
           onToast={onToast}

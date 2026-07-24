@@ -916,3 +916,13 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .lt-icon { background: var(--surface-alt); }
 
 @media (max-width: 860px) { .lead-layout { grid-template-columns: 1fr; } }
+
+/* confetes na venda */
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+/* sistema no histórico */
+.lt-item.lt-sistema { opacity: 0.7; }
+.lt-item.lt-sistema .lt-desc { font-style: italic; }
