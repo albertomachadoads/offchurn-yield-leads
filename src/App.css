@@ -753,3 +753,30 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
   opacity: 1;
 }
 
+
+/* ============================================================
+   OBZ — Orçamento Base Zero
+   ============================================================ */
+.obz-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.obz-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 14px 16px; transition: all .15s;
+}
+.obz-card:hover { border-color: var(--green); box-shadow: var(--shadow); }
+.obz-card.obz-ativo { border-color: var(--green); background: var(--green-softer); }
+.obz-card-nome { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.obz-card-valor { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.obz-card-pct { font-size: 11px; color: var(--ink-faint); margin: 2px 0 6px; }
+.obz-card-barra { height: 4px; background: var(--gray-soft); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.obz-card-desc { font-size: 11px; color: var(--ink-faint); line-height: 1.4; }
+.obz-card-qtd { font-size: 11px; color: var(--ink-soft); margin-top: 4px; font-weight: 600; }
+
+.tema-escuro .obz-card { background: var(--surface); }
+.tema-escuro .obz-card.obz-ativo { background: var(--green-soft); }
+.tema-escuro .obz-card-nome,
+.tema-escuro .obz-card-valor { color: var(--ink); }
+
+@media (max-width: 1100px) { .obz-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .obz-grid { grid-template-columns: 1fr; } }

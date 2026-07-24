@@ -11,6 +11,7 @@ import ClienteDetalhe from "./ClienteDetalhe.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Logs from "./Logs.jsx";
+import OBZ from "./OBZ.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
@@ -324,6 +325,9 @@ export default function App() {
             <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
               <Icon.Users /> <span>Gestão de Clientes</span>
             </button>
+            <button className={view === "obz" ? "active" : ""} onClick={() => setView("obz")}>
+              <Icon.Cash /> <span>OBZ</span>
+            </button>
           </div>
 
           {/* LOG DE TAREFAS */}
@@ -499,6 +503,17 @@ export default function App() {
         {view === "admin" && isAdmin && (
           <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
         )}
+        {view === "obz" && (
+          <OBZ
+            despesas={data.despesas || []}
+            clientes={data.clientes || []}
+            recebiveis={data.recebiveis || []}
+            onSave={async (d) => { await api.upsertDespesa(d, user?.id); recarregar(); logAcao("obz", `Despesa ${d.id ? "editada" : "criada"}: ${d.nome}`); }}
+            onDelete={async (id) => { await api.deleteDespesa(id); recarregar(); logAcao("obz", "Despesa excluída"); }}
+            onToast={showToast}
+          />
+        )}
+
         {view === "registro-tarefas" && (
           <>
             <div className="page-head">

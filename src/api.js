@@ -47,11 +47,18 @@ const mapTarefa = (r) => ({
   dataCriacao: r.data_criacao, prazo: r.prazo, dataConclusao: r.data_conclusao,
   titulo: r.titulo, validadorId: r.validador_id, dataExecucao: r.data_execucao, dataEntrega: r.data_entrega,
 });
+const mapDespesa = (r) => ({
+  id: r.id, nome: r.nome, centroCusto: r.centro_custo, fornecedor: r.fornecedor,
+  tipo: r.tipo, valor: Number(r.valor) || 0, recorrencia: r.recorrencia,
+  criticidade: r.criticidade, impactoReceita: r.impacto_receita, riscoCorte: r.risco_corte,
+  dataPagamento: r.data_pagamento, responsavel: r.responsavel, observacao: r.observacao,
+  ativo: r.ativo, criadoEm: r.criado_em,
+});
 const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel, bloqueado: r.bloqueado || false });
 
 // ===== Carga inicial de tudo =====
 export async function fetchAll() {
-  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis, desempenho, funil] = await Promise.all([
+  const [clientes, gestores, pessoas, acomp, tarefas, perfis, painel, recebiveis, desempenho, funil, despesas] = await Promise.all([
     supabase.from("clientes").select("*").order("nome"),
     supabase.from("gestores").select("*").order("nome"),
     supabase.from("pessoas").select("*").order("nome"),
@@ -62,8 +69,9 @@ export async function fetchAll() {
     supabase.from("recebiveis").select("*"),
     supabase.from("desempenho").select("*"),
     supabase.from("funil_mensal").select("*"),
+    supabase.from("despesas").select("*"),
   ]);
-  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error || desempenho.error || funil.error;
+  const err = clientes.error || gestores.error || pessoas.error || acomp.error || tarefas.error || perfis.error || painel.error || recebiveis.error || desempenho.error || funil.error || despesas.error;
   if (err) throw err;
   return {
     clientes: (clientes.data || []).map(mapCliente),
@@ -76,6 +84,7 @@ export async function fetchAll() {
     recebiveis: (recebiveis.data || []).map(mapRecebivel),
     desempenho: (desempenho.data || []).map(mapDesempenho),
     funil: (funil.data || []).map(mapFunil),
+    despesas: (despesas.data || []).map(mapDespesa),
   };
 }
 
@@ -252,6 +261,26 @@ export async function metaSincronizar(clienteId) {
   return data; // { competencia, resultados: [...] }
 }
 
+export async function upsertDespesa(d, autorId) {
+  const row = {
+    nome: d.nome, centro_custo: d.centroCusto, fornecedor: d.fornecedor, tipo: d.tipo,
+    valor: Number(d.valor) || 0, recorrencia: d.recorrencia,
+    criticidade: Number(d.criticidade) || 3, impacto_receita: Number(d.impactoReceita) || 3,
+    risco_corte: Number(d.riscoCorte) || 3, data_pagamento: d.dataPagamento || null,
+    responsavel: d.responsavel || null, observacao: d.observacao || null,
+    ativo: d.ativo ?? true, criado_por: autorId || null,
+  };
+  if (d.id) row.id = d.id;
+  const { data, error } = await supabase.from("despesas").upsert(row).select().single();
+  if (error) throw error;
+  return mapDespesa(data);
+}
+
+export async function deleteDespesa(id) {
+  const { error } = await supabase.from("despesas").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function upsertFunil(f, autorId) {
   const row = {
     cliente_id: f.clienteId, competencia: f.competencia, plataforma: f.plataforma,
@@ -323,6 +352,7 @@ export function subscribeAll(onChange) {
     .on("postgres_changes", { event: "*", schema: "public", table: "recebiveis" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "desempenho" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "funil_mensal" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "despesas" }, onChange)
     .subscribe();
   return () => supabase.removeChannel(ch);
 }
