@@ -850,6 +850,9 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     platGoogle: base.platGoogle ?? false,
     platMeta: base.platMeta ?? false,
     cpaMeta: base.cpaMeta ?? "",
+    metaAdAccountId: base.metaAdAccountId || null,
+    googleAdCustomerId: base.googleAdCustomerId || null,
+    googleMccId: base.googleMccId || null,
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
