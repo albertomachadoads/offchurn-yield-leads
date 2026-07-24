@@ -174,12 +174,13 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
 
   async function salvarLead(dados) {
     try {
-      const saved = await api.crmLeadSave({ ...dados, funilId: funil.id }); setModal(null);
-      logAcao("crm", `Lead ${dados.id ? "editado" : "criado"}: ${dados.nome}`);
-      if (!dados.id) {
-        // Lead novo: disparar automações de "lead_criado"
-        const leadSalvo = { ...dados, ...saved, funilId: funil.id };
-        await executarAutomacoes({ evento: "lead_criado", lead: leadSalvo, funilId: funil.id, crm, userName });
+      const isNovo = !dados.id;
+      const result = await api.crmLeadSave({ ...dados, funilId: funil.id });
+      setModal(null);
+      logAcao("crm", `Lead ${isNovo ? "criado" : "editado"}: ${dados.nome}`);
+      if (isNovo && result?.id) {
+        const leadSalvo = { ...dados, id: result.id, funilId: funil.id };
+        try { await executarAutomacoes({ evento: "lead_criado", lead: leadSalvo, funilId: funil.id, crm, userName }); } catch {}
       }
       onToast("Lead salvo"); carregar();
     } catch (e) { onToast("Erro: " + e.message); }
@@ -197,7 +198,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
       await api.crmLeadSave({ ...lead, etapaId: novaEtapaId });
       logAcao("crm", `Lead "${lead.nome}" movido para "${etapaDest?.nome}"`);
       const leadAtualizado = { ...lead, etapaId: novaEtapaId };
-      await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior, funilId: funil.id, crm, userName });
+      try { await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior, funilId: funil.id, crm, userName }); } catch {}
       carregar();
     } catch (e) { onToast("Erro: " + e.message); }
   }
@@ -210,8 +211,8 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
       await api.crmAtividadeSave({ leadId: lead.id, tipo: "sistema", descricao: `Lead perdido. Motivo: ${motivo?.nome || "Não informado"}${justificativa ? ". Justificativa: " + justificativa : ""}`, autorNome: userName });
       logAcao("crm", `PERDA: Lead "${lead.nome}" - Motivo: ${motivo?.nome || "?"}`);
       const leadAtualizado = { ...lead, etapaId: modalPerda.etapaId };
-      await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior: lead, funilId: funil.id, crm, userName });
-      await executarAutomacoes({ evento: "lead_perdido", lead: leadAtualizado, funilId: funil.id, crm, userName });
+      try { await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior: lead, funilId: funil.id, crm, userName }); } catch {}
+      try { await executarAutomacoes({ evento: "lead_perdido", lead: leadAtualizado, funilId: funil.id, crm, userName }); } catch {}
       setModalPerda(null); onToast("Lead marcado como perdido"); carregar();
     } catch (e) { onToast("Erro: " + e.message); }
   }

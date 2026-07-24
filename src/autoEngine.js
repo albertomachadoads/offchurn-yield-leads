@@ -7,7 +7,7 @@ import * as api from "./api.js";
    ============================================================ */
 
 export async function executarAutomacoes({ evento, lead, leadAnterior, funilId, crm, userName }) {
-  if (!crm?.automacoes || !funilId) return;
+  if (!crm || !crm.automacoes || !funilId || !lead) return;
 
   const automacoes = crm.automacoes.filter((a) => a.ativo && a.funilId === funilId);
   if (automacoes.length === 0) return;
