@@ -139,31 +139,6 @@ table.grid tbody tr:hover { background: var(--green-soft); }
 .link-cliente:hover { color: var(--green-deep); text-decoration: underline; }
 
 
-/* sidebar mini: só ícones visíveis, bem espaçados */
-.sidebar-mini .sidebar .nav {
-  padding: 14px 8px;
-  gap: 4px;
-  align-items: center;
-}
-.sidebar-mini .sidebar .nav button {
-  justify-content: center;
-  padding: 12px;
-  min-height: 44px;
-  width: 44px;
-  border-radius: 10px;
-}
-.sidebar-mini .sidebar .nav button span {
-  display: none;
-}
-/* quando expande (hover), mostra tudo */
-.sidebar-mini .sidebar:hover .nav button {
-  justify-content: flex-start;
-  width: 100%;
-  padding: 10px 14px;
-}
-.sidebar-mini .sidebar:hover .nav button span {
-  display: inline;
-}
 
 @media (max-width: 860px) { .tiles { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .main { padding: 16px; } .tiles { grid-template-columns: 1fr; } .topbar { padding: 0 14px; } }
@@ -366,12 +341,41 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .sidebar-mini .sidebar .nav button span,
 .sidebar-mini .sidebar .tt-label,
 .sidebar-mini .sidebar .user-info,
-.sidebar-mini .sidebar .sidebar-sair { opacity: 0; white-space: nowrap; transition: opacity .1s; }
+.sidebar-mini .sidebar .sidebar-sair,
+.sidebar-mini .sidebar .nav-grupo-titulo { display: none; }
+/* mostra tudo de volta no hover */
 .sidebar-mini .sidebar:hover .name,
 .sidebar-mini .sidebar:hover .nav button span,
 .sidebar-mini .sidebar:hover .tt-label,
 .sidebar-mini .sidebar:hover .user-info,
-.sidebar-mini .sidebar:hover .sidebar-sair { opacity: 1; }
+.sidebar-mini .sidebar:hover .sidebar-sair,
+.sidebar-mini .sidebar:hover .nav-grupo-titulo { display: block; }
+.sidebar-mini .sidebar:hover .nav button span { display: inline; }
+
+/* botões da nav quando mini: centralizados, quadrados */
+.sidebar-mini .sidebar .nav button {
+  justify-content: center;
+  padding: 11px;
+  min-height: 42px;
+}
+.sidebar-mini .sidebar:hover .nav button {
+  justify-content: flex-start;
+  padding: 10px 14px;
+}
+/* botão tema quando mini: mostrar só o ícone, centralizado */
+.sidebar-mini .sidebar .tema-toggle {
+  justify-content: center;
+  padding: 10px;
+}
+.sidebar-mini .sidebar:hover .tema-toggle {
+  justify-content: flex-start;
+  padding: 8px 14px;
+}
+/* separador entre grupos quando mini — mais sutil */
+.sidebar-mini .sidebar .nav-grupo + .nav-grupo {
+  margin-top: 6px;
+  padding-top: 6px;
+}
 
 /* nav em modo mini: centraliza ícones */
 .sidebar .nav button { overflow: hidden; }
@@ -699,6 +703,17 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .cli-card h3,
 .tema-escuro .cli-card .cli-nome { color: var(--ink); }
 
+/* scrollbar da sidebar */
+.sidebar .nav {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.sidebar .nav::-webkit-scrollbar { width: 4px; }
+.sidebar .nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar .nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
 /* ============================================================
    SIDEBAR EM GRUPOS
    ============================================================ */
@@ -712,23 +727,6 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .sidebar-mini .sidebar:hover .nav-grupo-titulo { display: block; }
 .nav-grupo-titulo:first-child { margin-top: 0; }
 
-/* ============================================================
-   SIDEBAR: scrollbar fina e discreta + nav sem barra feia
-   ============================================================ */
-.sidebar .nav {
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.15) transparent;
-}
-.sidebar .nav::-webkit-scrollbar { width: 4px; }
-.sidebar .nav::-webkit-scrollbar-track { background: transparent; }
-.sidebar .nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-.sidebar .nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
-
-/* grupos da nav: espaçamento uniforme */
-.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
-.nav-grupo + .nav-grupo { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); }
 
 /* ============================================================
    MODO ESCURO: fluxo de caixa (previsto)
@@ -755,20 +753,3 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
   opacity: 1;
 }
 
-/* ============================================================
-   CORREÇÃO: alinhamento dos grupos da nav (Financeiro etc)
-   ============================================================ */
-.sidebar .nav {
-  display: flex;
-  flex-direction: column;
-  padding: 10px 12px;
-  gap: 0;
-}
-.nav-grupo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.nav-grupo-titulo {
-  padding: 8px 14px 4px;
-}
