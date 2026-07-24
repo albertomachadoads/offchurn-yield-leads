@@ -507,11 +507,13 @@ export default function App() {
             <div className="table-wrap">
               <table className="grid">
                 <thead>
-                  <tr><th>Título</th><th>Cliente</th><th>Responsável</th><th>Status</th><th>Execução</th><th>Entrega</th></tr>
+                  <tr><th style={{width:90}}>ID</th><th style={{width:90}}>Grupo</th><th>Título</th><th>Cliente</th><th>Responsável</th><th>Status</th><th>Execução</th><th>Entrega</th></tr>
                 </thead>
                 <tbody>
                   {(data.tarefas || []).sort((a,b)=>(a.dataCriacao<b.dataCriacao?1:-1)).map((t) => (
                     <tr key={t.id}>
+                      <td className="cell-num" style={{fontFamily:"monospace",fontSize:11}}>{t.id ? t.id.slice(0,8).toUpperCase() : "—"}</td>
+                      <td><span className="pill">Tráfego</span></td>
                       <td className="cell-cliente">{t.titulo || t.acao || "—"}</td>
                       <td>{cliById[t.clienteId]?.nome || "—"}</td>
                       <td>{pesById[t.responsavelId]?.nome || "—"}</td>

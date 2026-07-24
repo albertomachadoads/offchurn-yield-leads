@@ -737,3 +737,38 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .fc-total,
 .tema-escuro .fc-valor,
 .tema-escuro .projecao-valor { color: var(--ink); }
+
+/* ============================================================
+   CORREÇÃO: botão tema no modo escuro (visível)
+   ============================================================ */
+.tema-escuro .tema-toggle {
+  color: #e8f0eb;
+  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+}
+.tema-escuro .tema-toggle:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.tema-escuro .tema-toggle svg {
+  color: #ffd866;
+  opacity: 1;
+}
+
+/* ============================================================
+   CORREÇÃO: alinhamento dos grupos da nav (Financeiro etc)
+   ============================================================ */
+.sidebar .nav {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  gap: 0;
+}
+.nav-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-grupo-titulo {
+  padding: 8px 14px 4px;
+}
