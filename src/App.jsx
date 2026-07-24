@@ -14,6 +14,7 @@ import Logs from "./Logs.jsx";
 import OBZ from "./OBZ.jsx";
 import CRMParametros from "./CRMParametros.jsx";
 import CRM from "./CRM.jsx";
+import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
@@ -542,10 +543,7 @@ export default function App() {
         )}
 
         {view === "crm-analises" && (
-          <>
-            <div className="page-head"><div><h1>Análises do CRM</h1><p>Dashboards de performance — em construção (Fase 3).</p></div></div>
-            <div className="empty"><p>Os dashboards serão construídos após o CRM Kanban estar operacional.</p></div>
-          </>
+          <CRMAnalises onToast={showToast} />
         )}
 
         {view === "obz" && (

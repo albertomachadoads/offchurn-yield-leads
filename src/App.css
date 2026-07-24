@@ -987,3 +987,34 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .kc-valor-top { color: var(--green); }
 /* responsável inline (ao lado do whatsapp) */
 .kc-resp-inline { font-size: 10px; color: var(--ink-faint); margin-left: 2px; }
+
+/* ============================================================
+   CRM ANÁLISES — dashboards
+   ============================================================ */
+.ana-tiles { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 1100px) { .ana-tiles { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .ana-tiles { grid-template-columns: repeat(2, 1fr); } }
+
+.ana-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 800px) { .ana-grid { grid-template-columns: 1fr; } }
+
+/* barras horizontais */
+.ana-bar { margin-bottom: 10px; }
+.ana-bar-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+.ana-bar-label { color: var(--ink-soft); }
+.ana-bar-valor { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ana-bar-track { height: 8px; background: var(--gray-soft); border-radius: 4px; overflow: hidden; }
+.ana-bar-fill { height: 100%; border-radius: 4px; transition: width .4s ease; }
+
+/* gráfico de funil */
+.funil-chart { display: flex; flex-direction: column; gap: 6px; }
+.funil-row { display: flex; align-items: center; gap: 10px; }
+.funil-bar-wrap { transition: width .4s ease; display: flex; justify-content: center; }
+.funil-bar { padding: 6px 12px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 800; text-align: center; width: 100%; }
+.funil-label { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+
+/* pizza CSS */
+.pizza-circle { width: 120px; height: 120px; border-radius: 50%; flex-shrink: 0; }
+.pizza-legend { display: flex; flex-direction: column; gap: 4px; }
+.pizza-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.pizza-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
