@@ -38,6 +38,8 @@ export default function App() {
   // sidebar recolhida por padrão; expande no hover ou fixada por botão
   const [sidebarFixa, setSidebarFixa] = useState(false);
   // tema (claro/escuro) — lê preferência salva
+  const [agFiltro, setAgFiltro] = useState("todas"); // "todas" | "Yield" | "Mads"
+
   const [tema, setTema] = useState(() => {
     try { return localStorage.getItem("offchurn_tema") || "claro"; } catch { return "claro"; }
   });
@@ -124,12 +126,19 @@ export default function App() {
   // ----- derivados -----
   const cliById = useMemo(() => Object.fromEntries(data.clientes.map((c) => [c.id, c])), [data.clientes]);
   const gestById = useMemo(() => Object.fromEntries(data.gestores.map((g) => [g.id, g])), [data.gestores]);
+  // filtra TUDO pela agência selecionada (exceto o próprio cadastro de clientes)
+  const clientesFiltrados = useMemo(() => {
+    if (agFiltro === "todas") return data.clientes;
+    return data.clientes.filter((c) => c.agencia === agFiltro);
+  }, [data.clientes, agFiltro]);
+  const idsAgencia = useMemo(() => new Set(clientesFiltrados.map((c) => c.id)), [clientesFiltrados]);
+
   const pesById = useMemo(() => Object.fromEntries((data.pessoas || []).map((p) => [p.id, p])), [data.pessoas]);
   const respDoCliente = (clienteId) => gestById[cliById[clienteId]?.responsavelId]?.nome || "—";
 
   const registrosFiltrados = useMemo(() => {
     return (data.acompanhamentos || [])
-      .filter((r) => true) // todos os clientes ativos aparecem
+      .filter((r) => idsAgencia.has(r.clienteId)) // filtra por agência
       .filter((r) => {
         if (fGestor !== "todos" && cliById[r.clienteId]?.responsavelId !== fGestor) return false;
         if (fAder !== "todas" && r.aderencia !== fAder) return false;
@@ -301,6 +310,11 @@ export default function App() {
             <span className="name">OffChurn Yield Leads</span>
           </div>
         </div>
+        <div className="ag-filtro">
+          <button className={agFiltro === "todas" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("todas")}>Todas</button>
+          <button className={agFiltro === "Yield" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Yield")}>Yield</button>
+          <button className={agFiltro === "Mads" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Mads")}>Mads</button>
+        </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
           <div className="nav-grupo">
@@ -392,8 +406,8 @@ export default function App() {
         )}
                 {view === "follow" && (
           <FollowAcoes
-            tarefas={data.tarefas || []}
-            clientes={data.clientes}
+            tarefas={(data.tarefas || []).filter((t) => idsAgencia.has(t.clienteId))}
+            clientes={clientesFiltrados}
             pessoas={data.pessoas || []}
             onSave={salvarTarefa}
             onDelete={excluirTarefa}
@@ -403,7 +417,7 @@ export default function App() {
         )}
         {view === "clientes" && !clienteAberto && (
           <Clientes
-            clientes={data.clientes}
+            clientes={clientesFiltrados}
             desempenho={data.desempenho || []}
             onAbrir={(c) => setClienteAberto(c)}
             onLancar={lancarDesempenho}
@@ -470,7 +484,7 @@ export default function App() {
         )}
         {view === "gestao" && (
           <GestaoClientes
-            clientes={data.clientes}
+            clientes={clientesFiltrados}
             gestById={gestById}
             isAdmin={isAdmin}
             onEditar={(c) => setCliModal(c)}
@@ -478,7 +492,7 @@ export default function App() {
         )}
         {view === "fluxo" && (
           <FluxoCaixa
-            clientes={data.clientes}
+            clientes={clientesFiltrados}
             recebiveis={data.recebiveis || []}
             onMarcarPago={marcarPago}
             onToast={showToast}
@@ -506,7 +520,7 @@ export default function App() {
         {view === "obz" && (
           <OBZ
             despesas={data.despesas || []}
-            clientes={data.clientes || []}
+            clientes={clientesFiltrados}
             recebiveis={data.recebiveis || []}
             onSave={async (d) => { await api.upsertDespesa(d, user?.id); recarregar(); logAcao("obz", `Despesa ${d.id ? "editada" : "criada"}: ${d.nome}`); }}
             onDelete={async (id) => { await api.deleteDespesa(id); recarregar(); logAcao("obz", "Despesa excluída"); }}
@@ -525,7 +539,7 @@ export default function App() {
                   <tr><th style={{width:90}}>ID</th><th style={{width:90}}>Grupo</th><th>Título</th><th>Cliente</th><th>Responsável</th><th>Status</th><th>Execução</th><th>Entrega</th></tr>
                 </thead>
                 <tbody>
-                  {(data.tarefas || []).sort((a,b)=>(a.dataCriacao<b.dataCriacao?1:-1)).map((t) => (
+                  {(data.tarefas || []).filter((t) => idsAgencia.has(t.clienteId)).sort((a,b)=>(a.dataCriacao<b.dataCriacao?1:-1)).map((t) => (
                     <tr key={t.id}>
                       <td className="cell-num" style={{fontFamily:"monospace",fontSize:11}}>{t.id ? t.id.slice(0,8).toUpperCase() : "—"}</td>
                       <td><span className="pill">Tráfego</span></td>
@@ -782,7 +796,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onT
                 <div>
                   <div className="lr-name">{c.nome}</div>
                   <div className="lr-meta">
-                    {gestById[c.responsavelId]?.nome || "Sem gestor"}
+                    {c.agencia && <><span className="pill pill-ag">{c.agencia}</span> · </>}{gestById[c.responsavelId]?.nome || "Sem gestor"}
                     {(c.verbaMensal != null || c.cpa != null) && (
                       <span className="lr-extra">
                         {c.verbaMensal != null && <> · Verba {fmtMoeda(c.verbaMensal)}</>}
@@ -866,6 +880,7 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
     clienteId: base.clienteId || clientes[0]?.id || "",
     // campos legados mantidos com padrão (colunas ainda existem no banco)
     criticidade: base.criticidade || "Normal",
+    agencia: base.agencia || "Yield",
     tipoMeta: base.tipoMeta || "Faturamento",
     meta: base.meta ?? null,
     realizado: base.realizado ?? null,
@@ -966,6 +981,13 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
           <option value="Lead">Lead (funil de leads e taxas)</option>
           <option value="Faturamento">Faturamento (vendas, VGV e ROAS)</option>
           <option value="Não metrificado">Resultado não metrificado (painel em branco)</option>
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Agência</label>
+        <select className="select" value={f.agencia} onChange={(e) => set("agencia", e.target.value)}>
+          <option value="Yield">Yield</option>
+          <option value="Mads">Mads</option>
         </select>
       </div>
       <div className="form-row">

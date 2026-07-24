@@ -780,3 +780,31 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 
 @media (max-width: 1100px) { .obz-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .obz-grid { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   FILTRO DE AGÊNCIA (Yield / Mads)
+   ============================================================ */
+.ag-filtro {
+  display: flex; gap: 2px; padding: 6px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.ag-btn {
+  flex: 1; padding: 6px 8px; border: none; border-radius: 6px;
+  background: transparent; color: rgba(255,255,255,0.5);
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: all .12s; text-align: center;
+}
+.ag-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
+.ag-btn.ag-on { background: rgba(255,255,255,0.15); color: #fff; }
+
+/* tag de agência na lista de clientes */
+.pill-ag {
+  font-size: 9px; padding: 1px 6px; border-radius: 4px;
+  background: var(--green-softer); color: var(--green-deep);
+  font-weight: 700; letter-spacing: 0.03em;
+}
+.tema-escuro .pill-ag { background: var(--green-soft); color: var(--green); }
+
+/* sidebar mini: esconde o filtro de agência */
+.sidebar-mini .sidebar .ag-filtro { display: none; }
+.sidebar-mini .sidebar:hover .ag-filtro { display: flex; }
