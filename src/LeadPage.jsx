@@ -3,6 +3,7 @@ import { Icon, Modal } from "./components.jsx";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
 import { logAcao } from "./logger.js";
+import { executarAutomacoes } from "./autoEngine.js";
 
 const fmtDH = (iso) => { if (!iso) return "—"; const d = new Date(iso); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const whatsLink = (num) => { if (!num) return null; const c = num.replace(/\D/g, ""); return `https://wa.me/${c.startsWith("55") ? c : "55" + c}`; };
@@ -74,7 +75,7 @@ function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, onVoltar, onSave, onToast, userName, isAdmin, onIniciarOnboarding }) {
+export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, crm, onVoltar, onSave, onToast, userName, isAdmin, onIniciarOnboarding }) {
   const crm_motivos = motivos || [];
   const [showOnboard, setShowOnboard] = useState(false);
   const [editContato, setEditContato] = useState(false);
@@ -114,9 +115,16 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
     const tipo = etapas.find((e) => e.id === etapaId)?.tipo;
     try {
       await onSave({ ...lead, etapaId }); await reg("sistema", `Movido para "${nome}"`);
-      if (tipo === "ganho") { dispararConfetes(); logAcao("crm", `VENDA: Lead "${lead.nome}"`); onToast("🎉 VENDA MARCADA! Parabéns!"); setTimeout(() => setShowOnboard(true), 1500); }
-      else if (tipo === "perdido") { logAcao("crm", `PERDA: Lead "${lead.nome}"`); onToast("Lead marcado como perdido"); }
-      else onToast("Etapa atualizada");
+      const leadAtualizado = { ...lead, etapaId };
+      await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior: lead, funilId: lead.funilId, crm, userName });
+      if (tipo === "ganho") {
+        dispararConfetes(); logAcao("crm", `VENDA: Lead "${lead.nome}"`); onToast("🎉 VENDA MARCADA! Parabéns!");
+        await executarAutomacoes({ evento: "lead_ganho", lead: leadAtualizado, funilId: lead.funilId, crm, userName });
+        setTimeout(() => setShowOnboard(true), 1500);
+      } else if (tipo === "perdido") {
+        logAcao("crm", `PERDA: Lead "${lead.nome}"`); onToast("Lead marcado como perdido");
+        await executarAutomacoes({ evento: "lead_perdido", lead: leadAtualizado, funilId: lead.funilId, crm, userName });
+      } else onToast("Etapa atualizada");
     } catch (e) { onToast("Erro: " + e.message); }
   }
 
@@ -137,7 +145,12 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
   async function toggleTag(tid) {
     const s = new Set(leadTags); s.has(tid) ? s.delete(tid) : s.add(tid);
     const novas = [...s]; const nome = tagMap[tid]?.nome || "?";
-    try { await onSave({ ...lead, tags: JSON.stringify(novas) }); await reg("sistema", `Tag ${s.has(tid) ? "adicionada" : "removida"}: "${nome}"`); onToast("Tags atualizadas"); } catch (e) { onToast("Erro: " + e.message); }
+    try {
+      const leadAtualizado = { ...lead, tags: JSON.stringify(novas) };
+      await onSave(leadAtualizado); await reg("sistema", `Tag ${s.has(tid) ? "adicionada" : "removida"}: "${nome}"`);
+      if (s.has(tid)) await executarAutomacoes({ evento: "tag_adicionada", lead: leadAtualizado, leadAnterior: lead, funilId: lead.funilId, crm, userName });
+      onToast("Tags atualizadas");
+    } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function salvarResponsavel(respId) {
@@ -146,7 +159,12 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
   }
 
   async function salvarCamposPersonalizados() {
-    try { await onSave({ ...lead, camposCustom: JSON.stringify(camposForm) }); await reg("sistema", "Campos personalizados atualizados"); onToast("Campos salvos"); } catch (e) { onToast("Erro: " + e.message); }
+    try {
+      const leadAtualizado = { ...lead, camposCustom: JSON.stringify(camposForm) };
+      await onSave(leadAtualizado); await reg("sistema", "Campos personalizados atualizados");
+      await executarAutomacoes({ evento: "campo_alterado", lead: leadAtualizado, leadAnterior: lead, funilId: lead.funilId, crm, userName });
+      onToast("Campos salvos");
+    } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function criarAtividade(tipo, dados) {

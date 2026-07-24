@@ -4,6 +4,7 @@ import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
 import LeadPage from "./LeadPage.jsx";
 import { logAcao } from "./logger.js";
+import { executarAutomacoes } from "./autoEngine.js";
 
 const fmtDataBR = (iso) => { if (!iso) return ""; const d = new Date(iso); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`; };
 const mascaraTel = (v) => { const n = v.replace(/\D/g, "").slice(0, 11); if (n.length <= 2) return `(${n}`; if (n.length <= 7) return `(${n.slice(0,2)}) ${n.slice(2)}`; return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`; };
@@ -164,7 +165,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
   if (leadAberto) {
     const la = leads.find((l) => l.id === leadAberto) || crm.leads.find((l) => l.id === leadAberto);
     if (la) return <LeadPage lead={la} etapas={etapas} tags={tags} origens={origens} produtos={produtos}
-      campos={(crm.campos || []).filter((c) => c.funilId === funil.id)} produtos={produtos}
+      campos={(crm.campos || []).filter((c) => c.funilId === funil.id)} produtos={produtos} crm={crm}
       motivos={(crm.motivos || []).filter((m) => m.funilId === funil.id)} pessoas={pessoas} atividades={crm.atividades || []}
       userName={userName} isAdmin={isAdmin} onIniciarOnboarding={onIniciarOnboarding} onVoltar={() => { setLeadAberto(null); carregar(); }}
       onSave={async (d) => { await api.crmLeadSave({ ...d, funilId: funil.id }); carregar(); }} onToast={onToast} />;
@@ -173,8 +174,13 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
 
   async function salvarLead(dados) {
     try {
-      await api.crmLeadSave({ ...dados, funilId: funil.id }); setModal(null);
+      const saved = await api.crmLeadSave({ ...dados, funilId: funil.id }); setModal(null);
       logAcao("crm", `Lead ${dados.id ? "editado" : "criado"}: ${dados.nome}`);
+      if (!dados.id) {
+        // Lead novo: disparar automações de "lead_criado"
+        const leadSalvo = { ...dados, ...saved, funilId: funil.id };
+        await executarAutomacoes({ evento: "lead_criado", lead: leadSalvo, funilId: funil.id, crm, userName });
+      }
       onToast("Lead salvo"); carregar();
     } catch (e) { onToast("Erro: " + e.message); }
   }
@@ -187,8 +193,11 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
       return;
     }
     try {
+      const leadAnterior = { ...lead };
       await api.crmLeadSave({ ...lead, etapaId: novaEtapaId });
       logAcao("crm", `Lead "${lead.nome}" movido para "${etapaDest?.nome}"`);
+      const leadAtualizado = { ...lead, etapaId: novaEtapaId };
+      await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior, funilId: funil.id, crm, userName });
       carregar();
     } catch (e) { onToast("Erro: " + e.message); }
   }
@@ -200,6 +209,9 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
       await api.crmLeadSave({ ...lead, etapaId: modalPerda.etapaId, motivoPerdaId: motivoId || null, justificativaPerda: justificativa || null });
       await api.crmAtividadeSave({ leadId: lead.id, tipo: "sistema", descricao: `Lead perdido. Motivo: ${motivo?.nome || "Não informado"}${justificativa ? ". Justificativa: " + justificativa : ""}`, autorNome: userName });
       logAcao("crm", `PERDA: Lead "${lead.nome}" - Motivo: ${motivo?.nome || "?"}`);
+      const leadAtualizado = { ...lead, etapaId: modalPerda.etapaId };
+      await executarAutomacoes({ evento: "mudanca_etapa", lead: leadAtualizado, leadAnterior: lead, funilId: funil.id, crm, userName });
+      await executarAutomacoes({ evento: "lead_perdido", lead: leadAtualizado, funilId: funil.id, crm, userName });
       setModalPerda(null); onToast("Lead marcado como perdido"); carregar();
     } catch (e) { onToast("Erro: " + e.message); }
   }
