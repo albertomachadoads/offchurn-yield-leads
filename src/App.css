@@ -981,3 +981,9 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .kc-email-ico { font-size: 14px; color: var(--ink-faint); }
 .kc-produto { font-size: 11px; color: var(--ink-faint); font-weight: 400; }
 .kc-bottom { font-size: 10px; color: var(--ink-faint); margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+
+/* valor no topo esquerdo do card */
+.kc-valor-top { font-size: 12px; font-weight: 800; color: var(--green-deep); margin-bottom: 8px; font-variant-numeric: tabular-nums; }
+.tema-escuro .kc-valor-top { color: var(--green); }
+/* responsável inline (ao lado do whatsapp) */
+.kc-resp-inline { font-size: 10px; color: var(--ink-faint); margin-left: 2px; }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
@@ -74,9 +74,11 @@ function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, onVoltar, onSave, onToast, userName, isAdmin }) {
+export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, onVoltar, onSave, onToast, userName, isAdmin }) {
+  const crm_motivos = motivos || [];
   const [editContato, setEditContato] = useState(false);
   const [editOrigem, setEditOrigem] = useState(false);
+  const [modalPerdaLP, setModalPerdaLP] = useState(false);
   const [modalAtiv, setModalAtiv] = useState(null);
   const [nota, setNota] = useState("");
   const [camposForm, setCamposForm] = useState(() => { try { return JSON.parse(lead.camposCustom || "{}"); } catch { return {}; } });
@@ -93,6 +95,17 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
   async function reg(tipo, descricao) {
     const atv = { leadId: lead.id, tipo, descricao, autorNome: userName };
     try { await api.crmAtividadeSave(atv); setAtvsLocal((p) => [{ ...atv, id: Date.now().toString(), criadoEm: new Date().toISOString() }, ...p]); } catch {}
+  }
+
+  async function confirmarPerdaLP(etapaId, motivoId, justificativa) {
+    const nome = etapas.find((e) => e.id === etapaId)?.nome || "?";
+    const motivo = (crm_motivos || []).find((m) => m.id === motivoId);
+    try {
+      await onSave({ ...lead, etapaId, motivoPerdaId: motivoId || null, justificativaPerda: justificativa || null });
+      await reg("sistema", "Lead perdido. Motivo: " + (motivo?.nome || "Não informado") + (justificativa ? ". " + justificativa : ""));
+      logAcao("crm", "PERDA: Lead " + lead.nome + " - " + (motivo?.nome || "?"));
+      setModalPerdaLP(false); onToast("Lead marcado como perdido");
+    } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function mudarEtapa(etapaId) {
@@ -180,7 +193,11 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
         </div>
         <div className="head-actions">
           {etapaAtual?.tipo !== "ganho" && <button className="btn btn-sm btn-primary" onClick={() => { const g = etapas.find((e) => e.tipo === "ganho"); if (g) mudarEtapa(g.id); else onToast("Configure etapa 'ganho'"); }}>★ Marcar venda</button>}
-          {etapaAtual?.tipo !== "perdido" && <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => { const p = etapas.find((e) => e.tipo === "perdido"); if (p) mudarEtapa(p.id); else onToast("Configure etapa 'perdido'"); }}>✕ Marcar perda</button>}
+          {etapaAtual?.tipo !== "perdido" && <button className="btn btn-sm" style={{ color: "var(--red)" }} onClick={() => {
+            const p2 = etapas.find((e) => e.tipo === "perdido");
+            if (!p2) { onToast("Configure etapa 'perdido'"); return; }
+            setModalPerdaLP(p2.id);
+          }}>✕ Marcar perda</button>}
         </div>
       </div>
 
@@ -201,6 +218,13 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
             <div className="lead-campo"><span className="lead-label">WhatsApp</span><span className="lead-valor">{lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}><WhatsIcon size={16} /> {lead.whatsapp}</a> : "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Email</span><span className="lead-valor">{lead.email || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Valor</span><span className="lead-valor">{lead.valor > 0 ? fmtMoeda(lead.valor) : "—"}</span></div>
+            {lead.motivoPerdaId && (
+              <div className="lead-campo" style={{ marginTop: 8, padding: "8px 10px", background: "#fef2f2", borderRadius: 6, border: "1px solid var(--red)" }}>
+                <span className="lead-label" style={{ color: "var(--red)" }}>Status: PERDIDO</span>
+                <span className="lead-valor" style={{ color: "var(--red)", fontWeight: 700 }}>{crm_motivos.find((m) => m.id === lead.motivoPerdaId)?.nome || "Motivo não informado"}</span>
+                {lead.justificativaPerda && <span className="lead-valor" style={{ fontSize: 11, fontStyle: "italic" }}>{lead.justificativaPerda}</span>}
+              </div>
+            )}
             {produtos && produtos.length > 0 && (
               <div className="lead-campo"><span className="lead-label">Produto</span>
                 <select className="select" style={{ fontSize: 12 }} value={lead.produtoId || ""}
@@ -364,6 +388,26 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
 
       {editContato && <EditarContatoModal lead={lead} onSave={salvarContato} onClose={() => setEditContato(false)} />}
       {editOrigem && <EditarOrigemModal lead={lead} origens={origens} onSave={salvarOrigem} onClose={() => setEditOrigem(false)} />}
+      {modalPerdaLP && (() => {
+        const ModalPerdaLP = () => {
+          const [mid, setMid] = React.useState("");
+          const [just, setJust] = React.useState("");
+          const mot = crm_motivos.find((m) => m.id === mid);
+          return (
+            <Modal title="Motivo da perda" onClose={() => setModalPerdaLP(false)} footer={
+              <><button className="btn btn-ghost" onClick={() => setModalPerdaLP(false)}>Cancelar</button>
+              <button className="btn btn-primary" style={{ background: "var(--red)" }} disabled={!mid} onClick={() => confirmarPerdaLP(modalPerdaLP, mid, just)}>Confirmar perda</button></>
+            }>
+              <div className="form-row"><label>Motivo *</label><select className="select" value={mid} onChange={(e) => setMid(e.target.value)}>
+                <option value="">— selecione —</option>
+                {crm_motivos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select></div>
+              {mot?.exigirJustificativa && <div className="form-row"><label>Justificativa *</label><textarea className="input" rows={3} value={just} onChange={(e) => setJust(e.target.value)} /></div>}
+            </Modal>
+          );
+        };
+        return <ModalPerdaLP />;
+      })()}
       {modalAtiv && <NovaAtividadeModal tipo={modalAtiv} pessoas={pessoas} onSave={(d) => criarAtividade(modalAtiv, d)} onClose={() => setModalAtiv(null)} />}
     </>
   );

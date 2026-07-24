@@ -96,6 +96,28 @@ function LeadModal({ base, etapas, origens, produtos, pessoas, onSave, onClose }
   );
 }
 
+
+function ModalPerda({ motivos, onConfirm, onClose }) {
+  const [motivoId, setMotivoId] = useState("");
+  const [justificativa, setJustificativa] = useState("");
+  const motivoSel = motivos.find((m) => m.id === motivoId);
+  return (
+    <Modal title="Motivo da perda" onClose={onClose} footer={
+      <><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+      <button className="btn btn-primary" style={{ background: "var(--red)" }} disabled={!motivoId} onClick={() => onConfirm(motivoId, justificativa)}>Confirmar perda</button></>
+    }>
+      <p style={{ fontSize: 13, marginBottom: 12 }}>Selecione o motivo pelo qual este lead foi perdido:</p>
+      <div className="form-row"><label>Motivo *</label><select className="select" value={motivoId} onChange={(e) => setMotivoId(e.target.value)}>
+        <option value="">— selecione o motivo —</option>
+        {(motivos || []).map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+      </select></div>
+      {motivoSel?.exigirJustificativa && (
+        <div className="form-row"><label>Justificativa *</label><textarea className="input" rows={3} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} placeholder="Explique o motivo em detalhes…" /></div>
+      )}
+    </Modal>
+  );
+}
+
 /* ---- Principal ---- */
 export default function CRM({ pessoas, onToast, userName, isAdmin }) {
   const [crm, setCrm] = useState(null);
@@ -103,6 +125,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
   const [funilId, setFunilId] = useState(null);
   const [modal, setModal] = useState(null);
   const [leadAberto, setLeadAberto] = useState(null);
+  const [modalPerda, setModalPerda] = useState(null); // leadId para marcar perda
   const [fData, setFData] = useState("");
   const [fResp, setFResp] = useState("");
   const [fTag, setFTag] = useState("");
@@ -140,7 +163,8 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
   if (leadAberto) {
     const la = leads.find((l) => l.id === leadAberto) || crm.leads.find((l) => l.id === leadAberto);
     if (la) return <LeadPage lead={la} etapas={etapas} tags={tags} origens={origens} produtos={produtos}
-      campos={(crm.campos || []).filter((c) => c.funilId === funil.id)} pessoas={pessoas} atividades={crm.atividades || []}
+      campos={(crm.campos || []).filter((c) => c.funilId === funil.id)} produtos={produtos}
+      motivos={(crm.motivos || []).filter((m) => m.funilId === funil.id)} pessoas={pessoas} atividades={crm.atividades || []}
       userName={userName} isAdmin={isAdmin} onVoltar={() => { setLeadAberto(null); carregar(); }}
       onSave={async (d) => { await api.crmLeadSave({ ...d, funilId: funil.id }); carregar(); }} onToast={onToast} />;
     setLeadAberto(null);
@@ -155,11 +179,27 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
   }
   async function moverLead(leadId, novaEtapaId) {
     const lead = leads.find((l) => l.id === leadId); if (!lead) return;
+    const etapaDest = etapas.find((e) => e.id === novaEtapaId);
+    // Se a etapa destino é "perdido", abrir modal de motivo
+    if (etapaDest?.tipo === "perdido") {
+      setModalPerda({ leadId, etapaId: novaEtapaId, leadNome: lead.nome });
+      return;
+    }
     try {
       await api.crmLeadSave({ ...lead, etapaId: novaEtapaId });
-      const nomeEtapa = etapas.find((e) => e.id === novaEtapaId)?.nome;
-      logAcao("crm", `Lead "${lead.nome}" movido para "${nomeEtapa}"`);
+      logAcao("crm", `Lead "${lead.nome}" movido para "${etapaDest?.nome}"`);
       carregar();
+    } catch (e) { onToast("Erro: " + e.message); }
+  }
+
+  async function confirmarPerda(motivoId, justificativa) {
+    const lead = leads.find((l) => l.id === modalPerda.leadId); if (!lead) return;
+    const motivo = (crm.motivos||[]).find((m) => m.id === motivoId);
+    try {
+      await api.crmLeadSave({ ...lead, etapaId: modalPerda.etapaId, motivoPerdaId: motivoId || null, justificativaPerda: justificativa || null });
+      await api.crmAtividadeSave({ leadId: lead.id, tipo: "sistema", descricao: `Lead perdido. Motivo: ${motivo?.nome || "Não informado"}${justificativa ? ". Justificativa: " + justificativa : ""}`, autorNome: userName });
+      logAcao("crm", `PERDA: Lead "${lead.nome}" - Motivo: ${motivo?.nome || "?"}`);
+      setModalPerda(null); onToast("Lead marcado como perdido"); carregar();
     } catch (e) { onToast("Erro: " + e.message); }
   }
   async function excluirLead(id) {
@@ -233,6 +273,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
                     let lTags = []; try { lTags = JSON.parse(l.tags || "[]"); } catch {}
                     return (
                       <div key={l.id} className="kanban-card" draggable onDragStart={(e) => e.dataTransfer.setData("leadId", l.id)}>
+                        {l.valor > 0 && <div className="kc-valor-top">{fmtMoeda(l.valor)}{prodMap[l.produtoId] && <span className="kc-produto"> · {prodMap[l.produtoId].nome}</span>}</div>}
                         <div className="kc-row-top">
                           <LeadAvatar nome={l.nome} />
                           <div className="kc-info-col">
@@ -240,6 +281,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
                             <div className="kc-icons-row">
                               {l.whatsapp && <a href={whatsLink(l.whatsapp)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="WhatsApp"><WhatsIcon size={15} /></a>}
                               {l.email && <span className="kc-email-ico" title={l.email}>✉</span>}
+                              {l.responsavelId && pesMap[l.responsavelId] && <span className="kc-resp-inline">👤 {pesMap[l.responsavelId].nome}</span>}
                             </div>
                           </div>
                           <div className="kc-acoes">
@@ -247,8 +289,6 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
                             <button className="iconbtn" onClick={() => excluirLead(l.id)} title="Excluir"><Icon.Trash /></button>
                           </div>
                         </div>
-                        {l.valor > 0 && <div className="kc-valor">{fmtMoeda(l.valor)}{prodMap[l.produtoId] && <span className="kc-produto"> · {prodMap[l.produtoId].nome}</span>}</div>}
-                        {l.responsavelId && pesMap[l.responsavelId] && <div className="kc-resp">👤 {pesMap[l.responsavelId].nome}</div>}
                         {lTags.length > 0 && <div className="kc-tags">{lTags.map((tid) => tagMap[tid] && <span key={tid} className="kc-tag" style={{ background: tagMap[tid].cor }}>{tagMap[tid].nome}</span>)}</div>}
                         <div className="kc-bottom">{fmtDataBR(l.criadoEm)}</div>
                       </div>
@@ -261,6 +301,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
           })}
         </div>
       )}
+      {modalPerda && <ModalPerda motivos={(crm.motivos||[]).filter((m) => m.funilId === funil.id)} onConfirm={confirmarPerda} onClose={() => setModalPerda(null)} />}
       {modal && <LeadModal base={modal} etapas={etapas} origens={origens} produtos={produtos} pessoas={pessoas} onSave={salvarLead} onClose={() => setModal(null)} />}
     </>
   );

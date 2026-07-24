@@ -61,9 +61,11 @@ function ProdutoInline({ funilId, onAdd, onToast }) {
     catch (e) { onToast("Erro: " + e.message); }
   }
   return (
-    <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-      <input className="input" style={{ flex: 1, minWidth: 120 }} placeholder="Nome do produto" value={nome} onChange={(e) => setNome(e.target.value)} />
-      <input className="input" style={{ width: 100 }} type="number" min="0" step="0.01" placeholder="Valor R$" value={valor} onChange={(e) => setValor(e.target.value)} />
+    <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
+      <input className="input" style={{ flex: 1, minWidth: 120 }} placeholder="Nome do produto" value={nome} onChange={(e) => setNome(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && salvar()} />
+      <input className="input" style={{ width: 100 }} type="number" min="0" step="0.01" placeholder="Valor R$" value={valor} onChange={(e) => setValor(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && salvar()} />
       <button className="btn btn-sm" disabled={!nome.trim() || !valor} onClick={salvar}>Adicionar</button>
     </div>
   );
@@ -225,8 +227,26 @@ function FunilEditor({ funil, crm, onToast, onVoltar }) {
       <div className="card card-pad param-secao">
         <h3 className="dash-title" style={{ margin: "0 0 8px" }}>Produtos</h3>
         <p className="param-desc">Produtos com valores em R$ para atrelar aos leads. O valor preenche automaticamente.</p>
-        <ParamList items={(data.produtos || []).filter((p) => p.funilId === fid)} onDel={async (id) => { await api.crmProdutoDelete(id); reload(); }}
-          renderItem={(p) => <div><strong>{p.nome}</strong> — <span style={{ color: "var(--green-deep)", fontWeight: 700 }}>{fmtMoeda(p.valor)}</span></div>} />
+        {(data.produtos || []).filter((p) => p.funilId === fid).length === 0 ? (
+          <p style={{ fontSize: 12, color: "var(--ink-faint)", margin: "6px 0" }}>Nenhum produto.</p>
+        ) : (
+          <div className="param-lista">
+            {(data.produtos || []).filter((p) => p.funilId === fid).map((prod) => (
+              <div key={prod.id} className="param-item">
+                <div><strong>{prod.nome}</strong> — <span style={{ color: "var(--green-deep)", fontWeight: 700 }}>{fmtMoeda(prod.valor)}</span></div>
+                <div className="param-acoes">
+                  <button className="iconbtn" onClick={async () => {
+                    const novoNome = prompt("Nome do produto:", prod.nome); if (!novoNome) return;
+                    const novoValor = prompt("Valor R$:", prod.valor); if (novoValor === null) return;
+                    try { await api.crmProdutoSave({ id: prod.id, nome: novoNome, valor: Number(novoValor), funilId: fid }); reload(); }
+                    catch (e) { onToast("Erro: " + e.message); }
+                  }} title="Editar"><Icon.Edit /></button>
+                  <button className="iconbtn" onClick={async () => { if (confirm("Excluir produto?")) { await api.crmProdutoDelete(prod.id); reload(); } }} title="Excluir"><Icon.Trash /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         <ProdutoInline funilId={fid} onAdd={async () => reload()} onToast={onToast} />
       </div>
 
