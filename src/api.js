@@ -355,10 +355,16 @@ const mapLead = (r) => ({ id: r.id, nome: r.nome, email: r.email, whatsapp: r.wh
   justificativaPerda: r.justificativa_perda, tags: r.tags, camposCustom: r.campos_custom,
   utmSource: r.utm_source, utmMedium: r.utm_medium, utmCampaign: r.utm_campaign,
   utmTerm: r.utm_term, utmContent: r.utm_content, produtoId: r.produto_id, criadoEm: r.criado_em, atualizadoEm: r.atualizado_em });
+const mapAutomacao = (r) => ({
+  id: r.id, funilId: r.funil_id, nome: r.nome, ativo: r.ativo,
+  triggerTipo: r.trigger_tipo, triggerConfig: r.trigger_config,
+  acoes: r.acoes, posicoes: r.posicoes,
+  criadoEm: r.criado_em, atualizadoEm: r.atualizado_em,
+});
 const mapAtividade = (r) => ({ id: r.id, leadId: r.lead_id, tipo: r.tipo, descricao: r.descricao, autorNome: r.autor_nome, criadoEm: r.criado_em });
 
 export async function fetchCRM() {
-  const [funis, etapas, tags, motivos, campos, origens, produtos, leads, atividades] = await Promise.all([
+  const [funis, etapas, tags, motivos, campos, origens, produtos, automacoes, leads, atividades] = await Promise.all([
     supabase.from("crm_funis").select("*").order("ordem"),
     supabase.from("crm_etapas").select("*").order("ordem"),
     supabase.from("crm_tags").select("*").order("nome"),
@@ -367,6 +373,7 @@ export async function fetchCRM() {
     supabase.from("crm_origens").select("*").order("nome"),
     supabase.from("crm_produtos").select("*").order("nome"),
     supabase.from("crm_leads").select("*").order("criado_em", { ascending: false }),
+    supabase.from("crm_automacoes").select("*").order("criado_em"),
     supabase.from("crm_atividades").select("*").order("criado_em", { ascending: false }).limit(500),
   ]);
   return {
@@ -374,6 +381,7 @@ export async function fetchCRM() {
     tags: (tags.data||[]).map(mapTag), motivos: (motivos.data||[]).map(mapMotivoPerda),
     campos: (campos.data||[]).map(mapCampo), origens: (origens.data||[]).map(mapOrigem),
     produtos: (produtos.data||[]).map(mapProduto),
+    automacoes: (automacoes.data||[]).map(mapAutomacao),
     leads: (leads.data||[]).map(mapLead), atividades: (atividades.data||[]).map(mapAtividade),
   };
 }
@@ -399,6 +407,13 @@ export const crmCampoSave = (c) => crmUpsert("crm_campos", { id: c.id||undefined
 export const crmCampoDelete = (id) => crmDelete("crm_campos", id);
 export const crmOrigemSave = (o) => crmUpsert("crm_origens", { id: o.id||undefined, nome: o.nome, tipo: o.tipo||"campanha", ativo: o.ativo??true, funil_id: o.funilId||null });
 export const crmProdutoSave = (p) => crmUpsert("crm_produtos", { id: p.id||undefined, nome: p.nome, valor: Number(p.valor)||0, ativo: p.ativo??true, funil_id: p.funilId||null });
+export const crmAutomacaoSave = (a) => crmUpsert("crm_automacoes", {
+  id: a.id||undefined, funil_id: a.funilId, nome: a.nome, ativo: a.ativo??true,
+  trigger_tipo: a.triggerTipo, trigger_config: a.triggerConfig||"{}",
+  acoes: a.acoes||"[]", posicoes: a.posicoes||"{}",
+  atualizado_em: new Date().toISOString(),
+});
+export const crmAutomacaoDelete = (id) => crmDelete("crm_automacoes", id);
 export const crmProdutoDelete = (id) => crmDelete("crm_produtos", id);
 export const crmOrigemDelete = (id) => crmDelete("crm_origens", id);
 export const crmLeadSave = (l) => crmUpsert("crm_leads", {

@@ -285,14 +285,13 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
                               {l.responsavelId && pesMap[l.responsavelId] && <span className="kc-resp-inline">👤 {pesMap[l.responsavelId].nome}</span>}
                             </div>
                           </div>
-                          {l.valor > 0 && <div className="kc-valor-right">{fmtMoeda(l.valor)}</div>}
                           <div className="kc-acoes">
                             <button className="iconbtn" onClick={() => setModal(l)} title="Editar"><Icon.Edit /></button>
                             <button className="iconbtn" onClick={() => excluirLead(l.id)} title="Excluir"><Icon.Trash /></button>
                           </div>
                         </div>
                         {lTags.length > 0 && <div className="kc-tags">{lTags.map((tid) => tagMap[tid] && <span key={tid} className="kc-tag" style={{ background: tagMap[tid].cor }}>{tagMap[tid].nome}</span>)}</div>}
-                        <div className="kc-bottom">{fmtDataBR(l.criadoEm)}</div>
+                        <div className="kc-bottom"><span>{fmtDataBR(l.criadoEm)}</span>{l.valor > 0 && <span className="kc-valor-bottom">{fmtMoeda(l.valor)}{prodMap[l.produtoId] && <span className="kc-produto"> · {prodMap[l.produtoId].nome}</span>}</span>}</div>
                       </div>
                     );
                   })}

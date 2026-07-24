@@ -14,6 +14,7 @@ import Logs from "./Logs.jsx";
 import OBZ from "./OBZ.jsx";
 import CRMParametros from "./CRMParametros.jsx";
 import CRM from "./CRM.jsx";
+import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
@@ -355,6 +356,9 @@ export default function App() {
             <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
               <Icon.Settings /> <span>Parâmetros de CRM</span>
             </button>
+            <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}>
+              <Icon.Target /> <span>Automações</span>
+            </button>
             <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
               <Icon.Chart /> <span>Análises</span>
             </button>
@@ -553,6 +557,10 @@ export default function App() {
 
         {view === "crm" && (
           <CRM pessoas={data.pessoas || []} onToast={showToast} userName={user?.nome} isAdmin={isAdmin} onIniciarOnboarding={iniciarOnboarding} />
+        )}
+
+        {view === "crm-auto" && (
+          <CRMAutomacoes onToast={showToast} />
         )}
 
         {view === "crm-analises" && (
