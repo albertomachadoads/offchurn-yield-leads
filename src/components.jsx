@@ -109,6 +109,11 @@ export const Icon = {
       <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
     </svg>
   ),
+  Clipboard: (p) => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}>
+      <rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 3v2h6V3" /><path d="M9 11h6M9 15h4" />
+    </svg>
+  ),
 };
 
 export function AderenciaBadge({ value }) {

@@ -711,3 +711,29 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .sidebar-mini .sidebar .nav-grupo-titulo { display: none; }
 .sidebar-mini .sidebar:hover .nav-grupo-titulo { display: block; }
 .nav-grupo-titulo:first-child { margin-top: 0; }
+
+/* ============================================================
+   SIDEBAR: scrollbar fina e discreta + nav sem barra feia
+   ============================================================ */
+.sidebar .nav {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.sidebar .nav::-webkit-scrollbar { width: 4px; }
+.sidebar .nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar .nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+.sidebar .nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+/* grupos da nav: espaçamento uniforme */
+.nav-grupo { display: flex; flex-direction: column; gap: 2px; }
+.nav-grupo + .nav-grupo { margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08); }
+
+/* ============================================================
+   MODO ESCURO: fluxo de caixa (previsto)
+   ============================================================ */
+.tema-escuro .fr-item strong,
+.tema-escuro .fc-total,
+.tema-escuro .fc-valor,
+.tema-escuro .projecao-valor { color: var(--ink); }

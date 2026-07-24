@@ -123,6 +123,7 @@ export default function App() {
   // ----- derivados -----
   const cliById = useMemo(() => Object.fromEntries(data.clientes.map((c) => [c.id, c])), [data.clientes]);
   const gestById = useMemo(() => Object.fromEntries(data.gestores.map((g) => [g.id, g])), [data.gestores]);
+  const pesById = useMemo(() => Object.fromEntries((data.pessoas || []).map((p) => [p.id, p])), [data.pessoas]);
   const respDoCliente = (clienteId) => gestById[cliById[clienteId]?.responsavelId]?.nome || "—";
 
   const registrosFiltrados = useMemo(() => {
@@ -329,7 +330,7 @@ export default function App() {
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Log de Tarefas</div>
             <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}>
-              <Icon.List /> <span>Registro de Tarefas</span>
+              <Icon.Clipboard /> <span>Registro de Tarefas</span>
             </button>
           </div>
 
