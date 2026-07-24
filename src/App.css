@@ -672,3 +672,42 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 
 .tema-escuro .log-origem { background: var(--surface-alt); }
 .tema-escuro .log-detalhes { background: var(--bg); }
+
+/* ============================================================
+   CORREÇÃO MODO ESCURO — textos visíveis em fundo escuro
+   ============================================================ */
+.tema-escuro .page-head h1,
+.tema-escuro .page-head p,
+.tema-escuro .lr-name,
+.tema-escuro .lr-meta,
+.tema-escuro .cell-cliente,
+.tema-escuro .link-cliente,
+.tema-escuro .dash-title,
+.tema-escuro .section-title,
+.tema-escuro h1, .tema-escuro h2, .tema-escuro h3,
+.tema-escuro label,
+.tema-escuro td,
+.tema-escuro th { color: var(--ink); }
+
+.tema-escuro .link-cliente:hover { color: var(--green); }
+.tema-escuro .page-head p,
+.tema-escuro .lr-meta,
+.tema-escuro .lr-extra { color: var(--ink-soft); }
+
+/* cards do módulo Clientes */
+.tema-escuro .cli-card { background: var(--surface); border-color: var(--line); }
+.tema-escuro .cli-card h3,
+.tema-escuro .cli-card .cli-nome { color: var(--ink); }
+
+/* ============================================================
+   SIDEBAR EM GRUPOS
+   ============================================================ */
+.nav-grupo { margin-top: 8px; }
+.nav-grupo-titulo {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: rgba(255,255,255,0.35);
+  padding: 6px 14px 2px; user-select: none;
+}
+.sidebar-mini .sidebar .nav-grupo-titulo { display: none; }
+.sidebar-mini .sidebar:hover .nav-grupo-titulo { display: block; }
+.nav-grupo-titulo:first-child { margin-top: 0; }

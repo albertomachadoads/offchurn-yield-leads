@@ -13,6 +13,7 @@ const mapCliente = (r) => ({
   googleAdCustomerId: r.google_ad_customer_id,
   googleMccId: r.google_mcc_id,
   objetivo: r.objetivo || "Lead",
+  criticidade: r.criticidade || "Normal",
 });
 const mapFunil = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia, plataforma: r.plataforma,
@@ -44,6 +45,7 @@ const mapTarefa = (r) => ({
   id: r.id, data: r.data, criadaPorId: r.criada_por_id, responsavelId: r.responsavel_id,
   clienteId: r.cliente_id, acao: r.acao, etapa: r.etapa, autorId: r.autor_id, criadoEm: r.criado_em,
   dataCriacao: r.data_criacao, prazo: r.prazo, dataConclusao: r.data_conclusao,
+  titulo: r.titulo, validadorId: r.validador_id, dataExecucao: r.data_execucao, dataEntrega: r.data_entrega,
 });
 const mapPerfil = (r) => ({ id: r.id, nome: r.nome, papel: r.papel, bloqueado: r.bloqueado || false });
 
@@ -95,6 +97,7 @@ export async function upsertCliente(c) {
     plat_google: !!c.platGoogle,
     plat_meta: !!c.platMeta,
     objetivo: c.objetivo || "Lead",
+    criticidade: c.criticidade || "Normal",
     google_mcc_id: (c.googleMccId === "" || c.googleMccId == null) ? null : String(c.googleMccId),
     google_ad_customer_id: (c.googleAdCustomerId === "" || c.googleAdCustomerId == null) ? null : String(c.googleAdCustomerId),
     meta_ad_account_id: (c.metaAdAccountId === "" || c.metaAdAccountId == null) ? null : String(c.metaAdAccountId),
@@ -159,6 +162,8 @@ export async function upsertTarefa(t, autorId) {
     data: t.data, criada_por_id: t.criadaPorId || null, responsavel_id: t.responsavelId || null,
     cliente_id: t.clienteId || null, acao: t.acao, etapa: t.etapa, autor_id: autorId || null,
     data_criacao: t.dataCriacao || null, prazo: t.prazo || null, data_conclusao: t.dataConclusao || null,
+    titulo: t.titulo || null, validador_id: t.validadorId || null,
+    data_execucao: t.dataExecucao || null, data_entrega: t.dataEntrega || null,
   };
   if (t.id) row.id = t.id;
   const { data, error } = await supabase.from("tarefas").upsert(row).select().single();

@@ -195,6 +195,19 @@ export default function App() {
     } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao alternar ativo: " + e.message); }
   }
 
+  async function excluirGestor(id) {
+    if (!confirm("Excluir este gestor?")) return;
+    try { await api.deleteGestor(id); showToast("Gestor excluído"); recarregar();
+      logAcao("gestor", "Gestor excluído");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+  async function excluirPessoa(id) {
+    if (!confirm("Excluir esta pessoa?")) return;
+    try { await api.deletePessoa(id); showToast("Pessoa excluída"); recarregar();
+      logAcao("equipe", "Pessoa excluída");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+
   async function salvarGestor(g) {
     try { await api.upsertGestor(g); setGestModal(null); showToast("Gestor salvo"); recarregar();
       logAcao("gestor", `Gestor ${g.id ? "editado" : "criado"}: ${g.nome}`);
@@ -287,31 +300,54 @@ export default function App() {
           </div>
         </div>
         <nav className="nav">
-          <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
-            <Icon.ListCheck /> <span>Acompanhamento</span>
-          </button>
-          <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
-            <Icon.Target /> <span>Follow de Ações</span>
-          </button>
-          <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}>
-            <Icon.Grid /> <span>Clientes</span>
-          </button>
-          <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
-            <Icon.Users /> <span>Gestão de Clientes</span>
-          </button>
-          <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
-            <Icon.Cash /> <span>Fluxo de Caixa</span>
-          </button>
+          {/* PRINCIPAIS */}
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Principais</div>
+            <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
+              <Icon.ListCheck /> <span>Acompanhamento</span>
+            </button>
+            <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
+              <Icon.Target /> <span>Follow de Ações</span>
+            </button>
+            <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}>
+              <Icon.Grid /> <span>Clientes</span>
+            </button>
+          </div>
 
-          {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
-            <Icon.Folder /> <span>Cadastros</span>
-          </button>}
-          {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-            <Icon.Users /> <span>Administradores</span>
-          </button>}
-          {isAdmin && <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}>
-            <Icon.List /> <span>Logs</span>
-          </button>}
+          {/* FINANCEIRO */}
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Financeiro</div>
+            <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
+              <Icon.Cash /> <span>Fluxo de Caixa</span>
+            </button>
+            <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
+              <Icon.Users /> <span>Gestão de Clientes</span>
+            </button>
+          </div>
+
+          {/* LOG DE TAREFAS */}
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Log de Tarefas</div>
+            <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}>
+              <Icon.List /> <span>Registro de Tarefas</span>
+            </button>
+          </div>
+
+          {/* ADMINISTRATIVO */}
+          {isAdmin && (
+            <div className="nav-grupo">
+              <div className="nav-grupo-titulo">Administrativo</div>
+              <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
+                <Icon.Folder /> <span>Cadastros</span>
+              </button>
+              <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
+                <Icon.Users /> <span>Administradores</span>
+              </button>
+              <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}>
+                <Icon.List /> <span>Logs</span>
+              </button>
+            </div>
+          )}
         </nav>
         <div className="sidebar-foot">
           <button className="btn btn-sm btn-ghost tema-toggle" onClick={() => setTema((t) => t === "claro" ? "escuro" : "claro")} title="Alternar tema">
@@ -449,6 +485,8 @@ export default function App() {
             onNovoCliente={() => setCliModal({ novo: true })}
             onEditarCliente={(c) => setCliModal(c)}
             onExcluirCliente={excluirCliente}
+            onExcluirGestor={excluirGestor}
+            onExcluirPessoa={excluirPessoa}
             onToggleAtivo={(id) => { const c = cliById[id]; if (c) toggleAtivo(c); }}
             onNovoGestor={() => setGestModal({ novo: true })}
             onEditarGestor={(g) => setGestModal(g)}
@@ -460,6 +498,33 @@ export default function App() {
         {view === "admin" && isAdmin && (
           <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
         )}
+        {view === "registro-tarefas" && (
+          <>
+            <div className="page-head">
+              <div><h1>Registro de Tarefas</h1><p>Todas as tarefas do sistema, com filtros e histórico completo.</p></div>
+            </div>
+            <div className="table-wrap">
+              <table className="grid">
+                <thead>
+                  <tr><th>Título</th><th>Cliente</th><th>Responsável</th><th>Status</th><th>Execução</th><th>Entrega</th></tr>
+                </thead>
+                <tbody>
+                  {(data.tarefas || []).sort((a,b)=>(a.dataCriacao<b.dataCriacao?1:-1)).map((t) => (
+                    <tr key={t.id}>
+                      <td className="cell-cliente">{t.titulo || t.acao || "—"}</td>
+                      <td>{cliById[t.clienteId]?.nome || "—"}</td>
+                      <td>{pesById[t.responsavelId]?.nome || "—"}</td>
+                      <td><span className={"pill " + (t.etapa === "Feito" ? "done" : t.etapa === "Atrasada" || t.etapa === "Parado" ? "off" : "")}>{t.etapa}</span></td>
+                      <td className="cell-num">{t.dataExecucao || "—"}</td>
+                      <td className="cell-num">{t.dataEntrega || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
         {view === "logs" && isAdmin && (
           <Logs onToast={showToast} />
         )}
@@ -679,7 +744,7 @@ function SemanaSelector({ clientes, semana, setSemana, respDoCliente }) {
 }
 
 /* ============ CADASTROS ============ */
-function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onNovaPessoa, onEditarPessoa, gestById }) {
+function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onExcluirGestor, onNovaPessoa, onEditarPessoa, onExcluirPessoa, gestById }) {
   const pessoas = data.pessoas || [];
   const tarefas = data.tarefas || [];
   return (
@@ -736,6 +801,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onT
                       <div className="lr-meta">{qtd} cliente(s)</div>
                     </div>
                     <button className="iconbtn" onClick={() => onEditarGestor(g)} aria-label="Editar"><Icon.Edit /></button>
+                    <button className="iconbtn" onClick={() => onExcluirGestor(g.id)} aria-label="Excluir" title="Excluir gestor"><Icon.Trash /></button>
                   </div>
                 );
               })}
@@ -759,6 +825,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onT
                       <div className="lr-meta">{qtd} tarefa(s) vinculada(s)</div>
                     </div>
                     <button className="iconbtn" onClick={() => onEditarPessoa(p)} aria-label="Editar"><Icon.Edit /></button>
+                    <button className="iconbtn" onClick={() => onExcluirPessoa(p.id)} aria-label="Excluir" title="Excluir pessoa"><Icon.Trash /></button>
                   </div>
                 );
               })}
@@ -881,6 +948,15 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
           <option value="Lead">Lead (funil de leads e taxas)</option>
           <option value="Faturamento">Faturamento (vendas, VGV e ROAS)</option>
           <option value="Não metrificado">Resultado não metrificado (painel em branco)</option>
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Nível de criticidade</label>
+        <select className="select" value={f.criticidade} onChange={(e) => set("criticidade", e.target.value)}>
+          <option value="Baixo">Baixo</option>
+          <option value="Normal">Normal</option>
+          <option value="Alto">Alto</option>
+          <option value="Crítico">Crítico</option>
         </select>
       </div>
 
