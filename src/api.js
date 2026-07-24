@@ -344,10 +344,10 @@ export async function googleInsights(clienteId, since, until) {
 // ===== CRM =====
 const mapFunil_crm = (r) => ({ id: r.id, nome: r.nome, descricao: r.descricao, ativo: r.ativo, ordem: r.ordem });
 const mapEtapa = (r) => ({ id: r.id, funilId: r.funil_id, nome: r.nome, ordem: r.ordem, tipo: r.tipo, cor: r.cor });
-const mapTag = (r) => ({ id: r.id, nome: r.nome, cor: r.cor });
-const mapMotivoPerda = (r) => ({ id: r.id, nome: r.nome, exigirJustificativa: r.exigir_justificativa, ativo: r.ativo });
-const mapCampo = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, opcoes: r.opcoes, obrigatorio: r.obrigatorio, ordem: r.ordem, ativo: r.ativo });
-const mapOrigem = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, ativo: r.ativo });
+const mapTag = (r) => ({ id: r.id, nome: r.nome, cor: r.cor, funilId: r.funil_id });
+const mapMotivoPerda = (r) => ({ id: r.id, nome: r.nome, exigirJustificativa: r.exigir_justificativa, ativo: r.ativo, funilId: r.funil_id });
+const mapCampo = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, opcoes: r.opcoes, obrigatorio: r.obrigatorio, ordem: r.ordem, ativo: r.ativo, funilId: r.funil_id });
+const mapOrigem = (r) => ({ id: r.id, nome: r.nome, tipo: r.tipo, ativo: r.ativo, funilId: r.funil_id });
 const mapLead = (r) => ({ id: r.id, nome: r.nome, email: r.email, whatsapp: r.whatsapp,
   funilId: r.funil_id, etapaId: r.etapa_id, origemId: r.origem_id, responsavelId: r.responsavel_id,
   clienteId: r.cliente_id, valor: Number(r.valor)||0, motivoPerdaId: r.motivo_perda_id,
@@ -388,13 +388,13 @@ export const crmFunilSave = (f) => crmUpsert("crm_funis", { id: f.id||undefined,
 export const crmFunilDelete = (id) => crmDelete("crm_funis", id);
 export const crmEtapaSave = (e) => crmUpsert("crm_etapas", { id: e.id||undefined, funil_id: e.funilId, nome: e.nome, ordem: e.ordem||0, tipo: e.tipo||"normal", cor: e.cor||"#22c55e" });
 export const crmEtapaDelete = (id) => crmDelete("crm_etapas", id);
-export const crmTagSave = (t) => crmUpsert("crm_tags", { id: t.id||undefined, nome: t.nome, cor: t.cor||"#22c55e" });
+export const crmTagSave = (t) => crmUpsert("crm_tags", { id: t.id||undefined, nome: t.nome, cor: t.cor||"#22c55e", funil_id: t.funilId||null });
 export const crmTagDelete = (id) => crmDelete("crm_tags", id);
-export const crmMotivoSave = (m) => crmUpsert("crm_motivos_perda", { id: m.id||undefined, nome: m.nome, exigir_justificativa: m.exigirJustificativa||false, ativo: m.ativo??true });
+export const crmMotivoSave = (m) => crmUpsert("crm_motivos_perda", { id: m.id||undefined, nome: m.nome, exigir_justificativa: m.exigirJustificativa||false, ativo: m.ativo??true, funil_id: m.funilId||null });
 export const crmMotivoDelete = (id) => crmDelete("crm_motivos_perda", id);
-export const crmCampoSave = (c) => crmUpsert("crm_campos", { id: c.id||undefined, nome: c.nome, tipo: c.tipo||"texto", opcoes: c.opcoes||null, obrigatorio: c.obrigatorio||false, ordem: c.ordem||0, ativo: c.ativo??true });
+export const crmCampoSave = (c) => crmUpsert("crm_campos", { id: c.id||undefined, nome: c.nome, tipo: c.tipo||"texto", opcoes: c.opcoes||null, obrigatorio: c.obrigatorio||false, ordem: c.ordem||0, ativo: c.ativo??true, funil_id: c.funilId||null });
 export const crmCampoDelete = (id) => crmDelete("crm_campos", id);
-export const crmOrigemSave = (o) => crmUpsert("crm_origens", { id: o.id||undefined, nome: o.nome, tipo: o.tipo||"campanha", ativo: o.ativo??true });
+export const crmOrigemSave = (o) => crmUpsert("crm_origens", { id: o.id||undefined, nome: o.nome, tipo: o.tipo||"campanha", ativo: o.ativo??true, funil_id: o.funilId||null });
 export const crmOrigemDelete = (id) => crmDelete("crm_origens", id);
 export const crmLeadSave = (l) => crmUpsert("crm_leads", {
   id: l.id||undefined, nome: l.nome, email: l.email||null, whatsapp: l.whatsapp||null,
