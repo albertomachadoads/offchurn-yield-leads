@@ -13,7 +13,11 @@ const TIPO_ETAPA = [
   { v: "ganho", l: "Lead ganho ✓", c: "#22c55e" },
   { v: "perdido", l: "Lead perdido ✕", c: "#ef4444" },
 ];
-const TIPO_CAMPO = ["texto", "numero", "select", "data", "url"];
+const TIPO_CAMPO = [
+  { v: "texto", l: "Texto" },
+  { v: "numero", l: "Número" },
+  { v: "alternativas", l: "Alternativas" },
+];
 const CORES_TAG = ["#22c55e","#3b82f6","#ef4444","#f59e0b","#8b5cf6","#ec4899","#14b8a6","#f97316","#6366f1","#64748b"];
 
 function Pill({ cor, children }) {
@@ -121,6 +125,8 @@ function FunilEditor({ funil, crm, onToast, onVoltar }) {
 
   // ---- campos ----
   const [tipoCampo, setTipoCampo] = useState("texto");
+  const [alternativas, setAlternativas] = useState([]);  // [{id, nome}]
+  const [novaAlt, setNovaAlt] = useState("");
   const [campoObrig, setCampoObrig] = useState(false);
 
   // ---- origens ----
@@ -210,16 +216,51 @@ function FunilEditor({ funil, crm, onToast, onVoltar }) {
       <div className="card card-pad param-secao">
         <h3 className="dash-title" style={{ margin: "0 0 8px" }}>Campos personalizados</h3>
         <ParamList items={campos} onDel={async (id) => { await api.crmCampoDelete(id); reload(); }}
-          renderItem={(c) => <div><strong>{c.nome}</strong> <Pill cor="#6366f1">{c.tipo}</Pill>{c.obrigatorio && <span className="param-badge">Obrigatório</span>}</div>} />
+          renderItem={(c) => {
+            let alts = []; try { alts = JSON.parse(c.opcoes || "[]"); } catch {}
+            const tipoLabel = TIPO_CAMPO.find((t) => t.v === c.tipo)?.l || c.tipo;
+            return (
+              <div>
+                <strong>{c.nome}</strong> <Pill cor="#6366f1">{tipoLabel}</Pill>{c.obrigatorio && <span className="param-badge">Obrigatório</span>}
+                {alts.length > 0 && <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 3 }}>
+                  {alts.map((a) => <span key={a.id} style={{ display: "inline-block", marginRight: 6 }}><code style={{ fontSize: 9 }}>{a.id}</code> {a.nome}</span>)}
+                </div>}
+              </div>
+            );
+          }} />
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
           <select className="select" style={{ width: "auto" }} value={tipoCampo} onChange={(e) => setTipoCampo(e.target.value)}>
-            {TIPO_CAMPO.map((t) => <option key={t}>{t}</option>)}
+            {TIPO_CAMPO.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
           </select>
           <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
             <input type="checkbox" checked={campoObrig} onChange={(e) => setCampoObrig(e.target.checked)} /> Obrigatório
           </label>
         </div>
-        <AddInline placeholder="Nome do campo" onAdd={async (nome) => { try { await api.crmCampoSave({ nome, tipo: tipoCampo, obrigatorio: campoObrig, funilId: fid }); reload(); } catch (e) { onToast("Erro: " + e.message); } }} />
+        {tipoCampo === "alternativas" && (
+          <div style={{ margin: "8px 0", padding: "10px 12px", background: "var(--surface)", border: "1px solid var(--line)", borderRadius: 6 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-faint)", textTransform: "uppercase" }}>Alternativas (cada uma terá um ID único)</label>
+            {alternativas.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "6px 0" }}>
+                {alternativas.map((alt) => (
+                  <div key={alt.id} className="param-item" style={{ padding: "4px 8px" }}>
+                    <div><span style={{ fontSize: 10, color: "var(--ink-faint)", fontFamily: "monospace" }}>{alt.id}</span> — <strong>{alt.nome}</strong></div>
+                    <button className="iconbtn" onClick={() => setAlternativas((p) => p.filter((a) => a.id !== alt.id))}><Icon.Trash /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input className="input" style={{ flex: 1 }} placeholder="Nome da alternativa" value={novaAlt} onChange={(e) => setNovaAlt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && novaAlt.trim()) { setAlternativas((p) => [...p, { id: "alt_" + Math.random().toString(36).slice(2, 8), nome: novaAlt.trim() }]); setNovaAlt(""); } }} />
+              <button className="btn btn-sm" disabled={!novaAlt.trim()} onClick={() => { setAlternativas((p) => [...p, { id: "alt_" + Math.random().toString(36).slice(2, 8), nome: novaAlt.trim() }]); setNovaAlt(""); }}>+</button>
+            </div>
+          </div>
+        )}
+        <AddInline placeholder="Nome do campo" onAdd={async (nome) => {
+          const opcoes = tipoCampo === "alternativas" ? JSON.stringify(alternativas) : null;
+          try { await api.crmCampoSave({ nome, tipo: tipoCampo, obrigatorio: campoObrig, opcoes, funilId: fid }); setAlternativas([]); reload(); }
+          catch (e) { onToast("Erro: " + e.message); }
+        }} />
       </div>
 
 

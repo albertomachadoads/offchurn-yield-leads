@@ -307,15 +307,34 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
             <div className="card card-pad" style={{ marginBottom: 16 }}>
               <h3 className="lead-sec-title" style={{ marginBottom: 10 }}>Campos personalizados</h3>
               <div className="form-grid">
-                {campos.map((c) => (
-                  <div key={c.id} className="lead-campo">
-                    <span className="lead-label">{c.nome}{c.obrigatorio && " *"}</span>
-                    {isAdmin ? (
-                      <input className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={camposForm[c.id] || ""} placeholder="—"
-                        onChange={(e) => setCamposForm((p) => ({ ...p, [c.id]: e.target.value }))} />
-                    ) : <span className="lead-valor">{camposForm[c.id] || "—"}</span>}
-                  </div>
-                ))}
+                {campos.map((c) => {
+                  let alts = []; try { alts = JSON.parse(c.opcoes || "[]"); } catch {}
+                  return (
+                    <div key={c.id} className="lead-campo">
+                      <span className="lead-label">{c.nome}{c.obrigatorio && " *"}</span>
+                      {isAdmin ? (
+                        c.tipo === "alternativas" && alts.length > 0 ? (
+                          <select className="select" style={{ fontSize: 12, padding: "4px 8px" }} value={camposForm[c.id] || ""}
+                            onChange={(e) => setCamposForm((p) => ({ ...p, [c.id]: e.target.value }))}>
+                            <option value="">— selecione —</option>
+                            {alts.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                          </select>
+                        ) : c.tipo === "numero" ? (
+                          <input className="input" style={{ fontSize: 12, padding: "4px 8px" }} type="number" value={camposForm[c.id] || ""} placeholder="—"
+                            onChange={(e) => setCamposForm((p) => ({ ...p, [c.id]: e.target.value }))} />
+                        ) : (
+                          <input className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={camposForm[c.id] || ""} placeholder="—"
+                            onChange={(e) => setCamposForm((p) => ({ ...p, [c.id]: e.target.value }))} />
+                        )
+                      ) : (
+                        <span className="lead-valor">{
+                          c.tipo === "alternativas" ? (alts.find((a) => a.id === camposForm[c.id])?.nome || camposForm[c.id] || "—")
+                          : (camposForm[c.id] || "—")
+                        }</span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {isAdmin && <button className="btn btn-sm btn-primary" style={{ marginTop: 10 }} onClick={salvarCamposPersonalizados}>Salvar campos</button>}
             </div>
