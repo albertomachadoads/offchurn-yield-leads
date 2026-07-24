@@ -160,13 +160,15 @@ export default function App() {
       await api.upsertAcomp(reg, user?.id);
       setRegModal(null);
       showToast("Acompanhamento salvo");
+      logAcao("acompanhamento", `Registro ${dados.id ? "editado" : "criado"} para cliente ${dados.clienteId?.slice(0,8)}`);
       recarregar();
     } catch (e) { showToast("Erro: " + (e.message || "falha ao salvar")); }
   }
   async function excluirRegistro(id) {
     if (!confirm("Excluir este registro do histórico?")) return;
-    try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar();
+      logAcao("acompanhamento", "Registro de acompanhamento excluído");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("acompanhamento", "Falha ao excluir: " + e.message); }
   }
 
   async function excluirCliente(id) {
@@ -174,8 +176,9 @@ export default function App() {
     try {
       await api.deleteCliente(id);
       showToast("Cliente excluído");
+      logAcao("cliente", "Cliente excluído: " + id.slice(0,8));
       recarregar();
-    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao excluir cliente: " + e.message); }
   }
 
   async function salvarCliente(c) {
@@ -183,44 +186,59 @@ export default function App() {
       const saved = await api.upsertCliente(c);
       if (saved.ativo) setSemana((s) => new Set(s).add(saved.id));
       setCliModal(null); showToast("Cliente salvo"); recarregar();
-    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+      logAcao("cliente", `Cliente ${c.id ? "editado" : "criado"}: ${c.nome}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao salvar cliente: " + e.message); }
   }
   async function toggleAtivo(c) {
-    try { await api.upsertCliente({ ...c, ativo: !c.ativo }); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertCliente({ ...c, ativo: !c.ativo }); recarregar();
+      logAcao("cliente", `${c.nome} marcado como ${!c.ativo ? "Ativo" : "Inativo"}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao alternar ativo: " + e.message); }
   }
 
   async function salvarGestor(g) {
-    try { await api.upsertGestor(g); setGestModal(null); showToast("Gestor salvo"); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertGestor(g); setGestModal(null); showToast("Gestor salvo"); recarregar();
+      logAcao("gestor", `Gestor ${g.id ? "editado" : "criado"}: ${g.nome}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("gestor", "Falha ao salvar gestor: " + e.message); }
   }
   async function salvarPessoa(p) {
-    try { await api.upsertPessoa(p); setPesModal(null); showToast("Pessoa salva"); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertPessoa(p); setPesModal(null); showToast("Pessoa salva"); recarregar();
+      logAcao("equipe", `Pessoa ${p.id ? "editada" : "criada"}: ${p.nome}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("equipe", "Falha ao salvar pessoa: " + e.message); }
   }
 
   async function salvarTarefa(t) {
-    try { await api.upsertTarefa(t, user?.id); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertTarefa(t, user?.id); recarregar();
+      logAcao("tarefa", `Tarefa ${t.id ? "editada" : "criada"}: ${(t.acao || "").slice(0,40)}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("tarefa", "Falha ao salvar tarefa: " + e.message); }
   }
   async function excluirTarefa(id) {
-    try { await api.deleteTarefa(id); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.deleteTarefa(id); recarregar();
+      logAcao("tarefa", "Tarefa excluída");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("tarefa", "Falha ao excluir tarefa: " + e.message); }
   }
 
   async function salvarFunil(dados) {
-    await api.upsertFunil(dados, user?.id);
-    recarregar();
+    try {
+      await api.upsertFunil(dados, user?.id);
+      recarregar();
+      logAcao("funil", `Funil salvo: ${dados.plataforma} ${dados.competencia}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("funil", "Falha ao salvar funil: " + e.message); }
   }
 
   async function salvarPainel(dados) {
-    await api.upsertPainel(dados, user?.id);
-    recarregar();
+    try {
+      await api.upsertPainel(dados, user?.id);
+      recarregar();
+      logAcao("painel", "Painel salvo");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("painel", "Falha ao salvar painel: " + e.message); }
   }
 
   async function lancarDesempenho(dados) {
-    await api.upsertDesempenho(dados, user?.id);
-    recarregar();
+    try {
+      await api.upsertDesempenho(dados, user?.id);
+      recarregar();
+      logAcao("desempenho", "Desempenho lançado manualmente");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("desempenho", "Falha ao lançar desempenho: " + e.message); }
   }
 
   async function marcarPago(dados) {
@@ -246,6 +264,7 @@ export default function App() {
     const base = registrosFiltrados.length ? registrosFiltrados : data.acompanhamentos;
     exportarXLSX(base, data.clientes, data.gestores);
     showToast("Relatório exportado (.xlsx)");
+    logAcao("export", "Relatório de acompanhamento exportado");
   }
 
   // ----- telas de gate -----

@@ -3,6 +3,7 @@ import { fmtMoeda, fmtData } from "./utils";
 import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
 import MetricasMeta from "./MetricasMeta.jsx";
+import { logAcao, logErro } from "./logger.js";
 import FunilCliente from "./FunilCliente.jsx";
 import {
   projecaoVerba, projecaoCPA, corVerba, corCPA,
@@ -50,6 +51,7 @@ export default function ClienteDetalhe({
     try {
       await onVincularConta(contaId || null);
       onToast(contaId ? "Conta vinculada" : "Vínculo removido");
+      logAcao("meta", `Conta Meta ${contaId ? "vinculada: " + contaId : "desvinculada"} do cliente ${cliente.nome}`);
     } catch (e) {
       onToast("Erro: " + (e.message || "falha"));
     }
@@ -62,6 +64,7 @@ export default function ClienteDetalhe({
       const item = (r?.resultados || [])[0];
       if (item?.ok) {
         onToast(`Sincronizado: ${fmtMoeda(item.gasto)} gastos, ${item.leads} resultados`);
+        logAcao("meta", `Meta sincronizado para ${cliente.nome}: ${fmtMoeda(item.gasto)} gasto, ${item.leads} resultados`);
       } else {
         onToast("Falha: " + (item?.erro || "sem retorno da Meta"));
       }
@@ -88,6 +91,8 @@ export default function ClienteDetalhe({
       const r = await onSincronizarGoogle();
       const item = (r?.resultados || [])[0];
       onToast(item?.ok ? `Google sincronizado: ${item.conversoes || 0} conversões` : "Falha: " + (item?.erro || "sem dados"));
+      if (item?.ok) logAcao("google", `Google sincronizado para ${cliente.nome}: ${item.conversoes || 0} conversões`);
+      else logErro("google", `Falha ao sincronizar Google de ${cliente.nome}`, item?.erro);
     } catch (e) { onToast("Erro: " + (e.message || "falha")); }
     finally { setSincGoogle(false); }
   }

@@ -89,6 +89,7 @@ export default function Admin({ perfis, meuId, onToast, onReload }) {
     try {
       await atualizarPerfil(p.id, { papel: novoPapel });
       onToast("Papel atualizado");
+      logAcao("admin", `Papel de ${p.nome} alterado para ${novoPapel}`);
       onReload();
     } catch (e) {
       onToast("Erro: " + (e.message || "falha ao atualizar"));
@@ -101,6 +102,7 @@ export default function Admin({ perfis, meuId, onToast, onReload }) {
     try {
       await definirBloqueio(p.id, !p.bloqueado);
       onToast(p.bloqueado ? "Usuário desbloqueado" : "Usuário bloqueado");
+      logAcao("admin", `${p.nome} ${p.bloqueado ? "desbloqueado" : "bloqueado"}`);
       onReload();
     } catch (e) {
       onToast("Erro: " + (e.message || "falha"));
@@ -112,6 +114,7 @@ export default function Admin({ perfis, meuId, onToast, onReload }) {
     try {
       await excluirPerfil(p.id);
       onToast("Usuário excluído");
+      logAcao("admin", "Usuário excluído permanentemente");
       onReload();
     } catch (e) {
       onToast("Erro: " + (e.message || "falha"));
@@ -133,6 +136,7 @@ function UsuarioModal({ onClose, onSaved, onToast }) {
         email: f.email.trim(), senha: f.senha, nome: f.nome.trim(), papel: f.papel,
       });
       onToast("Usuário criado");
+      logAcao("admin", `Novo usuário criado: ${nome} (${email})`);
       onSaved();
     } catch (e) {
       onToast("Erro: " + traduz(e.message));
