@@ -74,8 +74,9 @@ function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, onVoltar, onSave, onToast, userName, isAdmin }) {
+export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, onVoltar, onSave, onToast, userName, isAdmin, onIniciarOnboarding }) {
   const crm_motivos = motivos || [];
+  const [showOnboard, setShowOnboard] = useState(false);
   const [editContato, setEditContato] = useState(false);
   const [editOrigem, setEditOrigem] = useState(false);
   const [modalPerdaLP, setModalPerdaLP] = useState(false);
@@ -113,7 +114,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
     const tipo = etapas.find((e) => e.id === etapaId)?.tipo;
     try {
       await onSave({ ...lead, etapaId }); await reg("sistema", `Movido para "${nome}"`);
-      if (tipo === "ganho") { dispararConfetes(); logAcao("crm", `VENDA: Lead "${lead.nome}"`); onToast("🎉 VENDA MARCADA! Parabéns!"); }
+      if (tipo === "ganho") { dispararConfetes(); logAcao("crm", `VENDA: Lead "${lead.nome}"`); onToast("🎉 VENDA MARCADA! Parabéns!"); setTimeout(() => setShowOnboard(true), 1500); }
       else if (tipo === "perdido") { logAcao("crm", `PERDA: Lead "${lead.nome}"`); onToast("Lead marcado como perdido"); }
       else onToast("Etapa atualizada");
     } catch (e) { onToast("Erro: " + e.message); }
@@ -397,6 +398,15 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
         </div>
       </div>
 
+      {showOnboard && (
+        <Modal title="🎉 Venda realizada!" onClose={() => setShowOnboard(false)} footer={
+          <><button className="btn btn-ghost" onClick={() => setShowOnboard(false)}>Não, depois</button>
+          <button className="btn btn-primary" onClick={() => { if (onIniciarOnboarding) onIniciarOnboarding(lead); setShowOnboard(false); }}>Sim, iniciar!</button></>
+        }>
+          <p style={{ fontSize: 14, textAlign: "center", margin: "10px 0 16px" }}>Deseja iniciar o processo de <strong>onboarding</strong> agora?</p>
+          <p style={{ fontSize: 12, color: "var(--ink-faint)", textAlign: "center" }}>O lead será cadastrado como cliente e você será redirecionado para o módulo de Cadastro.</p>
+        </Modal>
+      )}
       {editContato && <EditarContatoModal lead={lead} onSave={salvarContato} onClose={() => setEditContato(false)} />}
       {editOrigem && <EditarOrigemModal lead={lead} origens={origens} onSave={salvarOrigem} onClose={() => setEditOrigem(false)} />}
       {modalPerdaLP && (() => {

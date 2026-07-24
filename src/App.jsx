@@ -233,6 +233,19 @@ export default function App() {
     } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("equipe", "Falha ao salvar pessoa: " + e.message); }
   }
 
+  function iniciarOnboarding(lead) {
+    // Pré-preencher o modal de cliente com dados do lead
+    setCliModal({
+      nome: lead.nome || "",
+      email: lead.email || "",
+      whatsapp: lead.whatsapp || "",
+      ticket: lead.valor || "",
+      ativo: true,
+    });
+    setView("cadastros");
+    showToast("Preencha os dados do novo cliente");
+  }
+
   async function salvarTarefa(t) {
     try { await api.upsertTarefa(t, user?.id); recarregar();
       logAcao("tarefa", `Tarefa ${t.id ? "editada" : "criada"}: ${(t.acao || "").slice(0,40)}`);
@@ -539,11 +552,11 @@ export default function App() {
         )}
 
         {view === "crm" && (
-          <CRM pessoas={data.pessoas || []} onToast={showToast} userName={user?.nome} isAdmin={isAdmin} />
+          <CRM pessoas={data.pessoas || []} onToast={showToast} userName={user?.nome} isAdmin={isAdmin} onIniciarOnboarding={iniciarOnboarding} />
         )}
 
         {view === "crm-analises" && (
-          <CRMAnalises onToast={showToast} />
+          <CRMAnalises onToast={showToast} pessoas={data.pessoas || []} />
         )}
 
         {view === "obz" && (

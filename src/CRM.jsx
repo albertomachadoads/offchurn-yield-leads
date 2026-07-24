@@ -119,13 +119,14 @@ function ModalPerda({ motivos, onConfirm, onClose }) {
 }
 
 /* ---- Principal ---- */
-export default function CRM({ pessoas, onToast, userName, isAdmin }) {
+export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnboarding }) {
   const [crm, setCrm] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [funilId, setFunilId] = useState(null);
   const [modal, setModal] = useState(null);
   const [leadAberto, setLeadAberto] = useState(null);
-  const [modalPerda, setModalPerda] = useState(null); // leadId para marcar perda
+  const [modalPerda, setModalPerda] = useState(null);
+  const [modalOnboard, setModalOnboard] = useState(null); // lead para onboarding // leadId para marcar perda
   const [fData, setFData] = useState("");
   const [fResp, setFResp] = useState("");
   const [fTag, setFTag] = useState("");
@@ -165,7 +166,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
     if (la) return <LeadPage lead={la} etapas={etapas} tags={tags} origens={origens} produtos={produtos}
       campos={(crm.campos || []).filter((c) => c.funilId === funil.id)} produtos={produtos}
       motivos={(crm.motivos || []).filter((m) => m.funilId === funil.id)} pessoas={pessoas} atividades={crm.atividades || []}
-      userName={userName} isAdmin={isAdmin} onVoltar={() => { setLeadAberto(null); carregar(); }}
+      userName={userName} isAdmin={isAdmin} onIniciarOnboarding={onIniciarOnboarding} onVoltar={() => { setLeadAberto(null); carregar(); }}
       onSave={async (d) => { await api.crmLeadSave({ ...d, funilId: funil.id }); carregar(); }} onToast={onToast} />;
     setLeadAberto(null);
   }
@@ -273,7 +274,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
                     let lTags = []; try { lTags = JSON.parse(l.tags || "[]"); } catch {}
                     return (
                       <div key={l.id} className="kanban-card" draggable onDragStart={(e) => e.dataTransfer.setData("leadId", l.id)}>
-                        {l.valor > 0 && <div className="kc-valor-top">{fmtMoeda(l.valor)}{prodMap[l.produtoId] && <span className="kc-produto"> · {prodMap[l.produtoId].nome}</span>}</div>}
+
                         <div className="kc-row-top">
                           <LeadAvatar nome={l.nome} />
                           <div className="kc-info-col">
@@ -284,6 +285,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
                               {l.responsavelId && pesMap[l.responsavelId] && <span className="kc-resp-inline">👤 {pesMap[l.responsavelId].nome}</span>}
                             </div>
                           </div>
+                          {l.valor > 0 && <div className="kc-valor-right">{fmtMoeda(l.valor)}</div>}
                           <div className="kc-acoes">
                             <button className="iconbtn" onClick={() => setModal(l)} title="Editar"><Icon.Edit /></button>
                             <button className="iconbtn" onClick={() => excluirLead(l.id)} title="Excluir"><Icon.Trash /></button>
@@ -300,6 +302,15 @@ export default function CRM({ pessoas, onToast, userName, isAdmin }) {
             );
           })}
         </div>
+      )}
+      {modalOnboard && (
+        <Modal title="🎉 Venda realizada!" onClose={() => setModalOnboard(null)} footer={
+          <><button className="btn btn-ghost" onClick={() => setModalOnboard(null)}>Não, depois</button>
+          <button className="btn btn-primary" onClick={() => { if (onIniciarOnboarding) onIniciarOnboarding(modalOnboard); setModalOnboard(null); }}>Sim, iniciar!</button></>
+        }>
+          <p style={{ fontSize: 14, textAlign: "center", margin: "10px 0 16px" }}>Deseja iniciar o processo de <strong>onboarding</strong> agora?</p>
+          <p style={{ fontSize: 12, color: "var(--ink-faint)", textAlign: "center" }}>O lead será cadastrado como cliente e você será redirecionado para o módulo de Cadastro.</p>
+        </Modal>
       )}
       {modalPerda && <ModalPerda motivos={(crm.motivos||[]).filter((m) => m.funilId === funil.id)} onConfirm={confirmarPerda} onClose={() => setModalPerda(null)} />}
       {modal && <LeadModal base={modal} etapas={etapas} origens={origens} produtos={produtos} pessoas={pessoas} onSave={salvarLead} onClose={() => setModal(null)} />}

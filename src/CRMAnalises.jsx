@@ -14,6 +14,7 @@ const FILTROS = [
   { id: "15d", l: "Últimos 15 dias" },
   { id: "30d", l: "Últimos 30 dias" },
   { id: "90d", l: "Últimos 90 dias" },
+  { id: "custom", l: "Personalizado" },
 ];
 const limDate = (f) => { if (!f) return null; const d = new Date(); d.setDate(d.getDate() - parseInt(f)); return d.toISOString(); };
 const pct = (a, b) => b > 0 ? ((a / b) * 100).toFixed(1) : "0.0";
@@ -80,11 +81,13 @@ function Pizza({ fatias }) {
 }
 
 /* ---- Principal ---- */
-export default function CRMAnalises({ onToast }) {
+export default function CRMAnalises({ onToast, pessoas }) {
   const [crm, setCrm] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [periodo, setPeriodo] = useState("30d");
   const [funilId, setFunilId] = useState(null);
+  const [customDe, setCustomDe] = useState("");
+  const [customAte, setCustomAte] = useState("");
 
   async function carregar() {
     try { const d = await api.fetchCRM(); setCrm(d); if (!funilId && d.funis.length > 0) setFunilId(d.funis[0].id); }
@@ -95,7 +98,8 @@ export default function CRMAnalises({ onToast }) {
   if (carregando) return <div style={{ padding: 40, textAlign: "center" }}>Carregando análises…</div>;
   if (!crm || crm.funis.length === 0) return <div className="empty"><p>Crie funis no CRM para ver as análises.</p></div>;
 
-  const lim = limDate(periodo);
+  const lim = periodo === "custom" ? (customDe ? new Date(customDe).toISOString() : null) : limDate(periodo);
+  const limAte = periodo === "custom" && customAte ? new Date(customAte + "T23:59:59").toISOString() : null;
   const funil = crm.funis.find((f) => f.id === funilId) || crm.funis[0];
   const etapas = (crm.etapas || []).filter((e) => e.funilId === funil.id).sort((a, b) => a.ordem - b.ordem);
   const etGanho = etapas.filter((e) => e.tipo === "ganho");
@@ -105,6 +109,7 @@ export default function CRMAnalises({ onToast }) {
 
   let leads = (crm.leads || []).filter((l) => l.funilId === funil.id);
   if (lim) leads = leads.filter((l) => l.criadoEm >= lim);
+  if (limAte) leads = leads.filter((l) => l.criadoEm <= limAte);
 
   const ganhos = leads.filter((l) => idsGanho.has(l.etapaId));
   const perdidos = leads.filter((l) => idsPerdido.has(l.etapaId));
@@ -162,6 +167,13 @@ export default function CRMAnalises({ onToast }) {
           <select className="select" style={{ width: "auto" }} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
             {FILTROS.map((f) => <option key={f.id} value={f.id}>{f.l}</option>)}
           </select>
+          {periodo === "custom" && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input type="date" className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={customDe} onChange={(e) => setCustomDe(e.target.value)} />
+              <span style={{ fontSize: 11 }}>até</span>
+              <input type="date" className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={customAte} onChange={(e) => setCustomAte(e.target.value)} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -211,6 +223,80 @@ export default function CRMAnalises({ onToast }) {
               <Bar key={i} label={`${t.de} → ${t.para}`} valor={parseFloat(t.taxa)} max={100} cor="var(--green)" sub={`${t.taxa}%`} />
             ))
           )}
+        </div>
+      </div>
+
+
+      {/* Produtividade de vendedores */}
+      <div className="card card-pad" style={{ marginTop: 16 }}>
+        <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Produtividade por vendedor</h3>
+        {(() => {
+          const pesMap = Object.fromEntries((pessoas || []).map((p) => [p.id, p]));
+          const vendedores = {};
+          leads.forEach((l) => {
+            const rid = l.responsavelId || "_sem";
+            if (!vendedores[rid]) vendedores[rid] = { nome: pesMap[rid]?.nome || "Sem responsável", total: 0, ganhos: 0, perdidos: 0, receita: 0, atividades: 0 };
+            vendedores[rid].total++;
+            if (idsGanho.has(l.etapaId)) { vendedores[rid].ganhos++; vendedores[rid].receita += l.valor || 0; }
+            if (idsPerdido.has(l.etapaId)) vendedores[rid].perdidos++;
+            vendedores[rid].atividades += atvsFunil.filter((a) => a.leadId === l.id && a.tipo !== "sistema").length;
+          });
+          const ranking = Object.values(vendedores).sort((a, b) => b.receita - a.receita);
+          const maxRec = ranking[0]?.receita || 1;
+          return ranking.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Sem dados.</p> : (
+            <div className="table-wrap"><table className="grid"><thead><tr>
+              <th>#</th><th>Vendedor</th><th>Leads</th><th>Ganhos</th><th>Perdidos</th><th>Conversão</th><th>Receita</th><th>Atividades</th>
+            </tr></thead><tbody>
+              {ranking.map((v, i) => (
+                <tr key={i}><td className="cell-num" style={{ fontWeight: 800 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
+                  <td className="cell-cliente">{v.nome}</td><td className="cell-num">{v.total}</td>
+                  <td className="cell-num" style={{ color: "var(--green)" }}>{v.ganhos}</td>
+                  <td className="cell-num" style={{ color: "var(--red)" }}>{v.perdidos}</td>
+                  <td className="cell-num">{v.total > 0 ? (v.ganhos / v.total * 100).toFixed(1) : 0}%</td>
+                  <td className="cell-num" style={{ fontWeight: 700 }}>{fmtMoeda(v.receita)}</td>
+                  <td className="cell-num">{v.atividades}</td>
+                </tr>
+              ))}
+            </tbody></table></div>
+          );
+        })()}
+      </div>
+
+      {/* Motivos de perda */}
+      <div className="ana-grid" style={{ marginTop: 16 }}>
+        <div className="card card-pad">
+          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Motivos de perda</h3>
+          {(() => {
+            const motivos = (crm.motivos || []).filter((m) => m.funilId === funil.id);
+            const motivoMap = Object.fromEntries(motivos.map((m) => [m.id, m]));
+            const contagem = {};
+            perdidos.forEach((l) => { const mid = l.motivoPerdaId || "_sem"; contagem[mid] = (contagem[mid] || 0) + 1; });
+            const items = Object.entries(contagem).map(([mid, qtd]) => ({ nome: motivoMap[mid]?.nome || "Não informado", qtd })).sort((a, b) => b.qtd - a.qtd);
+            const maxQ = items[0]?.qtd || 1;
+            const cores = ["#ef4444","#f59e0b","#8b5cf6","#3b82f6","#ec4899","#14b8a6"];
+            return items.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Sem perdidos.</p> : (
+              <>
+                <Pizza fatias={items.map((it, i) => ({ label: it.nome, valor: it.qtd, cor: cores[i % cores.length] }))} />
+                <div style={{ marginTop: 12 }}>
+                  {items.map((it, i) => <Bar key={i} label={it.nome} valor={it.qtd} max={maxQ} cor={cores[i % cores.length]} sub={it.qtd} />)}
+                </div>
+              </>
+            );
+          })()}
+        </div>
+
+        <div className="card card-pad">
+          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Tarefas por lead</h3>
+          {(() => {
+            const tarefasPorLead = leads.length > 0 ? (atvsFunil.filter((a) => a.tipo !== "sistema" && a.tipo !== "nota").length / leads.length).toFixed(1) : "0.0";
+            const notasPorLead = leads.length > 0 ? (atvsFunil.filter((a) => a.tipo === "nota").length / leads.length).toFixed(1) : "0.0";
+            return (
+              <div className="tiles" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                <div className="tile"><div className="label">Atividades/lead</div><div className="value">{tarefasPorLead}</div></div>
+                <div className="tile"><div className="label">Anotações/lead</div><div className="value">{notasPorLead}</div></div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

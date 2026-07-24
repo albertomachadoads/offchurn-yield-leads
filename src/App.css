@@ -1025,3 +1025,11 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
   color: #fff; background: var(--red); padding: 2px 10px;
   border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em;
 }
+
+/* valor no canto superior direito do card */
+.kc-valor-right {
+  font-size: 12px; font-weight: 800; color: var(--green-deep);
+  font-variant-numeric: tabular-nums; margin-left: auto; flex-shrink: 0;
+  white-space: nowrap;
+}
+.tema-escuro .kc-valor-right { color: var(--green); }
