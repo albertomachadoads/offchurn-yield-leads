@@ -31,6 +31,25 @@ export default function Logs({ onToast }) {
   const [busca, setBusca] = useState("");
   const [expandido, setExpandido] = useState(null);
   const [limpando, setLimpando] = useState(false);
+  const [ipsBanidos, setIpsBanidos] = useState(null);
+  const [carregandoIPs, setCarregandoIPs] = useState(false);
+
+  async function carregarIPs() {
+    setCarregandoIPs(true);
+    try {
+      const { data } = await supabase.from("ips_banidos").select("*").order("criado_em", { ascending: false });
+      setIpsBanidos(data || []);
+    } catch { setIpsBanidos([]); }
+    finally { setCarregandoIPs(false); }
+  }
+  async function desbanirIP(id, ip) {
+    if (!confirm(`Desbanir o IP ${ip}? A pessoa poderá tentar entrar novamente.`)) return;
+    try {
+      await supabase.from("ips_banidos").delete().eq("id", id);
+      setIpsBanidos((prev) => (prev || []).filter((b) => b.id !== id));
+      onToast("IP desbloqueado");
+    } catch (e) { onToast("Erro: " + (e.message || "falha")); }
+  }
 
   // carregar logs iniciais (últimos 200)
   useEffect(() => {
@@ -191,6 +210,39 @@ export default function Logs({ onToast }) {
           </table>
         </div>
       )}
+      {/* IPs banidos */}
+      <div className="card card-pad" style={{ marginTop: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 className="dash-title" style={{ margin: 0 }}>IPs banidos</h3>
+          <button className="btn btn-sm" onClick={carregarIPs} disabled={carregandoIPs}>
+            {carregandoIPs ? "Buscando…" : "Atualizar lista"}
+          </button>
+        </div>
+        {ipsBanidos === null ? (
+          <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "10px 0 0" }}>Clique em "Atualizar lista" para ver os IPs banidos.</p>
+        ) : ipsBanidos.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--ink-faint)", margin: "10px 0 0" }}>Nenhum IP banido.</p>
+        ) : (
+          <div className="table-wrap" style={{ marginTop: 12 }}>
+            <table className="grid">
+              <thead>
+                <tr><th>IP</th><th>Motivo</th><th>Usuário</th><th>Quando</th><th></th></tr>
+              </thead>
+              <tbody>
+                {ipsBanidos.map((b) => (
+                  <tr key={b.id} className="log-row log-erro">
+                    <td style={{ fontFamily: "monospace", fontWeight: 700 }}>{b.ip}</td>
+                    <td>{b.motivo || "—"}</td>
+                    <td>{b.usuario_nome || "—"}<br/><span style={{ fontSize: 11, color: "var(--ink-faint)" }}>{b.usuario_email || ""}</span></td>
+                    <td className="log-hora">{fmtHora(b.criado_em)}</td>
+                    <td><button className="btn btn-sm" onClick={() => desbanirIP(b.id, b.ip)}>Desbanir</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 }

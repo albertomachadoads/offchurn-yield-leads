@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { signIn } from "./auth";
+import { verificarIPBanido } from "./protecao";
 
 export default function Login({ aviso }) {
   const [email, setEmail] = useState("");
@@ -13,6 +14,13 @@ export default function Login({ aviso }) {
     if (senha.length < 6) { setErro("A senha precisa ter pelo menos 6 caracteres."); return; }
     setCarregando(true);
     try {
+      // verificar se o IP está banido ANTES de tentar login
+      const ipCheck = await verificarIPBanido();
+      if (ipCheck.banido) {
+        setErro("Acesso bloqueado deste endereço. Fale com o administrador.");
+        setCarregando(false);
+        return;
+      }
       await signIn(email.trim(), senha);
       // o listener de sessão no App cuida do redirecionamento
     } catch (err) {

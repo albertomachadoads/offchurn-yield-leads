@@ -12,6 +12,7 @@ import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import Logs from "./Logs.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
+import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured } from "./supabaseClient";
@@ -84,7 +85,7 @@ export default function App() {
           const u = await getSessionUser();
           setUser(u);
           setAvisoLogin("");
-          if (u) { setLogUser(u.id, u.nome); logAcao("login", `${u.nome} entrou no sistema`); }
+          if (u) { setLogUser(u.id, u.nome); setProtecaoUser(u); instalarProtecaoDevTools(); logAcao("login", `${u.nome} entrou no sistema`); }
         } catch (e) {
           if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
         }
