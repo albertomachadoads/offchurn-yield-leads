@@ -538,7 +538,7 @@ export default function App() {
         )}
 
         {view === "crm" && (
-          <CRM pessoas={data.pessoas || []} onToast={showToast} />
+          <CRM pessoas={data.pessoas || []} onToast={showToast} userName={user?.nome} />
         )}
 
         {view === "crm-analises" && (

@@ -2,10 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
+import LeadPage from "./LeadPage.jsx";
 
 /* ============================================================
    CRM — Kanban com filtros, cards detalhados e WhatsApp.
    ============================================================ */
+
+
+const mascaraTel = (v) => {
+  const n = v.replace(/\D/g, "").slice(0, 11);
+  if (n.length <= 2) return `(${n}`;
+  if (n.length <= 7) return `(${n.slice(0,2)}) ${n.slice(2)}`;
+  return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
+};
+
+const validarEmail = (e) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 const fmtDataBR = (iso) => {
   if (!iso) return "";
@@ -61,10 +72,10 @@ function LeadModal({ base, etapas, tags, origens, pessoas, onSave, onClose }) {
     }>
       <div className="form-grid">
         <div className="form-row"><label>Nome *</label><input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} autoFocus placeholder="Nome do lead" /></div>
-        <div className="form-row"><label>WhatsApp *</label><input className="input" value={f.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} placeholder="+55 11 99999-9999" /></div>
+        <div className="form-row"><label>WhatsApp *</label><input className="input" value={f.whatsapp} onChange={(e) => set("whatsapp", mascaraTel(e.target.value))} placeholder="(11) 99999-9999" maxLength={16} /></div>
       </div>
       <div className="form-grid">
-        <div className="form-row"><label>Email</label><input className="input" type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="email@exemplo.com" /></div>
+        <div className="form-row"><label>Email</label><input className="input" type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="email@exemplo.com" style={f.email && !validarEmail(f.email) ? {borderColor:"var(--red)"} : {}} />{f.email && !validarEmail(f.email) && <span style={{fontSize:10,color:"var(--red)"}}>Email inválido</span>}</div>
         <div className="form-row"><label>Valor (R$)</label><input className="input" type="number" min="0" step="0.01" value={f.valor} onChange={(e) => set("valor", e.target.value)} /></div>
       </div>
       <div className="form-grid">
@@ -109,11 +120,12 @@ function LeadModal({ base, etapas, tags, origens, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function CRM({ pessoas, onToast }) {
+export default function CRM({ pessoas, onToast, userName }) {
   const [crm, setCrm] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [funilId, setFunilId] = useState(null);
   const [modal, setModal] = useState(null);
+  const [leadAberto, setLeadAberto] = useState(null);
 
   // filtros
   const [fDe, setFDe] = useState("");
@@ -189,6 +201,25 @@ export default function CRM({ pessoas, onToast }) {
   }
 
   const temFiltro = fDe || fAte || fResp || fTag || fOrigem;
+
+
+  if (leadAberto) {
+    const leadAtual = leads.find((l) => l.id === leadAberto) || crm.leads.find((l) => l.id === leadAberto);
+    if (leadAtual) {
+      return (
+        <LeadPage
+          lead={leadAtual} etapas={etapas} tags={tags} origens={origens}
+          campos={(crm.campos || []).filter((c) => c.funilId === funil.id)}
+          pessoas={pessoas} atividades={crm.atividades || []}
+          userName={userName}
+          onVoltar={() => { setLeadAberto(null); carregar(); }}
+          onSave={async (d) => { await api.crmLeadSave({ ...d, funilId: funil.id }); carregar(); }}
+          onToast={onToast}
+        />
+      );
+    }
+    setLeadAberto(null);
+  }
 
   return (
     <>
@@ -287,14 +318,15 @@ export default function CRM({ pessoas, onToast }) {
                             <button className="iconbtn" onClick={() => excluirLead(l.id)} title="Excluir"><Icon.Trash /></button>
                           </div>
                         </div>
-                        <div className="kc-nome">{l.nome}</div>
-                        {l.whatsapp && (
-                          <a href={wl} target="_blank" rel="noopener noreferrer" className="kc-whats" title="Abrir no WhatsApp">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
-                            {l.whatsapp}
-                          </a>
-                        )}
-                        {l.email && <div className="kc-info">{l.email}</div>}
+                        <div className="kc-nome" onClick={() => setLeadAberto(l.id)} style={{cursor:"pointer"}}>{l.nome}</div>
+                        <div className="kc-icons">
+                          {l.whatsapp && (
+                            <a href={wl} target="_blank" rel="noopener noreferrer" className="kc-whats-icon" title="WhatsApp" onClick={(e) => e.stopPropagation()}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2z"/></svg>
+                            </a>
+                          )}
+                          {l.email && <span className="kc-email-icon" title={l.email}>✉</span>}
+                        </div>
                         {l.valor > 0 && <div className="kc-valor">{fmtMoeda(l.valor)}</div>}
                         {leadTags.length > 0 && (
                           <div className="kc-tags">

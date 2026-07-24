@@ -866,3 +866,53 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .kanban-col { background: var(--surface); }
 .tema-escuro .kanban-card { background: var(--surface-alt, #1a2b22); }
 .tema-escuro .crm-filtros { background: var(--surface); }
+
+/* ============================================================
+   LEAD PAGE (página individual do lead)
+   ============================================================ */
+.lead-pipeline { display: flex; gap: 0; margin-bottom: 20px; overflow-x: auto; }
+.lp-etapa {
+  flex: 1; min-width: 0; padding: 10px 16px; border: none;
+  background: var(--surface); border-bottom: 3px solid var(--line);
+  font-size: 12px; font-weight: 600; cursor: pointer; text-align: center;
+  color: var(--ink-faint); transition: all .12s; position: relative;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lp-etapa:first-child { border-radius: var(--radius-sm) 0 0 0; }
+.lp-etapa:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+.lp-etapa:hover { background: var(--green-softer); color: var(--ink); }
+.lp-etapa.lp-atual { border-bottom-color: var(--ec, var(--green)); color: var(--ink); font-weight: 800; background: var(--green-softer); }
+.lp-etapa.lp-ganho.lp-atual { background: #dcfce7; }
+.lp-etapa.lp-perdido.lp-atual { background: #fde8e8; }
+
+.lead-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+.lead-sidebar { display: flex; flex-direction: column; gap: 12px; }
+.lead-main { display: flex; flex-direction: column; gap: 0; }
+
+.lead-section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 14px 16px; }
+.lead-sec-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 10px; letter-spacing: 0.04em; }
+.lead-campo { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.lead-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--ink-faint); }
+.lead-valor { font-size: 13px; }
+
+/* timeline */
+.lead-timeline { display: flex; flex-direction: column; gap: 0; }
+.lt-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.lt-item:last-child { border-bottom: none; }
+.lt-icon { font-size: 18px; flex-shrink: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--gray-soft); border-radius: 50%; }
+.lt-content { flex: 1; }
+.lt-desc { font-size: 13px; line-height: 1.5; }
+.lt-meta { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+/* card icons (só ícones, sem número) */
+.kc-icons { display: flex; gap: 6px; align-items: center; margin: 4px 0; }
+.kc-whats-icon { color: #25d366; display: flex; }
+.kc-whats-icon:hover { color: #128c7e; }
+.kc-email-icon { font-size: 16px; color: var(--ink-faint); }
+
+.tema-escuro .lead-section { background: var(--surface); }
+.tema-escuro .lp-etapa { background: var(--surface); }
+.tema-escuro .lp-etapa.lp-atual { background: var(--green-soft); }
+.tema-escuro .lt-icon { background: var(--surface-alt); }
+
+@media (max-width: 860px) { .lead-layout { grid-template-columns: 1fr; } }
