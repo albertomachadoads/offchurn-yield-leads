@@ -104,7 +104,7 @@ function ModalPerda({ motivos, onConfirm, onClose }) {
   return (
     <Modal title="Motivo da perda" onClose={onClose} footer={
       <><button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-      <button className="btn btn-primary" style={{ background: "var(--red)" }} disabled={!motivoId} onClick={() => onConfirm(motivoId, justificativa)}>Confirmar perda</button></>
+      <button className="btn btn-primary" style={{ background: "var(--red)" }} disabled={!motivoId || (motivoSel?.exigirJustificativa && !justificativa.trim())} onClick={() => onConfirm(motivoId, justificativa.trim())}>Confirmar perda</button></>
     }>
       <p style={{ fontSize: 13, marginBottom: 12 }}>Selecione o motivo pelo qual este lead foi perdido:</p>
       <div className="form-row"><label>Motivo *</label><select className="select" value={motivoId} onChange={(e) => setMotivoId(e.target.value)}>

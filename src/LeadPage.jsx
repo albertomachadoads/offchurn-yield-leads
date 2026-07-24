@@ -219,11 +219,22 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
             <div className="lead-campo"><span className="lead-label">Email</span><span className="lead-valor">{lead.email || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Valor</span><span className="lead-valor">{lead.valor > 0 ? fmtMoeda(lead.valor) : "—"}</span></div>
             {lead.motivoPerdaId && (
-              <div className="lead-campo" style={{ marginTop: 8, padding: "8px 10px", background: "#fef2f2", borderRadius: 6, border: "1px solid var(--red)" }}>
-                <span className="lead-label" style={{ color: "var(--red)" }}>Status: PERDIDO</span>
-                <span className="lead-valor" style={{ color: "var(--red)", fontWeight: 700 }}>{crm_motivos.find((m) => m.id === lead.motivoPerdaId)?.nome || "Motivo não informado"}</span>
-                {lead.justificativaPerda && <span className="lead-valor" style={{ fontSize: 11, fontStyle: "italic" }}>{lead.justificativaPerda}</span>}
-              </div>
+              <>
+                <div className="lead-campo">
+                  <span className="lead-label">Status</span>
+                  <span className="lead-perdido-badge">Perdido</span>
+                </div>
+                <div className="lead-campo">
+                  <span className="lead-label">Motivo da perda</span>
+                  <span className="lead-valor">{crm_motivos.find((m) => m.id === lead.motivoPerdaId)?.nome || "Não informado"}</span>
+                </div>
+                {lead.justificativaPerda && (
+                  <div className="lead-campo">
+                    <span className="lead-label">Justificativa</span>
+                    <span className="lead-valor">{lead.justificativaPerda}</span>
+                  </div>
+                )}
+              </>
             )}
             {produtos && produtos.length > 0 && (
               <div className="lead-campo"><span className="lead-label">Produto</span>
@@ -396,7 +407,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
           return (
             <Modal title="Motivo da perda" onClose={() => setModalPerdaLP(false)} footer={
               <><button className="btn btn-ghost" onClick={() => setModalPerdaLP(false)}>Cancelar</button>
-              <button className="btn btn-primary" style={{ background: "var(--red)" }} disabled={!mid} onClick={() => confirmarPerdaLP(modalPerdaLP, mid, just)}>Confirmar perda</button></>
+              <button className="btn btn-primary" style={{ background: "var(--red)" }} disabled={!mid || (mot?.exigirJustificativa && !just.trim())} onClick={() => confirmarPerdaLP(modalPerdaLP, mid, just.trim())}>Confirmar perda</button></>
             }>
               <div className="form-row"><label>Motivo *</label><select className="select" value={mid} onChange={(e) => setMid(e.target.value)}>
                 <option value="">— selecione —</option>

@@ -1018,3 +1018,10 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .pizza-legend { display: flex; flex-direction: column; gap: 4px; }
 .pizza-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .pizza-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* badge perdido na página do lead */
+.lead-perdido-badge {
+  display: inline-block; font-size: 11px; font-weight: 800;
+  color: #fff; background: var(--red); padding: 2px 10px;
+  border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em;
+}

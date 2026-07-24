@@ -373,6 +373,7 @@ export async function fetchCRM() {
     funis: (funis.data||[]).map(mapFunil_crm), etapas: (etapas.data||[]).map(mapEtapa),
     tags: (tags.data||[]).map(mapTag), motivos: (motivos.data||[]).map(mapMotivoPerda),
     campos: (campos.data||[]).map(mapCampo), origens: (origens.data||[]).map(mapOrigem),
+    produtos: (produtos.data||[]).map(mapProduto),
     leads: (leads.data||[]).map(mapLead), atividades: (atividades.data||[]).map(mapAtividade),
   };
 }
