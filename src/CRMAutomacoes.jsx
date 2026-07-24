@@ -336,7 +336,7 @@ export default function CRMAutomacoes({ onToast }) {
                 <div className="auto-list-icon">{trig?.icon || "⚡"}</div>
                 <div className="auto-list-info">
                   <div className="auto-list-nome">{a.nome}</div>
-                  <div className="auto-list-meta">{trig?.l || a.triggerTipo} → {numAcoes} ação{numAcoes !== 1 ? "ões" : ""}</div>
+                  <div className="auto-list-meta">{trig?.l || a.triggerTipo} → {numAcoes} {numAcoes === 1 ? "ação" : "ações"}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span className={`pill ${a.ativo ? "done" : "off"}`}>{a.ativo ? "Ativa" : "Inativa"}</span>

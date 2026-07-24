@@ -364,7 +364,7 @@ const mapAutomacao = (r) => ({
 const mapAtividade = (r) => ({ id: r.id, leadId: r.lead_id, tipo: r.tipo, descricao: r.descricao, autorNome: r.autor_nome, criadoEm: r.criado_em });
 
 export async function fetchCRM() {
-  const [funis, etapas, tags, motivos, campos, origens, produtos, automacoes, leads, atividades] = await Promise.all([
+  const [funis, etapas, tags, motivos, campos, origens, produtos, leads, atividades] = await Promise.all([
     supabase.from("crm_funis").select("*").order("ordem"),
     supabase.from("crm_etapas").select("*").order("ordem"),
     supabase.from("crm_tags").select("*").order("nome"),
@@ -373,17 +373,22 @@ export async function fetchCRM() {
     supabase.from("crm_origens").select("*").order("nome"),
     supabase.from("crm_produtos").select("*").order("nome"),
     supabase.from("crm_leads").select("*").order("criado_em", { ascending: false }),
-    supabase.from("crm_automacoes").select("*").order("criado_em"),
     supabase.from("crm_atividades").select("*").order("criado_em", { ascending: false }).limit(500),
   ]);
-  return {
+  const result = {
     funis: (funis.data||[]).map(mapFunil_crm), etapas: (etapas.data||[]).map(mapEtapa),
     tags: (tags.data||[]).map(mapTag), motivos: (motivos.data||[]).map(mapMotivoPerda),
     campos: (campos.data||[]).map(mapCampo), origens: (origens.data||[]).map(mapOrigem),
     produtos: (produtos.data||[]).map(mapProduto),
-    automacoes: (automacoes.data||[]).map(mapAutomacao),
     leads: (leads.data||[]).map(mapLead), atividades: (atividades.data||[]).map(mapAtividade),
+    automacoes: [],
   };
+  // Automações: query separada (resiliente se tabela não existe ainda)
+  try {
+    const autoRes = await supabase.from("crm_automacoes").select("*").order("criado_em");
+    if (autoRes.data) result.automacoes = autoRes.data.map(mapAutomacao);
+  } catch {}
+  return result;
 }
 
 // CRUD genérico do CRM
