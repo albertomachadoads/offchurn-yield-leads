@@ -15,6 +15,8 @@ import OBZ from "./OBZ.jsx";
 import CRMParametros from "./CRMParametros.jsx";
 import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
+import WhatsAppChat from "./WhatsAppChat.jsx";
+import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
@@ -175,7 +177,7 @@ export default function App() {
       await api.upsertAcomp(reg, user?.id);
       setRegModal(null);
       showToast("Acompanhamento salvo");
-      logAcao("acompanhamento", `Registro ${dados.id ? "editado" : "criado"} para cliente ${dados.clienteId?.slice(0,8)}`);
+      logAcao("acompanhamento", `Registro ${reg.id ? "editado" : "criado"} para cliente ${reg.clienteId?.slice(0,8)}`);
       recarregar();
     } catch (e) { showToast("Erro: " + (e.message || "falha ao salvar")); }
   }
@@ -361,6 +363,12 @@ export default function App() {
             </button>
             <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
               <Icon.Chart /> <span>Análises</span>
+            </button>
+            <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}>
+              <Icon.Target /> <span>Painel de Metas</span>
+            </button>
+            <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
+              <Icon.Chat /> <span>WhatsApp</span>
             </button>
           </div>
 
@@ -561,6 +569,14 @@ export default function App() {
 
         {view === "crm-auto" && (
           <CRMAutomacoes onToast={showToast} />
+        )}
+
+        {view === "metas" && (
+          <PainelMetas clientes={data.clientes || []} onToast={showToast} />
+        )}
+
+        {view === "whatsapp" && (
+          <WhatsAppChat onToast={showToast} />
         )}
 
         {view === "crm-analises" && (
