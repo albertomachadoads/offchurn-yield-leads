@@ -15,6 +15,7 @@ import OBZ from "./OBZ.jsx";
 import CRMParametros from "./CRMParametros.jsx";
 import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
+import WhatsAppChat from "./WhatsAppChat.jsx";
 import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
@@ -366,6 +367,9 @@ export default function App() {
             <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}>
               <Icon.Target /> <span>Painel de Metas</span>
             </button>
+            <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
+              <Icon.Chat /> <span>WhatsApp</span>
+            </button>
           </div>
 
           {/* FINANCEIRO */}
@@ -565,6 +569,10 @@ export default function App() {
 
         {view === "crm-auto" && (
           <CRMAutomacoes onToast={showToast} />
+        )}
+
+        {view === "whatsapp" && (
+          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} />
         )}
 
         {view === "metas" && (
