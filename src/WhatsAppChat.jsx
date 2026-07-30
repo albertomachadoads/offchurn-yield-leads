@@ -10,7 +10,7 @@ const fmtTimer = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%
 
 async function enviarAPI(p) {
   const sess = await supabase.auth.getSession();
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-send`, {
+  const r = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/whatsapp-send`, {
     method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${sess.data.session?.access_token}` },
     body: JSON.stringify(p),
   });
