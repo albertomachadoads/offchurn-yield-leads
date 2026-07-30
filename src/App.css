@@ -1184,3 +1184,25 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .wa-new-lead-badge { margin-left: 4px; font-size: 11px; }
 .wa-attach-menu { display: flex; gap: 2px; flex-shrink: 0; }
 .wa-attach-menu .iconbtn { font-size: 16px; padding: 4px; }
+
+/* Attach popup */
+.wa-attach-btn { border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
+.wa-attach-popup { position: absolute; bottom: 46px; left: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); padding: 6px; display: flex; flex-direction: column; gap: 2px; z-index: 20; min-width: 150px; }
+.wa-attach-popup button { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: none; background: transparent; cursor: pointer; border-radius: 6px; font-size: 13px; text-align: left; color: var(--ink); }
+.wa-attach-popup button:hover { background: var(--green-softer); }
+.wa-attach-popup button span { font-size: 18px; }
+
+/* Mic */
+.wa-mic-gravando { background: #ef4444 !important; color: #fff; animation: wa-pulse 1s infinite; border-radius: 50%; width: 40px; height: 40px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+@keyframes wa-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); } }
+
+/* Sticker */
+.wa-msg-sticker { max-width: 120px; border-radius: 6px; }
+
+/* Doc card */
+.wa-msg-doc { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; text-decoration: none; color: var(--ink); }
+.wa-msg-doc:hover { border-color: var(--green); }
+
+/* Img clicável */
+.wa-msg-img { max-width: 100%; border-radius: 6px; cursor: pointer; }
+.wa-msg-video { max-width: 100%; border-radius: 6px; max-height: 300px; }
