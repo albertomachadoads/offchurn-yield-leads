@@ -72,7 +72,7 @@ function CriarLeadModal({ numero, nome, onClose, onToast }) {
   );
 }
 
-export default function WhatsAppChat({ isAdmin, onToast }) {
+export default function WhatsAppChat({ isAdmin, onToast, onVerLead }) {
   const [instancias, setInstancias] = useState([]);
   const [instAtiva, setInstAtiva] = useState(null);
   const [conversas, setConversas] = useState([]);
@@ -169,7 +169,7 @@ export default function WhatsAppChat({ isAdmin, onToast }) {
           <button className="iconbtn wa-back-btn" onClick={() => setConvAberta(null)}>‹</button>
           <Avatar nome={convAberta.nome} foto={convAberta.foto_url} />
           <div className="wa-chat-header-info"><div className="wa-chat-header-nome">{convAberta.nome || convAberta.numero}</div><div className="wa-chat-header-num">{convAberta.numero}</div></div>
-          {convAberta.lead_id ? <a href="#" className="btn btn-sm btn-ghost" onClick={(e) => { e.preventDefault(); onToast("Abra o CRM para ver o lead"); }}>Ver no CRM</a> : <button className="btn btn-sm btn-primary" onClick={() => setModalLead({ numero: convAberta.numero, nome: convAberta.nome })}>+ Negociação</button>}
+          {convAberta.lead_id ? <button className="btn btn-sm btn-ghost wa-ver-crm" onClick={() => onVerLead && onVerLead(convAberta.lead_id)}>Ver no CRM ›</button> : <button className="btn btn-sm btn-primary" onClick={() => setModalLead({ numero: convAberta.numero, nome: convAberta.nome })}>+ Negociação</button>}
         </div>
         <div className="wa-messages" ref={chatRef}>{mensagens.map((m) => <MsgBolha key={m.id} msg={m} />)}</div>
         <div className="wa-input-bar">

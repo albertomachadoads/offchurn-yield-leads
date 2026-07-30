@@ -572,7 +572,7 @@ export default function App() {
         )}
 
         {view === "whatsapp" && (
-          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} />
+          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} onVerLead={(leadId) => { setView("crm"); setTimeout(() => { const ev = new CustomEvent("abrirLead", { detail: leadId }); window.dispatchEvent(ev); }, 300); }} />
         )}
 
         {view === "metas" && (
