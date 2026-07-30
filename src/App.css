@@ -1180,3 +1180,7 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .mp-form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 @media (max-width: 700px) { .mp-form { grid-template-columns: repeat(2, 1fr); } }
 .mp-form .input { font-size: 13px; }
+
+.wa-new-lead-badge { margin-left: 4px; font-size: 11px; }
+.wa-attach-menu { display: flex; gap: 2px; flex-shrink: 0; }
+.wa-attach-menu .iconbtn { font-size: 16px; padding: 4px; }
