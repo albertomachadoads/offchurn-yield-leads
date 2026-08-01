@@ -1314,43 +1314,19 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .wa-error { font-size: 10px; margin-right: 3px; cursor: pointer; }
 
 /* Dashboard */
-.dash-tiles { grid-template-columns: repeat(6, 1fr); }
 @media (max-width: 1100px) { .dash-tiles { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 600px) { .dash-tiles { grid-template-columns: repeat(2, 1fr); } }
 .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
 @media (max-width: 800px) { .dash-grid { grid-template-columns: 1fr; } }
-.dash-tarefas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.dash-tarefa-item { text-align: center; padding: 12px 0; background: var(--bg); border-radius: 8px; }
-.dash-tarefa-num { font-size: 26px; font-weight: 800; }
-.dash-tarefa-label { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
 .tema-escuro .dash-tarefa-item { background: var(--surface); }
 
 /* Dashboard vendedores */
-.dash-h3 { margin: 0 0 14px; font-size: 14px; font-weight: 800; }
-.dash-filtro-vendedores { display: flex; gap: 4px; flex-wrap: wrap; }
-.dash-vf-btn { padding: 4px 10px; border: 1px solid var(--line); border-radius: 16px; background: transparent; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--ink-faint); transition: all .12s; }
 .dash-vf-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
 .dash-vf-btn:hover { border-color: var(--green); }
 
-.dash-vendedores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-.dash-vendedor-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.dash-vendedor-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
-.dash-vendedor-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.dash-vstat { text-align: center; padding: 8px 0; background: var(--bg); border-radius: 6px; }
-.dash-vstat-n { display: block; font-size: 18px; font-weight: 800; }
-.dash-vstat-l { font-size: 10px; color: var(--ink-faint); }
 .tema-escuro .dash-vstat { background: var(--surface); }
 
-.dash-meta-gauge { margin-bottom: 8px; }
-.dash-meta-label { font-size: 11px; font-weight: 600; color: var(--ink-faint); }
-.dash-meta-valores { font-size: 13px; }
-.dash-meta-bar { height: 5px; background: var(--gray-soft); border-radius: 3px; overflow: hidden; margin: 3px 0; }
-.dash-meta-bar div { height: 100%; border-radius: 3px; transition: width .4s; }
-.dash-meta-status { font-size: 10px; font-weight: 700; }
 
-.dash-reunioes { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; }
-.dash-reuniao-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg); border-radius: 6px; font-size: 13px; }
-.dash-reuniao-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
 .tema-escuro .dash-reuniao-item { background: var(--surface); }
 
 /* Notificações */
@@ -1375,18 +1351,8 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 
 
 
-.dash-tarefas-lista { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
-.dash-tarefa-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--bg); transition: background .1s; }
-.dash-tarefa-row:hover { background: var(--green-softer); }
-.dash-tarefa-atrasada { background: #fff5f5; }
-.dash-tarefa-atrasada:hover { background: #fee2e2; }
 .tema-escuro .dash-tarefa-row { background: var(--surface); }
 .tema-escuro .dash-tarefa-atrasada { background: #3a1a1a; }
-.dash-tarefa-status { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
-.dash-tarefa-info { flex: 1; min-width: 0; }
-.dash-tarefa-desc { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dash-tarefa-meta { font-size: 11px; color: var(--ink-faint); display: flex; gap: 4px; flex-wrap: wrap; }
-.dash-tarefa-lead { font-weight: 600; }
 
 
 .toolbar-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: pointer; transition: all .12s; }
@@ -1394,3 +1360,91 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .toolbar-btn { background: #1a2b1e; border-color: #2a3e2e; }
 
 
+
+/* ============ DASHBOARD REDESIGN ============ */
+
+/* KPI Cards */
+.dkpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 1100px) { .dkpi-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .dkpi-grid { grid-template-columns: repeat(2, 1fr); } }
+.dkpi { display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.dkpi-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.dkpi-body { min-width: 0; }
+.dkpi-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-faint); }
+.dkpi-valor { font-size: 20px; font-weight: 800; line-height: 1.2; color: var(--ink); }
+.dkpi-sub { font-size: 10px; color: var(--ink-faint); margin-top: 2px; }
+.dkpi-trend { font-weight: 700; margin-right: 4px; }
+.dkpi-trend.up { color: #22c55e; }
+.dkpi-trend.down { color: #ef4444; }
+
+/* Cards genéricos */
+.dcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.dcard-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.dcard-head h3 { margin: 0; font-size: 14px; font-weight: 800; }
+.dcard-count { background: var(--green-softer); color: var(--green); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.dcard-empty { font-size: 12px; color: var(--ink-faint); margin: 0; }
+
+/* Grid 2 colunas */
+.dgrid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .dgrid-2 { grid-template-columns: 1fr; } }
+
+/* Tarefas resumo */
+.dtarefas-resumo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.dtarefa-pill { text-align: center; padding: 16px 0; background: var(--bg); border-radius: 10px; font-size: 11px; color: var(--ink-faint); font-weight: 600; }
+.dtarefa-n { display: block; font-size: 28px; font-weight: 800; margin-bottom: 2px; }
+.tema-escuro .dtarefa-pill { background: var(--surface-2, #1a2b1e); }
+
+/* Tarefas CRM lista */
+.dtarefas-lista { display: flex; flex-direction: column; gap: 2px; max-height: 400px; overflow-y: auto; }
+.dtarefa-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background .1s; }
+.dtarefa-row:hover { background: var(--green-softer); }
+.dtarefa-atrasada { background: #fef2f2; }
+.dtarefa-atrasada:hover { background: #fee2e2; }
+.tema-escuro .dtarefa-atrasada { background: #2d1515; }
+.dtarefa-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dtarefa-info { flex: 1; min-width: 0; }
+.dtarefa-desc { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dtarefa-meta { font-size: 11px; color: var(--ink-faint); }
+.dtarefa-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; flex-shrink: 0; }
+.badge-red { background: #fee2e2; color: #dc2626; }
+.badge-yellow { background: #fef3c7; color: #d97706; }
+.badge-green { background: #dcfce7; color: #16a34a; }
+.tema-escuro .badge-red { background: #3a1515; }
+.tema-escuro .badge-yellow { background: #3a2d15; }
+.tema-escuro .badge-green { background: #15332a; }
+
+/* Reuniões */
+.dreuniao-lista { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
+.dreuniao-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: background .1s; }
+.dreuniao-item:hover { background: var(--green-softer); }
+.dreuniao-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.dreuniao-num { font-size: 11px; color: var(--ink-faint); margin-left: 6px; }
+
+/* Vendedor pills */
+.dash-vf { display: flex; gap: 4px; flex-wrap: wrap; }
+.dash-vf-btn { padding: 5px 12px; border: 1px solid var(--line); border-radius: 20px; background: transparent; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--ink-faint); transition: all .12s; }
+.dash-vf-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+.dash-vf-btn:hover { border-color: var(--green); }
+
+/* Vendedor cards */
+.dsection-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+.dvendedor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.dvendedor { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.dvendedor-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.dvendedor-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+.dvendedor-nome { font-weight: 700; font-size: 14px; }
+.dvendedor-sub { font-size: 11px; color: var(--ink-faint); }
+.dvendedor-badge { margin-left: auto; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; }
+.dvendedor-acima { background: #dcfce7; color: #16a34a; }
+.dvendedor-ok { background: #fef3c7; color: #d97706; }
+.dvendedor-abaixo { background: #fee2e2; color: #dc2626; }
+.dvendedor-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.dvendedor-stats > div { padding: 8px 0; background: var(--bg); border-radius: 6px; }
+.dvendedor-n { display: block; font-size: 16px; font-weight: 800; }
+.dvendedor-l { font-size: 9px; color: var(--ink-faint); text-transform: uppercase; }
+
+/* Meta gauge */
+.dmeta { margin-bottom: 6px; }
+.dmeta-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: var(--ink-faint); }
+.dmeta-bar { height: 5px; background: var(--gray-soft); border-radius: 3px; overflow: hidden; }
+.dmeta-bar div { height: 100%; border-radius: 3px; transition: width .5s; }
