@@ -9,13 +9,19 @@ const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/+$/, "
 const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 async function provisionar(payload) {
-  const r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-provisionar`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}`, apikey: ANON },
-    body: JSON.stringify(payload),
-  });
+  let r;
+  try {
+    r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-provisionar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}`, apikey: ANON },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("O serviço de conexão ainda não está publicado no servidor. Peça ao administrador para publicar a função whatsapp-provisionar no Supabase.");
+  }
+  if (r.status === 404) throw new Error("O serviço de conexão não foi encontrado no servidor. A função whatsapp-provisionar precisa ser publicada no Supabase.");
   const d = await r.json().catch(() => ({}));
-  if (!d.ok) throw new Error(d.error || `Falha na comunicação (HTTP ${r.status})`);
+  if (!d.ok) throw new Error(d.error || `Falha na comunicação com o servidor (HTTP ${r.status}).`);
   return d;
 }
 
