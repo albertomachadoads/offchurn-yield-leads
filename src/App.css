@@ -1393,4 +1393,4 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .toolbar-btn:hover { border-color: var(--green); color: var(--green); }
 .tema-escuro .toolbar-btn { background: #1a2b1e; border-color: #2a3e2e; }
 
-.toolbar-fixed { position: absolute; top: 16px; right: 0; z-index: 5; }
+
