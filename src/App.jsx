@@ -113,10 +113,10 @@ export default function App() {
   const temPerm = (mod) => {
     try {
       if (isMaster || isAdmin) return true;
-      // Se não tem registro de permissões, acesso total (padrão)
-      if (!userPerms || !userPerms.modulos) return true;
-      // Se tem registro mas modulos está vazio = sem acesso a nada
-      return userPerms.modulos.includes(mod);
+      // Sem registro de permissões = acesso total (padrão)
+      if (!userPerms?._configured) return true;
+      // Com registro: verificar se módulo está na lista
+      return (userPerms.modulos || []).includes(mod);
     } catch { return true; }
   };
 
@@ -190,11 +190,35 @@ export default function App() {
     if (!user?.id) return;
     (async () => {
       try {
-        const { data: pessoa } = await supabase.from("pessoas").select("id").eq("auth_id", user.id).maybeSingle();
-        if (!pessoa) { setUserPerms({}); return; }
-        const { data: perm } = await supabase.from("permissoes_usuario").select("*").eq("pessoa_id", pessoa.id).maybeSingle();
-        setUserPerms(perm || {});
-      } catch { setUserPerms({}); }
+        let pessoaId = null;
+
+        // Tentar 1: perfis.id = user.id (tabela perfis usa auth UUID direto)
+        const r1 = await supabase.from("perfis").select("id").eq("id", user.id).maybeSingle();
+        if (r1.data) pessoaId = r1.data.id;
+
+        // Tentar 2: pessoas com auth_id
+        if (!pessoaId) {
+          const r2 = await supabase.from("pessoas").select("id").eq("auth_id", user.id).maybeSingle();
+          if (r2.data) pessoaId = r2.data.id;
+        }
+
+        // Tentar 3: pessoas com email
+        if (!pessoaId && user.email) {
+          const r3 = await supabase.from("pessoas").select("id").eq("email", user.email).maybeSingle();
+          if (r3.data) pessoaId = r3.data.id;
+        }
+
+        if (!pessoaId) { setUserPerms({ _none: true }); return; }
+
+        // Buscar permissões
+        const { data: perm } = await supabase.from("permissoes_usuario").select("*").eq("pessoa_id", pessoaId).maybeSingle();
+        
+        if (perm) {
+          setUserPerms({ ...perm, _configured: true });
+        } else {
+          setUserPerms({ _none: true }); // Sem config = acesso total
+        }
+      } catch { setUserPerms({ _none: true }); }
     })();
   }, [user?.id]);
 
