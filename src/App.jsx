@@ -52,6 +52,7 @@ export default function App() {
 
   const [view, setView] = useState("acompanhamento");
   const [toast, setToast] = useState(null);
+  const [userPerms, setUserPerms] = useState({});
   // sidebar recolhida por padrão; expande no hover ou fixada por botão
   const [sidebarFixa, setSidebarFixa] = useState(false);
   // tema (claro/escuro) — lê preferência salva
@@ -136,6 +137,19 @@ export default function App() {
   }, [user]);
 
   useEffect(() => { if (user) recarregar(); }, [user, recarregar]);
+
+  // Carregar permissões do usuário logado
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        const { data: pessoa } = await supabase.from("pessoas").select("id").eq("auth_id", user.id).maybeSingle();
+        if (!pessoa) { setUserPerms({}); return; }
+        const { data: perm } = await supabase.from("permissoes_usuario").select("*").eq("pessoa_id", pessoa.id).maybeSingle();
+        setUserPerms(perm || {});
+      } catch { setUserPerms({}); }
+    })();
+  }, [user?.id]);
 
   // ----- tempo real -----
   useEffect(() => {
