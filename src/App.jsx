@@ -197,8 +197,7 @@ export default function App() {
         
         const perm = (todas || []).find((p) => p.pessoa_id === user.id);
         
-        console.log("[PERM] user.id:", user.id, "total registros:", (todas||[]).length, "encontrou:", !!perm, "error:", error?.message);
-        if (perm) console.log("[PERM] modulos:", perm.modulos);
+
         
         if (perm && perm.modulos && Array.isArray(perm.modulos) && perm.modulos.length > 0) {
           setUserPerms({ ...perm, _configured: true, _debug: `${perm.modulos.length} mods` });
@@ -479,11 +478,6 @@ export default function App() {
           </div>
           )}
         </nav>
-        {/* DEBUG temporário — remover depois */}
-        <div style={{ padding: "4px 12px", fontSize: 9, color: "var(--ink-faint)", borderTop: "1px solid var(--line)" }}>
-          PERM: {userPerms?._configured ? `✓ ${(userPerms.modulos||[]).length} mods` : "✗ livre"} | {userPerms?._debug || "?"}
-          {" | ID: "}{user?.id?.slice(0,8)}
-        </div>
         <div className="sidebar-foot">
           <button className="btn btn-sm btn-ghost tema-toggle" onClick={() => setTema((t) => t === "claro" ? "escuro" : "claro")} title="Alternar tema">
             {tema === "claro" ? <><Icon.Lua /> <span className="tt-label">Modo escuro</span></> : <><Icon.Sol /> <span className="tt-label">Modo claro</span></>}
