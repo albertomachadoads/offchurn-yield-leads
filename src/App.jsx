@@ -477,6 +477,11 @@ export default function App() {
           </div>
           )}
         </nav>
+        {/* DEBUG temporário — remover depois */}
+        <div style={{ padding: "4px 12px", fontSize: 9, color: "var(--ink-faint)", borderTop: "1px solid var(--line)" }}>
+          PERM: {userPerms?._configured ? `${(userPerms.modulos||[]).length} módulos` : "sem config (acesso total)"}
+          {" | ID: "}{user?.id?.slice(0,8)}
+        </div>
         <div className="sidebar-foot">
           <button className="btn btn-sm btn-ghost tema-toggle" onClick={() => setTema((t) => t === "claro" ? "escuro" : "claro")} title="Alternar tema">
             {tema === "claro" ? <><Icon.Lua /> <span className="tt-label">Modo escuro</span></> : <><Icon.Sol /> <span className="tt-label">Modo claro</span></>}
