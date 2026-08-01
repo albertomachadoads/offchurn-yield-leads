@@ -444,6 +444,7 @@ export default function App() {
           {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.includes("Mads") || isMaster || isAdmin) && (
             <button className={agFiltro === "Mads" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Mads")}>Mads</button>
           )}
+          <button className="ag-btn" onClick={() => { recarregar(); showToast("Atualizado"); }} title="Recarregar dados">🔄</button>
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
@@ -513,9 +514,7 @@ export default function App() {
       </aside>
 
       <main className="main">
-        <div className="main-toolbar">
-          <button className="btn btn-sm btn-ghost" onClick={() => { recarregar(); showToast("Dados atualizados"); }} title="Recarregar dados">🔄 Atualizar</button>
-        </div>
+
         <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
