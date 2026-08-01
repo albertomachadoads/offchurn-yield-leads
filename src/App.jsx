@@ -670,7 +670,7 @@ export default function App() {
         )}
 
         {view === "metas" && (
-          <PainelMetas clientes={data.clientes || []} onToast={showToast} />
+          <PainelMetas userName={user?.nome} onIrParaCRM={() => setView("crm")} clientes={data.clientes || []} onToast={showToast} />
         )}
 
         {view === "crm-analises" && (
