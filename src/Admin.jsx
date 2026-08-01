@@ -1,26 +1,9 @@
 import { useEffect, useState } from "react";
+import MODULOS from "./modulos.js";
 import { adminCriarUsuario, atualizarPerfil, definirBloqueio, excluirPerfil } from "./auth";
 import { Icon, Modal } from "./components.jsx";
 import { supabase } from "./supabaseClient.js";
 
-const MODULOS = [
-  { id: "dashboard", nome: "Dashboard", grupo: "Principais" },
-  { id: "acompanhamento", nome: "Acompanhamento", grupo: "Principais" },
-  { id: "follow", nome: "Tarefas", grupo: "Principais" },
-  { id: "whatsapp", nome: "Conversas", grupo: "Comercial" },
-  { id: "crm", nome: "CRM", grupo: "Comercial" },
-  { id: "crm-params", nome: "Parâmetros CRM", grupo: "Comercial" },
-  { id: "crm-auto", nome: "Automações", grupo: "Comercial" },
-  { id: "crm-analises", nome: "Análises", grupo: "Comercial" },
-  { id: "metas", nome: "Painel de Metas", grupo: "Comercial" },
-  { id: "fluxo", nome: "Fluxo de Caixa", grupo: "Financeiro" },
-  { id: "gestao", nome: "Gestão", grupo: "Financeiro" },
-  { id: "obz", nome: "OBZ", grupo: "Financeiro" },
-  { id: "registro-tarefas", nome: "Registro de Tarefas", grupo: "Log" },
-  { id: "cadastros", nome: "Cadastros", grupo: "Admin" },
-  { id: "admin", nome: "Administradores", grupo: "Admin" },
-  { id: "logs", nome: "Logs", grupo: "Admin" },
-];
 const TODOS_MODS = MODULOS.map((m) => m.id);
 const GRUPOS = [...new Set(MODULOS.map((m) => m.grupo))];
 const AGENCIAS = ["Yield", "Mads"];
