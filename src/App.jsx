@@ -114,6 +114,8 @@ export default function App() {
     setTimeout(() => setNotifs((p) => p.filter((n) => n.id !== id)), 8000);
   };
 
+  const reloadGlobal = () => { recarregar(); window.location.reload(); };
+
   const temPerm = (mod) => {
     try {
       if (isMaster || isAdmin) return true;
@@ -511,6 +513,9 @@ export default function App() {
       </aside>
 
       <main className="main">
+        <div className="main-toolbar">
+          <button className="btn btn-sm btn-ghost" onClick={() => { recarregar(); showToast("Dados atualizados"); }} title="Recarregar dados">🔄 Atualizar</button>
+        </div>
         <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
@@ -539,7 +544,7 @@ export default function App() {
           <FollowAcoes userId={user?.id} isAdmin={isAdmin}
             tarefas={(data.tarefas || []).filter((t) => idsAgencia.has(t.clienteId))}
             clientes={clientesFiltrados}
-            pessoas={data.pessoas || []}
+            pessoas={[...(data.pessoas || []), ...(data.perfis || []).filter((pf) => !(data.pessoas || []).some((pe) => pe.id === pf.id))]}
             onSave={salvarTarefa}
             onDelete={excluirTarefa}
             onToast={showToast}

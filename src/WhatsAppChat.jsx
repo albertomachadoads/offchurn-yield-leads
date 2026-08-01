@@ -140,7 +140,19 @@ function CriarLeadModal({ numero, nome, onClose, onToast }) {
   const pe = f.funilId ? (crm?.etapas || []).filter((e) => e.funilId === f.funilId).sort((a, b) => a.ordem - b.ordem)[0] : null;
   async function salvar() {
     if (!f.nome.trim() || !f.funilId) return; setSalvando(true);
-    try { await api.crmLeadSave({ nome: f.nome, whatsapp: f.whatsapp, email: f.email || null, funilId: f.funilId, etapaId: pe?.id, valor: 0, tags: "[]", camposCustom: "{}" }); onToast("Lead criado!"); onClose(); } catch (e) { onToast("Erro: " + e.message); } finally { setSalvando(false); }
+    try {
+      const result = await api.crmLeadSave({ nome: f.nome, whatsapp: f.whatsapp, email: f.email || null, funilId: f.funilId, etapaId: pe?.id, valor: 0, tags: "[]", camposCustom: "{}" });
+      const leadId = result?.id;
+      const num = f.whatsapp.replace(/\D/g, "");
+      if (leadId && num) {
+        await supabase.from("wa_conversas").update({ lead_id: leadId }).eq("numero", num);
+        if (num.length > 8) {
+          await supabase.from("wa_conversas").update({ lead_id: leadId }).ilike("numero", `%${num.slice(-8)}%`);
+        }
+      }
+      onToast("Lead criado e vinculado!");
+      onClose();
+    } catch (e) { onToast("Erro: " + e.message); } finally { setSalvando(false); }
   }
   return (
     <Modal title="Nova negociação" onClose={onClose} footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button><button className="btn btn-primary" disabled={!f.nome || !f.funilId || salvando} onClick={salvar}>{salvando ? "Criando…" : "Criar lead"}</button></>}>
