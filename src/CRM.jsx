@@ -143,7 +143,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
   useEffect(() => {
     if (window.__abrirLeadId && crm?.leads) {
       const lead = crm.leads.find((l) => l.id === window.__abrirLeadId);
-      if (lead) { setLeadAberto(lead); window.__abrirLeadId = null; }
+      if (lead) { setLeadAberto(lead.id); window.__abrirLeadId = null; }
     }
   }, [crm?.leads]);
 
