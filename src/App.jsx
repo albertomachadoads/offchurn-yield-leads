@@ -1,3 +1,4 @@
+import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import "./App.css";
 import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
@@ -17,7 +18,6 @@ import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import WhatsAppChat from "./WhatsAppChat.jsx";
 import Dashboard from "./Dashboard.jsx";
-import Permissoes from "./Permissoes.jsx";
 import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
@@ -51,7 +51,10 @@ export default function App() {
   const [carregando, setCarregando] = useState(false);
   const [erroCarga, setErroCarga] = useState("");
 
-  const [view, setView] = useState("dashboard");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const view = location.pathname.replace("/", "") || "dashboard";
+  const setView = (v) => navigate("/" + v);
   const [toast, setToast] = useState(null);
   const [userPerms, setUserPerms] = useState({});
   const [notifs, setNotifs] = useState([]);
@@ -453,9 +456,6 @@ export default function App() {
               <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
                 <Icon.Folder /> <span>Cadastros</span>
               </button>
-              <button className={view === "permissoes" ? "active" : ""} onClick={() => setView("permissoes")}>
-                <Icon.Shield /> <span>Permissões</span>
-              </button>
               <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
                 <Icon.Settings /> <span>Administradores</span>
               </button>
@@ -615,12 +615,8 @@ export default function App() {
             gestById={gestById}
           />
         )}
-        {view === "permissoes" && (
-          <Permissoes pessoas={data.pessoas || []} onToast={showToast} />
-        )}
-
         {view === "admin" && isAdmin && (
-          <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
+          <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} isMaster={isMaster} />
         )}
         {view === "crm-params" && (
           <CRMParametros onToast={showToast} />

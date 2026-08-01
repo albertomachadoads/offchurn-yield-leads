@@ -1362,3 +1362,13 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 @keyframes notif-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 .tema-escuro .notif-whatsapp { background: #14532d; color: #bbf7d0; border-color: #166534; }
 .tema-escuro .notif-tarefa { background: #1e3a5f; color: #93c5fd; border-color: #1e40af; }
+
+/* Admin com permissões */
+.admin-user-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+.admin-user-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+.admin-user-info { flex: 1; min-width: 0; }
+.admin-user-nome { font-weight: 700; font-size: 14px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.admin-user-meta { font-size: 11px; color: var(--ink-faint); }
+.admin-user-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.admin-perm-panel { padding: 0 18px 18px; border-top: 1px solid var(--line); margin-top: 0; padding-top: 14px; }
+.perm-tab { }

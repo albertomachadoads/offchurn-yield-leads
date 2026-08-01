@@ -1,189 +1,218 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { adminCriarUsuario, atualizarPerfil, definirBloqueio, excluirPerfil } from "./auth";
 import { Icon, Modal } from "./components.jsx";
+import { supabase } from "./supabaseClient.js";
 
-export default function Admin({ perfis, meuId, onToast, onReload }) {
-  const [modal, setModal] = useState(null);
+const MODULOS = [
+  { id: "dashboard", nome: "Dashboard", grupo: "Principais" },
+  { id: "acompanhamento", nome: "Acompanhamento", grupo: "Principais" },
+  { id: "follow", nome: "Tarefas", grupo: "Principais" },
+  { id: "whatsapp", nome: "Conversas", grupo: "Comercial" },
+  { id: "crm", nome: "CRM", grupo: "Comercial" },
+  { id: "crm-params", nome: "Parâmetros CRM", grupo: "Comercial" },
+  { id: "crm-auto", nome: "Automações", grupo: "Comercial" },
+  { id: "crm-analises", nome: "Análises", grupo: "Comercial" },
+  { id: "metas", nome: "Painel de Metas", grupo: "Comercial" },
+  { id: "fluxo", nome: "Fluxo de Caixa", grupo: "Financeiro" },
+  { id: "gestao", nome: "Gestão", grupo: "Financeiro" },
+  { id: "obz", nome: "OBZ", grupo: "Financeiro" },
+  { id: "registro-tarefas", nome: "Registro de Tarefas", grupo: "Log" },
+  { id: "cadastros", nome: "Cadastros", grupo: "Admin" },
+  { id: "admin", nome: "Administradores", grupo: "Admin" },
+  { id: "logs", nome: "Logs", grupo: "Admin" },
+];
+const TODOS_MODS = MODULOS.map((m) => m.id);
+const GRUPOS = [...new Set(MODULOS.map((m) => m.grupo))];
+const AGENCIAS = ["Yield", "Mads"];
 
-  const admins = perfis.filter((p) => p.papel === "admin");
-  const gestores = perfis.filter((p) => p.papel === "gestor");
+function PermissoesTab({ pessoa, instancias, onToast }) {
+  const [perm, setPerm] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  function LinhaUsuario({ p, papelLabel }) {
-    const euMesmo = p.id === meuId;
-    return (
-      <div className="list-row" key={p.id}>
-        <div>
-          <div className="lr-name">
-            {p.nome || "(sem nome)"}
-            {p.bloqueado && <span className="pill off" style={{ marginLeft: 8 }}>Bloqueado</span>}
-            {euMesmo && <span className="pill" style={{ marginLeft: 8 }}>Você</span>}
-          </div>
-          <div className="lr-meta">{papelLabel}</div>
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <button className="btn btn-sm" onClick={() => mudarPapel(p, p.papel === "admin" ? "gestor" : "admin")} disabled={euMesmo} title={euMesmo ? "Você não pode alterar seu próprio papel" : ""}>
-            {p.papel === "admin" ? "Tornar gestor" : "Tornar admin"}
-          </button>
-          <button className="btn btn-sm" onClick={() => alternarBloqueio(p)} disabled={euMesmo} title={euMesmo ? "Você não pode se bloquear" : ""}>
-            <Icon.Ban /> {p.bloqueado ? "Desbloquear" : "Bloquear"}
-          </button>
-          <button className="btn btn-sm btn-danger" onClick={() => excluir(p)} disabled={euMesmo} title={euMesmo ? "Você não pode se excluir" : ""}>
-            <Icon.Trash />
-          </button>
+  useEffect(() => {
+    supabase.from("permissoes_usuario").select("*").eq("pessoa_id", pessoa.id).maybeSingle()
+      .then(({ data }) => { setPerm(data || { modulos: [], wa_instancias: [], agencias: [], ver_todos_clientes: false }); setLoading(false); });
+  }, [pessoa.id]);
+
+  if (loading) return <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Carregando…</p>;
+
+  const modulos = perm.modulos || [];
+  const waInst = perm.wa_instancias || [];
+  const agencias = perm.agencias || [];
+
+  function toggleMod(id) { setPerm((p) => ({ ...p, modulos: modulos.includes(id) ? modulos.filter((m) => m !== id) : [...modulos, id] })); }
+  function toggleGrupo(g) {
+    const ids = MODULOS.filter((m) => m.grupo === g).map((m) => m.id);
+    const all = ids.every((id) => modulos.includes(id));
+    setPerm((p) => ({ ...p, modulos: all ? modulos.filter((m) => !ids.includes(m)) : [...new Set([...modulos, ...ids])] }));
+  }
+  function toggleWa(id) { setPerm((p) => ({ ...p, wa_instancias: waInst.includes(id) ? waInst.filter((i) => i !== id) : [...waInst, id] })); }
+  function toggleAg(ag) { setPerm((p) => ({ ...p, agencias: agencias.includes(ag) ? agencias.filter((a) => a !== ag) : [...agencias, ag] })); }
+
+  async function salvar() {
+    try {
+      await supabase.from("permissoes_usuario").upsert({
+        pessoa_id: pessoa.id, modulos: perm.modulos, wa_instancias: perm.wa_instancias,
+        agencias: perm.agencias || [], ver_todos_clientes: perm.ver_todos_clientes,
+        atualizado_em: new Date().toISOString(),
+      }, { onConflict: "pessoa_id" });
+      onToast("Permissões salvas!");
+    } catch (e) { onToast("Erro: " + e.message); }
+  }
+
+  return (
+    <div className="perm-tab">
+      {/* Agências */}
+      <div className="perm-section">
+        <h4 style={{ fontSize: 13, fontWeight: 800, margin: "0 0 8px" }}>Agências visíveis</h4>
+        <div className="perm-checks" style={{ paddingLeft: 0 }}>
+          {AGENCIAS.map((ag) => (
+            <label key={ag} className="perm-check"><input type="checkbox" checked={agencias.includes(ag)} onChange={() => toggleAg(ag)} /> {ag}</label>
+          ))}
+          <label className="perm-check"><input type="checkbox" checked={agencias.length === 0} onChange={() => setPerm((p) => ({ ...p, agencias: [] }))} /> Todas</label>
         </div>
       </div>
-    );
+
+      {/* Módulos */}
+      <div className="perm-section" style={{ marginTop: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h4 style={{ fontSize: 13, fontWeight: 800, margin: 0 }}>Módulos</h4>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPerm((p) => ({ ...p, modulos: [...TODOS_MODS] }))}>Todos</button>
+            <button className="btn btn-sm btn-ghost" onClick={() => setPerm((p) => ({ ...p, modulos: [] }))}>Nenhum</button>
+          </div>
+        </div>
+        {GRUPOS.map((g) => (
+          <div key={g} className="perm-grupo">
+            <label className="perm-grupo-label" onClick={() => toggleGrupo(g)}>
+              <input type="checkbox" checked={MODULOS.filter((m) => m.grupo === g).every((m) => modulos.includes(m.id))} readOnly /> {g}
+            </label>
+            <div className="perm-checks">
+              {MODULOS.filter((m) => m.grupo === g).map((m) => (
+                <label key={m.id} className="perm-check"><input type="checkbox" checked={modulos.includes(m.id)} onChange={() => toggleMod(m.id)} /> {m.nome}</label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* WhatsApp */}
+      <div className="perm-section" style={{ marginTop: 14 }}>
+        <h4 style={{ fontSize: 13, fontWeight: 800, margin: "0 0 8px" }}>Instâncias de WhatsApp</h4>
+        {instancias.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Nenhuma instância.</p> : (
+          <div className="perm-checks" style={{ paddingLeft: 0 }}>
+            {instancias.map((i) => <label key={i.id} className="perm-check"><input type="checkbox" checked={waInst.includes(i.id)} onChange={() => toggleWa(i.id)} /> {i.nome}</label>)}
+          </div>
+        )}
+      </div>
+
+      {/* Ver todos */}
+      <div className="perm-section" style={{ marginTop: 14 }}>
+        <label className="perm-check"><input type="checkbox" checked={perm.ver_todos_clientes} onChange={(e) => setPerm((p) => ({ ...p, ver_todos_clientes: e.target.checked }))} /> <strong>Ver todos os clientes</strong></label>
+      </div>
+
+      <button className="btn btn-primary btn-sm" style={{ marginTop: 14 }} onClick={salvar}>Salvar permissões</button>
+    </div>
+  );
+}
+
+export default function Admin({ perfis, meuId, onToast, onReload, isMaster }) {
+  const [modal, setModal] = useState(null);
+  const [abaAberta, setAbaAberta] = useState(null); // pessoa.id da aba de permissões aberta
+  const [instancias, setInstancias] = useState([]);
+
+  useEffect(() => { supabase.from("wa_instancias").select("*").eq("ativo", true).then(({ data }) => setInstancias(data || [])); }, []);
+
+  async function mudarPapel(p, novoPapel) {
+    try { await atualizarPerfil(p.id, { papel: novoPapel }); onToast(`${p.nome} agora é ${novoPapel}`); onReload(); } catch (e) { onToast("Erro: " + e.message); }
+  }
+  async function alternarBloqueio(p) {
+    try { await definirBloqueio(p.id, !p.bloqueado); onToast(p.bloqueado ? "Desbloqueado" : "Bloqueado"); onReload(); } catch (e) { onToast("Erro: " + e.message); }
+  }
+  async function excluir(p) {
+    if (!confirm(`Excluir ${p.nome}?`)) return;
+    try { await excluirPerfil(p.id); onToast("Excluído"); onReload(); } catch (e) { onToast("Erro: " + e.message); }
+  }
+  async function criarUsuario(dados) {
+    try { await adminCriarUsuario(dados); onToast("Usuário criado"); setModal(null); onReload(); } catch (e) { onToast("Erro: " + e.message); }
   }
 
   return (
     <>
       <div className="page-head">
-        <div>
-          <h1>Administradores</h1>
-          <p>Crie e gerencie os usuários do sistema. Apenas administradores acessam esta área.</p>
-        </div>
+        <div><h1>Administradores e Equipe</h1><p>Gerencie usuários, papéis e permissões.</p></div>
         <div className="head-actions">
-          <button className="btn btn-primary" onClick={() => setModal({ novo: true })}>
-            <Icon.Plus /> Novo usuário
-          </button>
+          <button className="btn btn-sm btn-primary" onClick={() => setModal({})}><Icon.Plus /> Novo usuário</button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }} className="cad-grid">
-        <div className="card">
-          <div className="card-head-row">
-            <h2 className="section-title" style={{ margin: 0 }}>Administradores ({admins.length})</h2>
-          </div>
-          {admins.length === 0
-            ? <div className="list-row"><div className="lr-meta">Nenhum admin.</div></div>
-            : admins.map((p) => <LinhaUsuario key={p.id} p={p} papelLabel="Administrador" />)}
-        </div>
-
-        <div className="card">
-          <div className="card-head-row">
-            <h2 className="section-title" style={{ margin: 0 }}>Gestores ({gestores.length})</h2>
-          </div>
-          {gestores.length === 0
-            ? <div className="list-row"><div className="lr-meta">Nenhum gestor.</div></div>
-            : gestores.map((p) => <LinhaUsuario key={p.id} p={p} papelLabel="Gestor" />)}
-        </div>
-      </div>
-
-      <div className="aviso-monday" style={{ marginTop: 20 }}>
-        <span className="aviso-ico">i</span>
-        <span>Bloquear impede o acesso sem apagar o usuário (dá para reverter). Excluir remove o acesso ao sistema de forma permanente. Você não pode alterar, bloquear ou excluir a si mesmo.</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {perfis.map((p) => {
+          const euMesmo = p.id === meuId;
+          const master = isMaster && euMesmo;
+          const abaOpen = abaAberta === p.id;
+          return (
+            <div key={p.id} className="card" style={{ overflow: "hidden" }}>
+              <div className="admin-user-row">
+                <div className="admin-user-avatar">{(p.nome || "?").charAt(0).toUpperCase()}</div>
+                <div className="admin-user-info">
+                  <div className="admin-user-nome">
+                    {p.nome || "(sem nome)"}
+                    {master && <span className="pill done" style={{ marginLeft: 6, fontSize: 9 }}>MASTER</span>}
+                    {p.bloqueado && <span className="pill off" style={{ marginLeft: 6 }}>Bloqueado</span>}
+                    {euMesmo && !master && <span className="pill" style={{ marginLeft: 6 }}>Você</span>}
+                  </div>
+                  <div className="admin-user-meta">{p.email} · {p.papel}</div>
+                </div>
+                <div className="admin-user-actions">
+                  <button className="btn btn-sm" onClick={() => setAbaAberta(abaOpen ? null : p.id)}>
+                    {abaOpen ? "Fechar" : "Permissões"}
+                  </button>
+                  {!master && (
+                    <>
+                      <button className="btn btn-sm" onClick={() => mudarPapel(p, p.papel === "admin" ? "gestor" : "admin")} disabled={euMesmo}>
+                        {p.papel === "admin" ? "→ Gestor" : "→ Admin"}
+                      </button>
+                      <button className="btn btn-sm" onClick={() => alternarBloqueio(p)} disabled={euMesmo}>
+                        {p.bloqueado ? "Desbloquear" : "Bloquear"}
+                      </button>
+                      <button className="iconbtn" onClick={() => excluir(p)} disabled={euMesmo}><Icon.Trash /></button>
+                    </>
+                  )}
+                </div>
+              </div>
+              {abaOpen && (
+                <div className="admin-perm-panel">
+                  <PermissoesTab pessoa={p} instancias={instancias} onToast={onToast} />
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {modal && (
-        <UsuarioModal
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onReload(); }}
-          onToast={onToast}
-        />
+        <Modal title="Novo usuário" onClose={() => setModal(null)} footer={null}>
+          <FormNovoUsuario onSubmit={criarUsuario} onClose={() => setModal(null)} />
+        </Modal>
       )}
     </>
   );
-
-  async function mudarPapel(p, novoPapel) {
-    if (!confirm(`Alterar ${p.nome || "usuário"} para ${novoPapel}?`)) return;
-    try {
-      await atualizarPerfil(p.id, { papel: novoPapel });
-      onToast("Papel atualizado");
-      logAcao("admin", `Papel de ${p.nome} alterado para ${novoPapel}`);
-      onReload();
-    } catch (e) {
-      onToast("Erro: " + (e.message || "falha ao atualizar"));
-    }
-  }
-
-  async function alternarBloqueio(p) {
-    const acao = p.bloqueado ? "desbloquear" : "bloquear";
-    if (!confirm(`Deseja ${acao} ${p.nome || "este usuário"}?`)) return;
-    try {
-      await definirBloqueio(p.id, !p.bloqueado);
-      onToast(p.bloqueado ? "Usuário desbloqueado" : "Usuário bloqueado");
-      logAcao("admin", `${p.nome} ${p.bloqueado ? "desbloqueado" : "bloqueado"}`);
-      onReload();
-    } catch (e) {
-      onToast("Erro: " + (e.message || "falha"));
-    }
-  }
-
-  async function excluir(p) {
-    if (!confirm(`Excluir ${p.nome || "este usuário"} permanentemente? Esta ação remove o acesso ao sistema.`)) return;
-    try {
-      await excluirPerfil(p.id);
-      onToast("Usuário excluído");
-      logAcao("admin", "Usuário excluído permanentemente");
-      onReload();
-    } catch (e) {
-      onToast("Erro: " + (e.message || "falha"));
-    }
-  }
 }
 
-function UsuarioModal({ onClose, onSaved, onToast }) {
+function FormNovoUsuario({ onSubmit, onClose }) {
   const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "gestor" });
-  const [salvando, setSalvando] = useState(false);
-  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
-  const valido = f.nome.trim() && f.email.trim() && f.senha.length >= 6;
-
-  async function salvar() {
-    if (!valido) return;
-    setSalvando(true);
-    try {
-      await adminCriarUsuario({
-        email: f.email.trim(), senha: f.senha, nome: f.nome.trim(), papel: f.papel,
-      });
-      onToast("Usuário criado");
-      logAcao("admin", `Novo usuário criado: ${nome} (${email})`);
-      onSaved();
-    } catch (e) {
-      onToast("Erro: " + traduz(e.message));
-      setSalvando(false);
-    }
-  }
-
+  const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
   return (
-    <Modal
-      title="Novo usuário"
-      onClose={onClose}
-      footer={<>
+    <>
+      <div className="form-row"><label>Nome</label><input className="input" value={f.nome} onChange={(e) => s("nome", e.target.value)} autoFocus /></div>
+      <div className="form-row"><label>Email</label><input className="input" type="email" value={f.email} onChange={(e) => s("email", e.target.value)} /></div>
+      <div className="form-row"><label>Senha</label><input className="input" type="password" value={f.senha} onChange={(e) => s("senha", e.target.value)} /></div>
+      <div className="form-row"><label>Papel</label><select className="select" value={f.papel} onChange={(e) => s("papel", e.target.value)}><option value="gestor">Gestor</option><option value="admin">Administrador</option></select></div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={salvar} disabled={!valido || salvando}>
-          {salvando ? "Criando…" : "Criar usuário"}
-        </button>
-      </>}
-    >
-      <div className="form-row">
-        <label>Nome</label>
-        <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: João" autoFocus />
+        <button className="btn btn-primary" disabled={!f.nome || !f.email || !f.senha} onClick={() => onSubmit(f)}>Criar</button>
       </div>
-      <div className="form-row">
-        <label>E-mail (login)</label>
-        <input className="input" type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="joao@agencia.com" />
-      </div>
-      <div className="form-row">
-        <label>Senha provisória (mín. 6 caracteres)</label>
-        <input className="input" type="text" value={f.senha} onChange={(e) => set("senha", e.target.value)} placeholder="defina uma senha" />
-      </div>
-      <div className="form-row">
-        <label>Papel</label>
-        <select className="select" value={f.papel} onChange={(e) => set("papel", e.target.value)}>
-          <option value="gestor">Gestor (registra acompanhamentos e tarefas)</option>
-          <option value="admin">Administrador (gerencia tudo)</option>
-        </select>
-      </div>
-      <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-        Anote a senha e repasse à pessoa. Ela poderá usá-la para entrar imediatamente.
-      </div>
-    </Modal>
+    </>
   );
-}
-
-function traduz(msg = "") {
-  if (msg.includes("already registered")) return "Este e-mail já está cadastrado.";
-  if (msg.includes("valid email")) return "E-mail inválido.";
-  if (msg.includes("Password")) return "Senha muito curta (mínimo 6 caracteres).";
-  return msg || "falha ao criar usuário";
 }
