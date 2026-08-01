@@ -148,19 +148,17 @@ export default function App() {
 
   // Notificações em tempo real
   useEffect(() => {
-    const ch = supabase.channel("notifs-global")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_mensagens" }, (payload) => {
-        if (payload.new?.direcao === "in") {
-          addNotif("Nova mensagem no WhatsApp", "whatsapp");
-        }
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "crm_atividades" }, (payload) => {
-        if (payload.new?.tipo === "tarefa") {
-          addNotif("Você possui uma nova tarefa", "tarefa");
-        }
-      })
-      .subscribe();
-    return () => supabase.removeChannel(ch);
+    try {
+      const ch = supabase.channel("notifs-global")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_mensagens" }, (payload) => {
+          try { if (payload.new?.direcao === "in") addNotif("Nova mensagem no WhatsApp", "whatsapp"); } catch {}
+        })
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "crm_atividades" }, (payload) => {
+          try { if (payload.new?.tipo === "tarefa") addNotif("Você possui uma nova tarefa", "tarefa"); } catch {}
+        })
+        .subscribe();
+      return () => { try { supabase.removeChannel(ch); } catch {} };
+    } catch { return () => {}; }
   }, []);
 
   // Carregar permissões do usuário logado
@@ -712,6 +710,12 @@ export default function App() {
       )}
 
       {toast && <div className="toast"><Icon.Check stroke="#7ee0a6" /> {toast}</div>}
+      <div className="notif-stack">{notifs.map((n) => (
+        <div key={n.id} className={`notif-item notif-${n.tipo}`} onClick={() => { if (n.tipo === "whatsapp") setView("whatsapp"); setNotifs((p) => p.filter((x) => x.id !== n.id)); }}>
+          <span className="notif-icon">{n.tipo === "whatsapp" ? "💬" : "📋"}</span>
+          <span>{n.msg}</span>
+        </div>
+      ))}</div>
     </div>
   );
 }
