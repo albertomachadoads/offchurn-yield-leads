@@ -28,7 +28,7 @@ function QrBox({ src }) {
   );
 }
 
-export default function WhatsAppConectar({ usuario, agencia, isAdmin, onFechar, onConectado, onToast }) {
+export default function WhatsAppConectar({ usuario, agencia, isAdmin, instanciaExistente, onFechar, onConectado, onToast }) {
   const [etapa, setEtapa] = useState("inicio"); // inicio | criando | qr | conectado | erro
   const [modo, setModo] = useState("qr");        // qr | codigo
   const [telefone, setTelefone] = useState("");
@@ -46,6 +46,19 @@ export default function WhatsAppConectar({ usuario, agencia, isAdmin, onFechar, 
   async function iniciar() {
     setEtapa("criando"); setErro("");
     try {
+      // Reconexão: a instância já existe, só pedir novo QR
+      if (instanciaExistente) {
+        setInst(instanciaExistente);
+        const c = await provisionar({
+          acao: "conectar", instanciaId: instanciaExistente.id,
+          telefone: modo === "codigo" ? telefone : undefined,
+        });
+        setQr(c.qrcode); setPaircode(c.paircode);
+        setEtapa("qr");
+        iniciarPolling(instanciaExistente.id);
+        return;
+      }
+
       // 1. Cria a instância na UAZAPI e salva no sistema
       const criada = await provisionar({
         acao: "criar",
@@ -97,7 +110,7 @@ export default function WhatsAppConectar({ usuario, agencia, isAdmin, onFechar, 
   async function cancelar() {
     clearInterval(pollRef.current); clearInterval(tempoRef.current);
     // Se criou a instância mas não conectou, remove o registro órfão
-    if (inst && etapa !== "conectado") {
+    if (inst && !instanciaExistente && etapa !== "conectado") {
       try { await supabase.from("wa_instancias").delete().eq("id", inst.id); } catch {}
     }
     onFechar();
@@ -110,8 +123,8 @@ export default function WhatsAppConectar({ usuario, agencia, isAdmin, onFechar, 
       <div className="wc-modal" onClick={(e) => e.stopPropagation()}>
         <div className="wc-head">
           <div>
-            <h3>Conectar WhatsApp</h3>
-            <p>Escaneie o código com o celular que vai atender</p>
+            <h3>{instanciaExistente ? "Reconectar WhatsApp" : "Conectar WhatsApp"}</h3>
+            <p>{instanciaExistente ? instanciaExistente.nome : "Escaneie o código com o celular que vai atender"}</p>
           </div>
           {etapa !== "criando" && <button className="wc-x" onClick={cancelar} aria-label="Fechar">×</button>}
         </div>
@@ -119,12 +132,12 @@ export default function WhatsAppConectar({ usuario, agencia, isAdmin, onFechar, 
         {/* ── Início ── */}
         {etapa === "inicio" && (
           <div className="wc-body">
-            <div className="wc-campo">
+            {!instanciaExistente && <div className="wc-campo">
               <label>Nome desta conexão <span className="wc-op">opcional</span></label>
               <input className="wc-input" value={nomeExib} onChange={(e) => setNomeExib(e.target.value)}
                 placeholder={`WhatsApp de ${usuario?.nome?.split(" ")[0] || "usuário"}`} />
               <span className="wc-dica">Serve apenas para você identificar a conexão dentro do sistema.</span>
-            </div>
+            </div>}
 
             <div className="wc-campo">
               <label>Como deseja conectar?</label>

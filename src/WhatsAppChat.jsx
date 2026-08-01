@@ -188,6 +188,8 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   const [modalLead, setModalLead] = useState(null);
   const [modalConectar, setModalConectar] = useState(false);
   const [statusConn, setStatusConn] = useState(null);
+  const [statusPorInst, setStatusPorInst] = useState({});
+  const [instReconectar, setInstReconectar] = useState(null);
   const [gravando, setGravando] = useState(false);
   const [tempoGrav, setTempoGrav] = useState(0);
   const [showAttach, setShowAttach] = useState(false);
@@ -208,25 +210,44 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
     }
   }, [conversas]);
 
-  // Status real da instância ativa (consulta a UAZAPI)
+  // Consulta o status real na UAZAPI
+  const consultarStatus = useCallback(async (id) => {
+    try {
+      const r = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/whatsapp-provisionar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
+        body: JSON.stringify({ acao: "status", instanciaId: id }),
+      });
+      const d = await r.json();
+      return d.ok ? d.status : null;
+    } catch { return null; }
+  }, []);
+
+  // Status da instância ativa (barra de Conversas)
   useEffect(() => {
     if (!instAtiva?.id) { setStatusConn(null); return; }
     let vivo = true;
-    async function checar() {
-      try {
-        const r = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/whatsapp-provisionar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
-          body: JSON.stringify({ acao: "status", instanciaId: instAtiva.id }),
-        });
-        const d = await r.json();
-        if (vivo && d.ok) setStatusConn(d.status);
-      } catch { /* mantém o último status conhecido */ }
-    }
+    const checar = async () => { const st = await consultarStatus(instAtiva.id); if (vivo && st) setStatusConn(st); };
     checar();
     const t = setInterval(checar, 30000);
     return () => { vivo = false; clearInterval(t); };
-  }, [instAtiva?.id]);
+  }, [instAtiva?.id, consultarStatus]);
+
+  // Status de todas as conexões (tela de Conexões)
+  useEffect(() => {
+    if (!viewInst || instancias.length === 0) return;
+    let vivo = true;
+    const checarTodas = async () => {
+      for (const i of instancias) {
+        const st = await consultarStatus(i.id);
+        if (!vivo) return;
+        if (st) setStatusPorInst((p) => ({ ...p, [i.id]: st }));
+      }
+    };
+    checarTodas();
+    const t = setInterval(checarTodas, 30000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [viewInst, instancias, consultarStatus]);
 
   async function loadInst() {
     const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true);
@@ -311,27 +332,99 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   const filtradas = busca ? conversas.filter((c) => (c.nome || "").toLowerCase().includes(busca.toLowerCase()) || (c.numero || "").includes(busca.replace(/\D/g, ""))) : conversas;
 
   if (viewInst) return (
-    <><div className="page-head"><div><h1>Instâncias WhatsApp</h1></div><div className="head-actions"><button className="btn btn-sm btn-ghost" onClick={() => setViewInst(false)}>‹ Voltar</button><button className="btn btn-sm btn-primary" onClick={() => setModalInst({})}><Icon.Plus /> Nova</button></div></div>
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{instancias.length === 0 && <div className="empty"><p>Nenhuma instância.</p></div>}{instancias.map((i) => (<div key={i.id} className="auto-list-item"><div className="auto-list-icon">📱</div><div className="auto-list-info"><div className="auto-list-nome">{i.nome}</div><div className="auto-list-meta">{i.instancia} · {i.agencia}</div></div><div style={{ display: "flex", gap: 6 }}><button className="btn btn-sm" onClick={() => setModalInst(i)}>Editar</button><button className="iconbtn" onClick={async () => { if (!confirm("Excluir?")) return; await supabase.from("wa_instancias").delete().eq("id", i.id); loadInst(); }}><Icon.Trash /></button></div></div>))}</div>
-    {modalInst && <InstanciaModal base={modalInst} onSave={salvarInst} onClose={() => setModalInst(null)} />}</>
+    <>
+      <div className="page-head">
+        <div><h1>Conexões de WhatsApp</h1><p>{instancias.length} {instancias.length === 1 ? "conexão" : "conexões"}</p></div>
+        <div className="head-actions">
+          <button className="btn btn-sm btn-ghost" onClick={() => setViewInst(false)}>‹ Voltar para conversas</button>
+          <button className="toolbar-btn" onClick={() => { loadInst(); onToast("Atualizado"); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            Atualizar
+          </button>
+          <button className="wc-conectar-btn" onClick={() => setModalConectar(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Conectar WhatsApp
+          </button>
+        </div>
+      </div>
+
+      {instancias.length === 0 ? (
+        <div className="wc-empty">
+          <div className="wc-empty-ico">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          </div>
+          <h3>Nenhum WhatsApp conectado</h3>
+          <p>Conecte um número para começar a receber e responder mensagens dentro do sistema.</p>
+          <button className="wc-conectar-btn" onClick={() => setModalConectar(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Conectar WhatsApp
+          </button>
+        </div>
+      ) : (
+        <div className="wc-lista">
+          {instancias.map((i) => {
+            const st = statusPorInst[i.id];
+            const cls = st === "connected" ? "on" : st === "connecting" ? "wait" : st ? "off" : "unk";
+            const txt = st === "connected" ? "Conectado" : st === "connecting" ? "Conectando" : st === "hibernated" ? "Em espera" : st ? "Desconectado" : "Verificando…";
+            return (
+              <div key={i.id} className="wc-card">
+                <div className={`wc-card-dot ${cls}`} />
+                <div className="wc-card-info">
+                  <div className="wc-card-nome">{i.nome}</div>
+                  <div className="wc-card-meta">
+                    {i.numero ? <span className="wc-card-num">{i.numero}</span> : <span className="wc-card-num sem">Número não identificado</span>}
+                    <span> · {i.agencia || "—"}</span>
+                    <span className="wc-card-id"> · {i.instancia}</span>
+                  </div>
+                </div>
+                <span className={`wc-badge ${cls}`}>{txt}</span>
+                <div className="wc-card-acoes">
+                  {st !== "connected" && (
+                    <button className="btn btn-sm" onClick={() => { setInstReconectar(i); setModalConectar(true); }}>Reconectar</button>
+                  )}
+                  {isAdmin && <button className="btn btn-sm btn-ghost" onClick={() => setModalInst(i)}>Editar</button>}
+                  {isAdmin && (
+                    <button className="iconbtn" title="Remover conexão" onClick={async () => {
+                      if (!confirm(`Remover a conexão "${i.nome}" do sistema?\n\nAs conversas já recebidas continuam salvas.`)) return;
+                      await supabase.from("wa_instancias").delete().eq("id", i.id);
+                      loadInst(); onToast("Conexão removida");
+                    }}><Icon.Trash /></button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="wc-avancado">
+          <span>Já criou a instância direto no painel da UAZAPI?</span>
+          <button className="wc-link" onClick={() => setModalInst({})}>Cadastrar credenciais manualmente</button>
+        </div>
+      )}
+
+      {modalInst && <InstanciaModal base={modalInst} onSave={salvarInst} onClose={() => setModalInst(null)} />}
+      {modalConectar && <WhatsAppConectar usuario={usuario} agencia={agencia} isAdmin={isAdmin}
+        instanciaExistente={instReconectar}
+        onToast={onToast}
+        onFechar={() => { setModalConectar(false); setInstReconectar(null); }}
+        onConectado={() => { loadInst(); loadConvs(); }} />}
+    </>
   );
 
   return (
     <><div className="page-head"><div><h1>WhatsApp</h1><p>{conversas.length} conversa{conversas.length !== 1 ? "s" : ""}</p></div><div className="head-actions">
       <select className="select" style={{ width: "auto", minWidth: 160 }} value={instAtiva?.id || ""} onChange={(e) => { setInstAtiva(instancias.find((i) => i.id === e.target.value)); setConvAberta(null); }}>{instancias.length === 0 && <option value="">Nenhuma</option>}{instancias.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}</select>
       <div className="wa-inst-status">
-        <span className={`wa-status-dot ${statusConn === "connected" ? "wa-status-online" : statusConn === "connecting" ? "wa-status-conectando" : "wa-status-offline"}`} />
-        <span className="wa-status-text">{statusConn === "connected" ? "Conectado" : statusConn === "connecting" ? "Conectando" : instAtiva ? "Desconectado" : "Sem instância"}</span>
+        <span className={`wa-status-dot ${statusConn === "connected" ? "wa-status-online" : statusConn === "connecting" || !statusConn ? "wa-status-conectando" : "wa-status-offline"}`} />
+        <span className="wa-status-text">{!instAtiva ? "Sem conexão" : statusConn === "connected" ? "Conectado" : statusConn === "connecting" ? "Conectando" : statusConn === "hibernated" ? "Em espera" : statusConn ? "Desconectado" : "Verificando…"}</span>
       </div>
       <button className="toolbar-btn" onClick={() => { loadInst(); loadConvs(); onToast("Atualizado"); }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         Atualizar
       </button>
-      <button className="wc-conectar-btn" onClick={() => setModalConectar(true)}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Conectar WhatsApp
-      </button>
-      {isAdmin && <button className="btn btn-sm" onClick={() => setViewInst(true)}>Instâncias</button>}
+      <button className="btn btn-sm" onClick={() => setViewInst(true)}>Conexões</button>
     </div></div>
     <div className="wa-layout">
       <div className="wa-sidebar">

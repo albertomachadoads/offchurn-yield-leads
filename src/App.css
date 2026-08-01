@@ -1894,3 +1894,36 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .wc-erro-txt { font-size: 13px; color: var(--wc-tx2); line-height: 1.5; max-width: 320px; }
 
 .wa-status-conectando { background: #D97706; box-shadow: 0 0 4px rgba(217,119,6,.5); }
+
+/* ── Tela de Conexões ── */
+.wc-lista { display: flex; flex-direction: column; gap: 10px; }
+.wc-card { display: flex; align-items: center; gap: 13px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.wc-card-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.wc-card-dot.on { background: #18A35F; box-shadow: 0 0 0 4px rgba(24,163,95,.14); }
+.wc-card-dot.wait { background: #D97706; box-shadow: 0 0 0 4px rgba(217,119,6,.14); }
+.wc-card-dot.off { background: #D92D20; box-shadow: 0 0 0 4px rgba(217,45,32,.14); }
+.wc-card-dot.unk { background: #98A2B3; }
+.wc-card-info { flex: 1; min-width: 0; }
+.wc-card-nome { font-size: 14px; font-weight: 600; }
+.wc-card-meta { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.wc-card-num { font-variant-numeric: tabular-nums; }
+.wc-card-num.sem { font-style: italic; opacity: .8; }
+.wc-card-id { opacity: .65; }
+.wc-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; flex-shrink: 0; }
+.wc-badge.on { background: rgba(24,163,95,.12); color: #18A35F; }
+.wc-badge.wait { background: rgba(217,119,6,.12); color: #D97706; }
+.wc-badge.off { background: rgba(217,45,32,.12); color: #D92D20; }
+.wc-badge.unk { background: var(--gray-soft); color: var(--ink-faint); }
+.wc-card-acoes { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+@media (max-width: 640px) {
+  .wc-card { flex-wrap: wrap; }
+  .wc-card-info { flex: 1 0 60%; }
+  .wc-card-acoes { width: 100%; justify-content: flex-end; }
+}
+
+.wc-empty { text-align: center; padding: 56px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.wc-empty-ico { width: 62px; height: 62px; border-radius: 50%; background: var(--green-softer); color: var(--green); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.wc-empty h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
+.wc-empty p { margin: 0 auto 20px; font-size: 13.5px; color: var(--ink-faint); max-width: 340px; line-height: 1.5; }
+
+.wc-avancado { display: flex; align-items: center; justify-content: center; gap: 7px; flex-wrap: wrap; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-faint); }
