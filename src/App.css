@@ -1249,3 +1249,6 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .wa-rec-timer { color: #e0e0e0; }
 .tema-escuro .wa-chat-empty p { color: #5a6a5e; }
 .tema-escuro .wa-avatar-default { background: #1e3023; }
+
+.wa-msg-caption { margin: 4px 0 0; font-size: 12px; color: var(--ink-soft); }
+.tema-escuro .wa-msg-caption { color: #aaa; }
