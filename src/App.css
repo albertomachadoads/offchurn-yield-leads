@@ -1387,3 +1387,8 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .dash-tarefa-desc { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-tarefa-meta { font-size: 11px; color: var(--ink-faint); display: flex; gap: 4px; flex-wrap: wrap; }
 .dash-tarefa-lead { font-weight: 600; }
+
+.page-toolbar { display: flex; justify-content: flex-end; padding: 8px 0 0; gap: 8px; }
+.toolbar-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: 12px; font-weight: 600; color: var(--ink-faint); cursor: pointer; transition: all .12s; }
+.toolbar-btn:hover { border-color: var(--green); color: var(--green); }
+.tema-escuro .toolbar-btn { background: #1a2b1e; border-color: #2a3e2e; }
