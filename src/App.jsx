@@ -29,6 +29,16 @@ import * as api from "./api";
 
 const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [], recebiveis: [], desempenho: [] };
 
+function SemPermissao() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", color: "var(--ink-faint)" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+      <h2 style={{ margin: 0, color: "var(--ink)" }}>Acesso restrito</h2>
+      <p style={{ marginTop: 8, fontSize: 14 }}>Você não tem permissão para acessar este módulo. Entre em contato com o administrador.</p>
+    </div>
+  );
+}
+
 export default function App() {
   // ----- sessão / auth -----
   const [booting, setBooting] = useState(true);
@@ -72,8 +82,10 @@ export default function App() {
   const [pesModal, setPesModal] = useState(null);
   const [clienteAberto, setClienteAberto] = useState(null);
 
-  const isAdmin = user?.papel === "admin";
-  const temPerm = (mod) => { try { return isAdmin || !userPerms?.modulos?.length || (userPerms?.modulos || []).includes(mod); } catch { return true; } };
+  const MASTER_EMAILS = ["albertomachadoads@gmail.com"];
+  const isMaster = MASTER_EMAILS.includes(user?.email?.toLowerCase());
+  const isAdmin = isMaster || user?.papel === "admin";
+  const temPerm = (mod) => { try { return isMaster || isAdmin || !userPerms?.modulos?.length || (userPerms?.modulos || []).includes(mod); } catch { return true; } };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
