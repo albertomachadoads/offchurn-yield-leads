@@ -145,7 +145,15 @@ export default function Dashboard({ clientes, tarefas, pessoas, onToast, isAdmin
   const [vendedorFiltro, setVendedorFiltro] = useState(["todos"]);
   const [metas, setMetas] = useState([]);
 
-  useEffect(() => { api.fetchCRM().then(setCrm).catch(() => {}); }, []);
+  async function carregarCRM() { try { const d = await api.fetchCRM(); setCrm(d); } catch {} }
+  useEffect(() => { carregarCRM(); }, []);
+
+  async function atualizarTarefa(atividadeId, novoStatus) {
+    try {
+      await supabase.from("crm_atividades").update({ status: novoStatus }).eq("id", atividadeId);
+      carregarCRM();
+    } catch {}
+  }
   useEffect(() => {
     const comp = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
     supabase.from("metas_comerciais").select("*").eq("competencia", comp).then(({ data }) => setMetas(data || []));
@@ -202,7 +210,7 @@ export default function Dashboard({ clientes, tarefas, pessoas, onToast, isAdmin
           {isAdmin && <div className="dash-vf">{[{ id: "todos", l: "Todos" }, ...vendedores.map((p) => ({ id: p.id, l: p.nome?.split(" ")[0] }))].map((v) => (
             <button key={v.id} className={`dash-vf-btn ${vendedorFiltro.includes(v.id) ? "active" : ""}`} onClick={() => toggleVendedor(v.id)}>{v.l}</button>
           ))}</div>}
-          {onReload && <button className="toolbar-btn" onClick={onReload}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Atualizar</button>}
+          {onReload && <button className="toolbar-btn" onClick={() => { onReload(); carregarCRM(); }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Atualizar</button>}
           <select className="select" style={{ width: "auto" }} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
             {PERIODOS.map((p) => <option key={p.v} value={p.v}>{p.l}</option>)}
           </select>
@@ -252,9 +260,13 @@ export default function Dashboard({ clientes, tarefas, pessoas, onToast, isAdmin
                 <div className="dtarefa-desc">{t.descricao}</div>
                 <div className="dtarefa-meta">📋 {t.leadNome}{t.dataPrevista && <span> · {t.dataPrevista.slice(0, 10).split("-").reverse().join("/")}</span>}{t.responsavelNome && <span> · {t.responsavelNome}</span>}</div>
               </div>
-              <span className={`dtarefa-badge ${t.atrasada ? "badge-red" : t.pendente ? "badge-yellow" : "badge-green"}`}>
-                {t.atrasada ? "ATRASADA" : t.concluida ? "CONCLUÍDA" : "PENDENTE"}
-              </span>
+              <div className="dtarefa-actions">
+                {!t.concluida && <button className="dtarefa-btn dtarefa-btn-ok" onClick={(e) => { e.stopPropagation(); atualizarTarefa(t.id, "concluida"); }} title="Concluir">✓</button>}
+                {!t.concluida && <button className="dtarefa-btn dtarefa-btn-del" onClick={(e) => { e.stopPropagation(); atualizarTarefa(t.id, "cancelada"); }} title="Cancelar">✕</button>}
+                <span className={`dtarefa-badge ${t.atrasada ? "badge-red" : t.pendente ? "badge-yellow" : "badge-green"}`}>
+                  {t.atrasada ? "ATRASADA" : t.concluida ? "CONCLUÍDA" : "PENDENTE"}
+                </span>
+              </div>
             </div>
           ))}
         </div>

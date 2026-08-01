@@ -1448,3 +1448,8 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .dmeta-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: var(--ink-faint); }
 .dmeta-bar { height: 5px; background: var(--gray-soft); border-radius: 3px; overflow: hidden; }
 .dmeta-bar div { height: 100%; border-radius: 3px; transition: width .5s; }
+
+.dtarefa-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.dtarefa-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; font-weight: 700; transition: all .12s; }
+.dtarefa-btn-ok:hover { background: #dcfce7; color: #16a34a; border-color: #16a34a; }
+.dtarefa-btn-del:hover { background: #fee2e2; color: #dc2626; border-color: #dc2626; }
