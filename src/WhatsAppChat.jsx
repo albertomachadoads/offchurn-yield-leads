@@ -27,6 +27,7 @@ function AudioPlayer({ src }) {
   const [tocando, setTocando] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [duracao, setDuracao] = useState(0);
+  const [velocidade, setVelocidade] = useState(1);
   const audioRef = useRef(null);
 
   function togglePlay() {
@@ -37,8 +38,7 @@ function AudioPlayer({ src }) {
 
   function onTimeUpdate() {
     if (!audioRef.current) return;
-    const p = audioRef.current.duration ? (audioRef.current.currentTime / audioRef.current.duration) * 100 : 0;
-    setProgresso(p);
+    setProgresso(audioRef.current.duration ? (audioRef.current.currentTime / audioRef.current.duration) * 100 : 0);
   }
 
   function onLoaded() { if (audioRef.current) setDuracao(audioRef.current.duration || 0); }
@@ -46,26 +46,43 @@ function AudioPlayer({ src }) {
   function onSeek(e) {
     if (!audioRef.current || !audioRef.current.duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    audioRef.current.currentTime = pct * audioRef.current.duration;
+    audioRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * audioRef.current.duration;
+  }
+  function toggleSpeed() {
+    const speeds = [1, 1.5, 2];
+    const next = speeds[(speeds.indexOf(velocidade) + 1) % speeds.length];
+    setVelocidade(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
   }
 
   const fmtDur = (s) => { if (!s || !isFinite(s)) return "0:00"; return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0"); };
+  const tempoAtual = audioRef.current?.currentTime || 0;
 
   return (
     <div className="wa-audio-player">
       <audio ref={audioRef} src={src} preload="metadata" onTimeUpdate={onTimeUpdate} onLoadedMetadata={onLoaded} onEnded={onEnded} />
       <button className="wa-audio-play" onClick={togglePlay}>
         {tocando ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         )}
       </button>
-      <div className="wa-audio-track" onClick={onSeek}>
-        <div className="wa-audio-progress" style={{ width: progresso + "%" }} />
+      <div className="wa-audio-body">
+        <div className="wa-audio-track" onClick={onSeek}>
+          <div className="wa-audio-progress" style={{ width: progresso + "%" }}>
+            <div className="wa-audio-thumb" />
+          </div>
+          <div className="wa-audio-wave" />
+        </div>
+        <div className="wa-audio-info">
+          <span>{fmtDur(tocando ? tempoAtual : duracao)}</span>
+        </div>
       </div>
-      <span className="wa-audio-dur">{fmtDur(duracao)}</span>
+      <button className="wa-audio-speed" onClick={toggleSpeed} title="Velocidade">{velocidade}x</button>
+      <a href={src} download className="wa-audio-dl" title="Baixar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </a>
     </div>
   );
 }
@@ -131,7 +148,7 @@ function CriarLeadModal({ numero, nome, onClose, onToast }) {
   );
 }
 
-export default function WhatsAppChat({ isAdmin, onToast, onVerLead }) {
+export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPermitidas }) {
   const [instancias, setInstancias] = useState([]);
   const [instAtiva, setInstAtiva] = useState(null);
   const [conversas, setConversas] = useState([]);
@@ -154,7 +171,16 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead }) {
   const [fileTipo, setFileTipo] = useState("document");
   const [fileAccept, setFileAccept] = useState("*/*");
 
-  async function loadInst() { const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true); setInstancias(data || []); if (data?.length > 0 && !instAtiva) setInstAtiva(data[0]); }
+  async function loadInst() {
+    const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true);
+    let filtered = data || [];
+    // Se não é admin e tem permissões configuradas, filtrar
+    if (!isAdmin && instanciasPermitidas?.length > 0) {
+      filtered = filtered.filter((i) => instanciasPermitidas.includes(i.id));
+    }
+    setInstancias(filtered);
+    if (filtered.length > 0 && !instAtiva) setInstAtiva(filtered[0]);
+  }
   useEffect(() => { loadInst(); }, []);
 
   const loadConvs = useCallback(async () => { if (!instAtiva) return; const { data } = await supabase.from("wa_conversas").select("*").eq("instancia_id", instAtiva.id).order("ultima_msg_em", { ascending: false }); setConversas(data || []); }, [instAtiva?.id]);

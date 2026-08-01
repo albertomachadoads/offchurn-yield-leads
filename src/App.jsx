@@ -16,6 +16,7 @@ import CRMParametros from "./CRMParametros.jsx";
 import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import WhatsAppChat from "./WhatsAppChat.jsx";
+import Permissoes from "./Permissoes.jsx";
 import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
@@ -401,9 +402,12 @@ export default function App() {
               <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
                 <Icon.Folder /> <span>Cadastros</span>
               </button>
-              <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-                <Icon.Users /> <span>Administradores</span>
-              </button>
+            {temPerm("admin") && <button className={view === "permissoes" ? "active" : ""} onClick={() => setView("permissoes")}>
+              <Icon.Shield /> <span>Permissões</span>
+            </button>}
+            {temPerm("admin") && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
+              <Icon.Settings /> <span>Administradores</span>
+            </button>}
               <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}>
                 <Icon.List /> <span>Logs</span>
               </button>
@@ -556,6 +560,10 @@ export default function App() {
             gestById={gestById}
           />
         )}
+        {view === "permissoes" && (
+          <Permissoes pessoas={data.pessoas || []} onToast={showToast} />
+        )}
+
         {view === "admin" && isAdmin && (
           <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
         )}
@@ -572,7 +580,7 @@ export default function App() {
         )}
 
         {view === "whatsapp" && (
-          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} onVerLead={(leadId) => { setView("crm"); setTimeout(() => { const ev = new CustomEvent("abrirLead", { detail: leadId }); window.dispatchEvent(ev); }, 300); }} />
+          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} instanciasPermitidas={userPerms?.wa_instancias} onVerLead={(leadId) => { setView("crm"); window.__abrirLeadId = leadId; }} />
         )}
 
         {view === "metas" && (
