@@ -16,6 +16,7 @@ import CRMParametros from "./CRMParametros.jsx";
 import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import WhatsAppChat from "./WhatsAppChat.jsx";
+import Dashboard from "./Dashboard.jsx";
 import Permissoes from "./Permissoes.jsx";
 import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
@@ -50,7 +51,7 @@ export default function App() {
   const [carregando, setCarregando] = useState(false);
   const [erroCarga, setErroCarga] = useState("");
 
-  const [view, setView] = useState("acompanhamento");
+  const [view, setView] = useState("dashboard");
   const [toast, setToast] = useState(null);
   const [userPerms, setUserPerms] = useState({});
   // sidebar recolhida por padrão; expande no hover ou fixada por botão
@@ -355,7 +356,7 @@ export default function App() {
           </button>
           <div className="brand">
             <span className="mark">O</span>
-            <span className="name">OffChurn Yield Leads</span>
+            <span className="name">OffChurn</span>
           </div>
         </div>
         <div className="ag-filtro">
@@ -367,37 +368,37 @@ export default function App() {
           {/* PRINCIPAIS */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
+            <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>
+              <Icon.Chart /> <span>Dashboard</span>
+            </button>
             <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
               <Icon.ListCheck /> <span>Acompanhamento</span>
             </button>
             <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
-              <Icon.Target /> <span>Follow de Ações</span>
-            </button>
-            <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}>
-              <Icon.Grid /> <span>Clientes</span>
+              <Icon.Clipboard /> <span>Tarefas</span>
             </button>
           </div>
 
           {/* COMERCIAL */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Comercial</div>
+            <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
+              <Icon.Chat /> <span>Conversas</span>
+            </button>
             <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}>
               <Icon.Users /> <span>CRM</span>
-            </button>
-            <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
-              <Icon.Settings /> <span>Parâmetros de CRM</span>
-            </button>
-            <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}>
-              <Icon.Target /> <span>Automações</span>
-            </button>
-            <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
-              <Icon.Chart /> <span>Análises</span>
             </button>
             <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}>
               <Icon.Target /> <span>Painel de Metas</span>
             </button>
-            <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
-              <Icon.Chat /> <span>WhatsApp</span>
+            <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
+              <Icon.Chart /> <span>Análises</span>
+            </button>
+            <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}>
+              <Icon.Target /> <span>Automações</span>
+            </button>
+            <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
+              <Icon.Settings /> <span>Parâmetros de CRM</span>
             </button>
           </div>
 
@@ -419,7 +420,7 @@ export default function App() {
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Log de Tarefas</div>
             <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}>
-              <Icon.Clipboard /> <span>Registro de Tarefas</span>
+              <Icon.ListCheck /> <span>Registro de Tarefas</span>
             </button>
           </div>
 
@@ -430,12 +431,12 @@ export default function App() {
               <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
                 <Icon.Folder /> <span>Cadastros</span>
               </button>
-            {temPerm("admin") && <button className={view === "permissoes" ? "active" : ""} onClick={() => setView("permissoes")}>
-              <Icon.Shield /> <span>Permissões</span>
-            </button>}
-            {temPerm("admin") && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-              <Icon.Settings /> <span>Administradores</span>
-            </button>}
+              <button className={view === "permissoes" ? "active" : ""} onClick={() => setView("permissoes")}>
+                <Icon.Shield /> <span>Permissões</span>
+              </button>
+              <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
+                <Icon.Settings /> <span>Administradores</span>
+              </button>
               <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}>
                 <Icon.List /> <span>Logs</span>
               </button>
@@ -460,6 +461,10 @@ export default function App() {
       <main className="main">
         <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
+
+        {view === "dashboard" && (
+          <Dashboard clientes={data.clientes || []} tarefas={data.tarefas || []} onToast={showToast} />
+        )}
 
         {view === "acompanhamento" && (
           <Acompanhamento

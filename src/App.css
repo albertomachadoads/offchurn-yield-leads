@@ -1312,3 +1312,15 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .wa-sending { font-size: 10px; margin-right: 3px; animation: wa-fade 1s infinite; }
 @keyframes wa-fade { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 .wa-error { font-size: 10px; margin-right: 3px; cursor: pointer; }
+
+/* Dashboard */
+.dash-tiles { grid-template-columns: repeat(6, 1fr); }
+@media (max-width: 1100px) { .dash-tiles { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .dash-tiles { grid-template-columns: repeat(2, 1fr); } }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 800px) { .dash-grid { grid-template-columns: 1fr; } }
+.dash-tarefas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.dash-tarefa-item { text-align: center; padding: 12px 0; background: var(--bg); border-radius: 8px; }
+.dash-tarefa-num { font-size: 26px; font-weight: 800; }
+.dash-tarefa-label { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+.tema-escuro .dash-tarefa-item { background: var(--surface); }
