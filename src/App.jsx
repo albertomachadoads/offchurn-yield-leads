@@ -1,4 +1,3 @@
-import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import "./App.css";
 import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
@@ -51,10 +50,24 @@ export default function App() {
   const [carregando, setCarregando] = useState(false);
   const [erroCarga, setErroCarga] = useState("");
 
-  const navigate = useNavigate();
-  const location = useLocation();
-  const view = location.pathname.replace("/", "") || "dashboard";
-  const setView = (v) => navigate("/" + v);
+  const [view, setView] = useState(() => {
+    const path = window.location.pathname.replace("/", "");
+    return path || "dashboard";
+  });
+
+  // Sync URL com view
+  useEffect(() => {
+    if (window.location.pathname !== "/" + view) {
+      window.history.pushState({}, "", "/" + view);
+    }
+  }, [view]);
+
+  // Botão voltar do navegador
+  useEffect(() => {
+    function onPop() { const p = window.location.pathname.replace("/", ""); setView(p || "dashboard"); }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [toast, setToast] = useState(null);
   const [userPerms, setUserPerms] = useState({});
   const [notifs, setNotifs] = useState([]);
