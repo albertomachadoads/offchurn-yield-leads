@@ -1823,3 +1823,74 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .pm-alerta-manual { margin-top: 11px; font-size: 12.5px; color: var(--pm-avi); }
 .pm-modal-rodape { padding: 16px 24px 0; font-size: 12px; color: var(--pm-tx2); }
 .pm-modal-acoes { display: flex; justify-content: flex-end; gap: 8px; padding: 20px 24px 24px; }
+
+/* ══════════════ CONECTAR WHATSAPP ══════════════ */
+.wc-conectar-btn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border: none; border-radius: 8px; background: var(--green); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity .12s; }
+.wc-conectar-btn:hover { opacity: .9; }
+
+.wc-bd { position: fixed; inset: 0; background: rgba(16,24,40,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 300; }
+.tema-escuro .wc-bd { background: rgba(0,0,0,.68); }
+.wc-modal { --wc-s: #fff; --wc-e: #F7F9F8; --wc-bd: #E3E8E5; --wc-tx: #101828; --wc-tx2: #667085; --wc-g: #0C5530; --wc-ac: #18A35F; --wc-err: #D92D20;
+  background: var(--wc-s); border: 1px solid var(--wc-bd); border-radius: 16px; width: 100%; max-width: 430px; max-height: 92vh; overflow-y: auto; box-shadow: 0 18px 46px rgba(16,24,40,.22); color: var(--wc-tx); }
+.tema-escuro .wc-modal { --wc-s: #101B16; --wc-e: #14231B; --wc-bd: #26372E; --wc-tx: #F4F7F5; --wc-tx2: #A7B4AC; --wc-g: #3CCF7A; --wc-ac: #3CCF7A; --wc-err: #F97066; }
+
+.wc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 22px 24px 0; }
+.wc-head h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.wc-head p { margin: 3px 0 0; font-size: 13px; color: var(--wc-tx2); }
+.wc-x { border: none; background: none; font-size: 26px; line-height: 1; color: var(--wc-tx2); cursor: pointer; padding: 0 4px; }
+.wc-x:hover { color: var(--wc-tx); }
+
+.wc-body { padding: 20px 24px 24px; }
+.wc-centro { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.wc-campo { margin-bottom: 18px; }
+.wc-campo label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 7px; }
+.wc-op { font-weight: 400; color: var(--wc-tx2); font-size: 12px; }
+.wc-input { width: 100%; height: 40px; padding: 0 13px; border: 1px solid var(--wc-bd); border-radius: 9px; background: var(--wc-s); font-size: 14px; color: var(--wc-tx); font-family: inherit; }
+.wc-input:focus { outline: 2px solid var(--wc-ac); outline-offset: -1px; border-color: transparent; }
+.wc-dica { display: block; font-size: 12px; color: var(--wc-tx2); margin-top: 6px; line-height: 1.45; }
+
+.wc-opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wc-opcao { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 15px 10px; border: 1px solid var(--wc-bd); border-radius: 11px; background: var(--wc-s); color: var(--wc-tx2); cursor: pointer; font-family: inherit; transition: .12s; }
+.wc-opcao strong { font-size: 13px; font-weight: 600; color: var(--wc-tx); }
+.wc-opcao small { font-size: 11px; }
+.wc-opcao.on { border-color: var(--wc-ac); background: var(--wc-e); color: var(--wc-ac); }
+.wc-opcao.on strong { color: var(--wc-ac); }
+
+.wc-acoes { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.wc-acoes-centro { justify-content: center; }
+.wc-btn { height: 40px; padding: 0 18px; border: 1px solid var(--wc-bd); border-radius: 9px; background: var(--wc-s); font-size: 13.5px; font-weight: 500; color: var(--wc-tx); cursor: pointer; font-family: inherit; }
+.wc-btn:hover { border-color: var(--wc-ac); color: var(--wc-ac); }
+.wc-btn-primary { height: 40px; padding: 0 20px; border: none; border-radius: 9px; background: var(--wc-g); color: #fff; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.tema-escuro .wc-btn-primary { color: #08130D; }
+.wc-btn-primary:hover:not(:disabled) { opacity: .9; }
+.wc-btn-primary:disabled { opacity: .45; cursor: default; }
+.wc-link { border: none; background: none; color: var(--wc-ac); font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; padding: 0; }
+.wc-link:hover { text-decoration: underline; }
+
+.wc-qr { width: 232px; height: 232px; padding: 12px; background: #fff; border: 1px solid var(--wc-bd); border-radius: 13px; display: flex; align-items: center; justify-content: center; }
+.wc-qr img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.wc-qr-load { background: var(--wc-e); }
+
+.wc-paircode { padding: 22px 30px; background: var(--wc-e); border: 1px solid var(--wc-bd); border-radius: 13px; }
+.wc-pair-l { display: block; font-size: 12px; color: var(--wc-tx2); margin-bottom: 8px; }
+.wc-pair-v { font-size: 30px; font-weight: 700; letter-spacing: 5px; font-variant-numeric: tabular-nums; }
+
+.wc-passos { text-align: left; margin: 20px 0 0; padding-left: 20px; font-size: 13px; line-height: 1.75; color: var(--wc-tx2); }
+.wc-passos strong { color: var(--wc-tx); font-weight: 600; }
+
+.wc-aguardando { display: inline-flex; align-items: center; gap: 9px; margin-top: 18px; font-size: 13px; color: var(--wc-tx2); }
+.wc-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--wc-ac); animation: wc-p 1.4s ease-in-out infinite; }
+@keyframes wc-p { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.75); } }
+
+.wc-spinner { width: 34px; height: 34px; border: 3px solid var(--wc-bd); border-top-color: var(--wc-ac); border-radius: 50%; animation: wc-spin .8s linear infinite; }
+@keyframes wc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .wc-spinner, .wc-pulse { animation: none; } }
+
+.wc-status-txt { font-size: 15px; font-weight: 600; margin: 16px 0 4px; }
+.wc-expirado { margin-top: 14px; }
+.wc-expirado p { font-size: 13px; color: var(--wc-tx2); margin: 0 0 5px; }
+.wc-ok { width: 58px; height: 58px; border-radius: 50%; background: rgba(24,163,95,.13); color: var(--wc-ac); display: flex; align-items: center; justify-content: center; }
+.wc-erro-ico { width: 52px; height: 52px; border-radius: 50%; background: rgba(217,45,32,.11); color: var(--wc-err); display: flex; align-items: center; justify-content: center; }
+.wc-erro-txt { font-size: 13px; color: var(--wc-tx2); line-height: 1.5; max-width: 320px; }
+
+.wa-status-conectando { background: #D97706; box-shadow: 0 0 4px rgba(217,119,6,.5); }

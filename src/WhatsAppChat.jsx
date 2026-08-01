@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { supabase } from "./supabaseClient.js";
 import * as api from "./api.js";
+import WhatsAppConectar from "./WhatsAppConectar.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const fmtHora = (d) => { if (!d) return ""; const x = new Date(d); return `${String(x.getHours()).padStart(2,"0")}:${String(x.getMinutes()).padStart(2,"0")}`; };
 const fmtData = (d) => { if (!d) return ""; const x = new Date(d); return `${String(x.getDate()).padStart(2,"0")}/${String(x.getMonth()+1).padStart(2,"0")}`; };
 const fmtTimer = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
@@ -171,7 +173,7 @@ function CriarLeadModal({ numero, nome, conversaId, onClose, onToast }) {
   );
 }
 
-export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPermitidas }) {
+export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPermitidas, usuario, agencia }) {
   const perms = instanciasPermitidas || [];
   const [instancias, setInstancias] = useState([]);
   const [instAtiva, setInstAtiva] = useState(null);
@@ -184,6 +186,8 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   const [modalInst, setModalInst] = useState(null);
   const [viewInst, setViewInst] = useState(false);
   const [modalLead, setModalLead] = useState(null);
+  const [modalConectar, setModalConectar] = useState(false);
+  const [statusConn, setStatusConn] = useState(null);
   const [gravando, setGravando] = useState(false);
   const [tempoGrav, setTempoGrav] = useState(0);
   const [showAttach, setShowAttach] = useState(false);
@@ -203,6 +207,26 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
       if (conv) { setConvAberta(conv); window.__waAbrirNumero = null; }
     }
   }, [conversas]);
+
+  // Status real da instância ativa (consulta a UAZAPI)
+  useEffect(() => {
+    if (!instAtiva?.id) { setStatusConn(null); return; }
+    let vivo = true;
+    async function checar() {
+      try {
+        const r = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/whatsapp-provisionar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
+          body: JSON.stringify({ acao: "status", instanciaId: instAtiva.id }),
+        });
+        const d = await r.json();
+        if (vivo && d.ok) setStatusConn(d.status);
+      } catch { /* mantém o último status conhecido */ }
+    }
+    checar();
+    const t = setInterval(checar, 30000);
+    return () => { vivo = false; clearInterval(t); };
+  }, [instAtiva?.id]);
 
   async function loadInst() {
     const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true);
@@ -295,7 +319,19 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   return (
     <><div className="page-head"><div><h1>WhatsApp</h1><p>{conversas.length} conversa{conversas.length !== 1 ? "s" : ""}</p></div><div className="head-actions">
       <select className="select" style={{ width: "auto", minWidth: 160 }} value={instAtiva?.id || ""} onChange={(e) => { setInstAtiva(instancias.find((i) => i.id === e.target.value)); setConvAberta(null); }}>{instancias.length === 0 && <option value="">Nenhuma</option>}{instancias.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}</select>
-      {isAdmin && <button className="btn btn-sm" onClick={() => setViewInst(true)}>⚙ Instâncias</button>}
+      <div className="wa-inst-status">
+        <span className={`wa-status-dot ${statusConn === "connected" ? "wa-status-online" : statusConn === "connecting" ? "wa-status-conectando" : "wa-status-offline"}`} />
+        <span className="wa-status-text">{statusConn === "connected" ? "Conectado" : statusConn === "connecting" ? "Conectando" : instAtiva ? "Desconectado" : "Sem instância"}</span>
+      </div>
+      <button className="toolbar-btn" onClick={() => { loadInst(); loadConvs(); onToast("Atualizado"); }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Atualizar
+      </button>
+      <button className="wc-conectar-btn" onClick={() => setModalConectar(true)}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Conectar WhatsApp
+      </button>
+      {isAdmin && <button className="btn btn-sm" onClick={() => setViewInst(true)}>Instâncias</button>}
     </div></div>
     <div className="wa-layout">
       <div className="wa-sidebar">
@@ -343,6 +379,9 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
         </div>
       </>)}</div>
     </div>
+    {modalConectar && <WhatsAppConectar usuario={usuario} agencia={agencia} isAdmin={isAdmin}
+      onToast={onToast} onFechar={() => setModalConectar(false)}
+      onConectado={() => { loadInst(); loadConvs(); }} />}
     {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} conversaId={modalLead.conversaId} onClose={async () => {
         setModalLead(null);
         await loadConvs();

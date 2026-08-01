@@ -666,7 +666,7 @@ export default function App() {
         )}
 
         {view === "whatsapp" && (
-          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} instanciasPermitidas={userPerms?.wa_instancias || []} onVerLead={(leadId) => { setView("crm"); window.__abrirLeadId = leadId; }} />
+          <WhatsAppChat usuario={user} agencia={agFiltro === "todas" ? "Yield" : agFiltro} isAdmin={isAdmin} onToast={showToast} instanciasPermitidas={userPerms?.wa_instancias || []} onVerLead={(leadId) => { setView("crm"); window.__abrirLeadId = leadId; }} />
         )}
 
         {view === "metas" && (
