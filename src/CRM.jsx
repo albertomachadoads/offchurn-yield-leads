@@ -132,6 +132,11 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
   const [fResp, setFResp] = useState("");
   const [fTag, setFTag] = useState("");
   const [fProduto, setFProduto] = useState("");
+  const [fOrigem, setFOrigem] = useState("");
+  const [busca, setBusca] = useState("");
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [dragId, setDragId] = useState(null);
+  const [dropCol, setDropCol] = useState(null);
 
   async function carregar() {
     try { const d = await api.fetchCRM(); setCrm(d); if (!funilId && d.funis.length > 0) setFunilId(d.funis[0].id); }
@@ -165,10 +170,38 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
   if (fResp) leads = leads.filter((l) => l.responsavelId === fResp);
   if (fTag) leads = leads.filter((l) => { try { return JSON.parse(l.tags || "[]").includes(fTag); } catch { return false; } });
   if (fProduto) leads = leads.filter((l) => l.produtoId === fProduto);
+  if (fOrigem) leads = leads.filter((l) => l.origemId === fOrigem);
+  if (busca.trim()) {
+    const q = busca.trim().toLowerCase();
+    const qNum = q.replace(/\D/g, "");
+    leads = leads.filter((l) => {
+      let tgN = ""; try { tgN = JSON.parse(l.tags || "[]").map((t) => tagMap[t]?.nome || "").join(" "); } catch {}
+      return (l.nome || "").toLowerCase().includes(q)
+        || (l.email || "").toLowerCase().includes(q)
+        || (qNum && (l.whatsapp || "").replace(/\D/g, "").includes(qNum))
+        || (prodMap[l.produtoId]?.nome || "").toLowerCase().includes(q)
+        || (pesMap[l.responsavelId]?.nome || "").toLowerCase().includes(q)
+        || tgN.toLowerCase().includes(q);
+    });
+  }
 
   const leadsPorEtapa = {}; etapas.forEach((e) => { leadsPorEtapa[e.id] = []; });
   leads.forEach((l) => { if (leadsPorEtapa[l.etapaId]) leadsPorEtapa[l.etapaId].push(l); });
-  const temFiltro = fData || fResp || fTag || fProduto;
+  const temFiltro = fData || fResp || fTag || fProduto || fOrigem;
+  const limparFiltros = () => { setFData(""); setFResp(""); setFTag(""); setFProduto(""); setFOrigem(""); };
+
+  // Indicadores compactos
+  const tipoDe = (id) => etapas.find((e) => e.id === id)?.tipo;
+  const lGanhos = leads.filter((l) => tipoDe(l.etapaId) === "ganho");
+  const lPerdidos = leads.filter((l) => tipoDe(l.etapaId) === "perdido");
+  const lAbertos = leads.filter((l) => !["ganho", "perdido"].includes(tipoDe(l.etapaId)));
+  const vlAberto = lAbertos.reduce((s, l) => s + (l.valor || 0), 0);
+  const convPct = leads.length ? (lGanhos.length / leads.length) * 100 : 0;
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const idsAbertos = new Set(lAbertos.map((l) => l.id));
+  const atrasadas = (crm.atividades || []).filter((a) => ["tarefa", "ligacao", "email"].includes(a.tipo)
+    && a.status !== "concluida" && a.status !== "cancelada"
+    && a.dataPrevista && String(a.dataPrevista).slice(0, 10) < hojeStr && idsAbertos.has(a.leadId));
 
   if (leadAberto) {
     const la = leads.find((l) => l.id === leadAberto) || crm.leads.find((l) => l.id === leadAberto);
@@ -244,79 +277,177 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
 
   return (
     <>
-      <div className="page-head">
-        <div><h1>CRM</h1><p>{leads.length} lead{leads.length !== 1 ? "s" : ""}{temFiltro ? " (filtrado)" : ""}</p></div>
-        <div className="head-actions">
-          <select className="select" style={{ width: "auto" }} value={funilId||""} onChange={(e) => setFunilId(e.target.value)}>
+      {/* ── Cabeçalho ── */}
+      <div className="crm-head">
+        <div className="crm-head-l">
+          <h1 className="crm-h1">CRM</h1>
+          <p className="crm-resumo">
+            {lAbertos.length} {lAbertos.length === 1 ? "oportunidade aberta" : "oportunidades abertas"}
+            {" · "}{lGanhos.length} {lGanhos.length === 1 ? "ganha" : "ganhas"}
+            {" · "}{lPerdidos.length} {lPerdidos.length === 1 ? "perdida" : "perdidas"}
+            {temFiltro || busca ? " (filtrado)" : ""}
+          </p>
+        </div>
+        <div className="crm-head-r">
+          <div className="crm-busca">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, telefone ou produto" />
+            {busca && <button className="crm-busca-x" onClick={() => setBusca("")} title="Limpar busca">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>}
+          </div>
+          <select className="crm-sel" value={funilId || ""} onChange={(e) => setFunilId(e.target.value)}>
             {crm.funis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
           </select>
-          <button className="btn btn-sm btn-primary" onClick={() => setModal({ etapaId: etapas[0]?.id })}><Icon.Plus /> Criar lead</button>
-          <button className="btn btn-sm" onClick={exportarCSV}>CSV</button>
+          <button className="crm-btn-ico" onClick={() => carregar()} title="Atualizar dados">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+          <button className="crm-btn-primary" onClick={() => setModal({ etapaId: etapas[0]?.id })}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Criar lead
+          </button>
+          <div className="crm-menu-wrap">
+            <button className="crm-btn-ico" onClick={() => setMenuAberto((v) => !v)} title="Mais opções">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+            </button>
+            {menuAberto && (<>
+              <div className="crm-menu-bd" onClick={() => setMenuAberto(false)} />
+              <div className="crm-menu">
+                <button onClick={() => { exportarCSV(); setMenuAberto(false); }}>Exportar CSV</button>
+                <button onClick={() => { setMenuAberto(false); onToast("Configure em Parâmetros de CRM"); }}>Configurar etapas</button>
+                <button onClick={() => { setMenuAberto(false); onToast("Configure em Parâmetros de CRM"); }}>Configurar campos</button>
+              </div>
+            </>)}
+          </div>
         </div>
       </div>
 
-      <div className="crm-filtros">
-        <div className="crm-filtro"><label>Período</label><select className="select" value={fData} onChange={(e) => setFData(e.target.value)}>
+      {/* ── Indicadores ── */}
+      <div className="crm-ind">
+        <div className="crm-ind-i"><span className="crm-ind-n">{leads.length}</span><span className="crm-ind-l">Oportunidades</span></div>
+        <div className="crm-ind-i"><span className="crm-ind-n">{fmtMoeda(vlAberto)}</span><span className="crm-ind-l">Pipeline aberto</span></div>
+        <div className="crm-ind-i"><span className="crm-ind-n">{lGanhos.length}</span><span className="crm-ind-l">{lGanhos.length === 1 ? "Venda" : "Vendas"}</span></div>
+        <div className="crm-ind-i"><span className="crm-ind-n">{convPct.toFixed(0)}%</span><span className="crm-ind-l">Conversão · {lGanhos.length} em {leads.length}</span></div>
+        <div className="crm-ind-i"><span className={`crm-ind-n ${atrasadas.length > 0 ? "alerta" : ""}`}>{atrasadas.length}</span><span className="crm-ind-l">Tarefas atrasadas</span></div>
+      </div>
+
+      {/* ── Filtros ── */}
+      <div className="crm-fbar">
+        <select className="crm-fsel" value={fData} onChange={(e) => setFData(e.target.value)}>
           {FILTROS_DATA.map((f) => <option key={f.id} value={f.id}>{f.l}</option>)}
-        </select></div>
-        <div className="crm-filtro"><label>Responsável</label><select className="select" value={fResp} onChange={(e) => setFResp(e.target.value)}>
-          <option value="">Todos</option>{(pessoas || []).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select></div>
-        {tags.length > 0 && <div className="crm-filtro"><label>Tag</label><select className="select" value={fTag} onChange={(e) => setFTag(e.target.value)}>
-          <option value="">Todas</option>{tags.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
-        </select></div>}
-        {produtos.length > 0 && <div className="crm-filtro"><label>Produto</label><select className="select" value={fProduto} onChange={(e) => setFProduto(e.target.value)}>
-          <option value="">Todos</option>{produtos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select></div>}
-        {temFiltro && <button className="btn btn-sm btn-ghost" style={{ alignSelf: "flex-end" }} onClick={() => { setFData(""); setFResp(""); setFTag(""); setFProduto(""); }}>Limpar</button>}
+        </select>
+        <select className="crm-fsel" value={fResp} onChange={(e) => setFResp(e.target.value)}>
+          <option value="">Todos os responsáveis</option>
+          {(pessoas || []).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+        </select>
+        {produtos.length > 0 && <select className="crm-fsel" value={fProduto} onChange={(e) => setFProduto(e.target.value)}>
+          <option value="">Todos os produtos</option>
+          {produtos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+        </select>}
+        {tags.length > 0 && <select className="crm-fsel" value={fTag} onChange={(e) => setFTag(e.target.value)}>
+          <option value="">Todas as tags</option>
+          {tags.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+        </select>}
+        {origens.length > 0 && <select className="crm-fsel" value={fOrigem} onChange={(e) => setFOrigem(e.target.value)}>
+          <option value="">Todas as origens</option>
+          {origens.map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}
+        </select>}
+        {temFiltro && <button className="crm-flimpar" onClick={limparFiltros}>Limpar filtros</button>}
       </div>
 
-      <div className="tiles" style={{ marginBottom: 16 }}>
-        <div className="tile"><div className="label">Leads</div><div className="value">{leads.length}</div></div>
-        <div className="tile"><div className="label">Valor total</div><div className="value">{fmtMoeda(leads.reduce((s, l) => s + (l.valor || 0), 0))}</div></div>
-        <div className="tile"><div className="label">Ganhos</div><div className="value" style={{ color: "var(--green)" }}>{leads.filter((l) => etapas.find((e) => e.id === l.etapaId)?.tipo === "ganho").length}</div></div>
-        <div className="tile"><div className="label">Perdidos</div><div className="value" style={{ color: "var(--red)" }}>{leads.filter((l) => etapas.find((e) => e.id === l.etapaId)?.tipo === "perdido").length}</div></div>
-      </div>
+      {/* Chips de filtros ativos */}
+      {temFiltro && (
+        <div className="crm-chips">
+          {fData && <span className="crm-chip">Período: {FILTROS_DATA.find((f) => f.id === fData)?.l}<button onClick={() => setFData("")}>×</button></span>}
+          {fResp && <span className="crm-chip">Responsável: {pesMap[fResp]?.nome}<button onClick={() => setFResp("")}>×</button></span>}
+          {fProduto && <span className="crm-chip">Produto: {prodMap[fProduto]?.nome}<button onClick={() => setFProduto("")}>×</button></span>}
+          {fTag && <span className="crm-chip">Tag: {tagMap[fTag]?.nome}<button onClick={() => setFTag("")}>×</button></span>}
+          {fOrigem && <span className="crm-chip">Origem: {origens.find((o) => o.id === fOrigem)?.nome}<button onClick={() => setFOrigem("")}>×</button></span>}
+        </div>
+      )}
 
+      {/* ── Pipeline ── */}
       {etapas.length === 0 ? <div className="empty"><p>Sem etapas.</p></div> : (
-        <div className="kanban-board">
+        <div className="kb">
           {etapas.map((etapa) => {
             const leadsCol = leadsPorEtapa[etapa.id] || [];
             const valorCol = leadsCol.reduce((s, l) => s + (l.valor || 0), 0);
             return (
-              <div key={etapa.id} className="kanban-col" onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { const lid = e.dataTransfer.getData("leadId"); if (lid) moverLead(lid, etapa.id); }}>
-                <div className="kanban-col-head" style={{ borderLeftColor: etapa.cor }}>
-                  <span className="kanban-col-nome">{etapa.nome}</span>
-                  <span className="kanban-col-meta">({leadsCol.length}) {valorCol > 0 ? fmtMoeda(valorCol) : ""}</span>
+              <div key={etapa.id} className={`kb-col ${dropCol === etapa.id ? "kb-col-drop" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); if (dropCol !== etapa.id) setDropCol(etapa.id); }}
+                onDragLeave={() => setDropCol((c) => (c === etapa.id ? null : c))}
+                onDrop={(e) => { const lid = e.dataTransfer.getData("leadId"); setDropCol(null); setDragId(null); if (lid) moverLead(lid, etapa.id); }}>
+                <div className="kb-col-line" style={{ background: etapa.cor || "#667085" }} />
+                <div className="kb-col-head">
+                  <div className="kb-col-titulo">
+                    <span className="kb-col-nome">{etapa.nome}</span>
+                    <button className="kb-col-add" onClick={() => setModal({ etapaId: etapa.id })} title="Adicionar lead">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                  </div>
+                  <div className="kb-col-meta">
+                    {leadsCol.length} {leadsCol.length === 1 ? "oportunidade" : "oportunidades"} · {fmtMoeda(valorCol)}
+                  </div>
                 </div>
-                <div className="kanban-col-body">
-                  {leadsCol.map((l) => {
+                <div className="kb-col-body">
+                  {leadsCol.length === 0 ? (
+                    <div className="kb-vazio">
+                      <p>Nenhuma oportunidade nesta etapa</p>
+                      <button onClick={() => setModal({ etapaId: etapa.id })}>+ Adicionar lead</button>
+                    </div>
+                  ) : leadsCol.map((l) => {
                     let lTags = []; try { lTags = JSON.parse(l.tags || "[]"); } catch {}
+                    const tagsVis = lTags.map((t) => tagMap[t]).filter(Boolean);
+                    const semNome = !l.nome || !l.nome.trim() || /^[\d\s()+-]+$/.test(l.nome);
+                    const fone = (l.whatsapp || "").replace(/\D/g, "");
+                    const foneOk = fone.length >= 10;
                     return (
-                      <div key={l.id} className="kanban-card" draggable onDragStart={(e) => e.dataTransfer.setData("leadId", l.id)}>
-
-                        <div className="kc-row-top">
-                          <LeadAvatar nome={l.nome} />
-                          <div className="kc-info-col">
-                            <div className="kc-nome" onClick={() => setLeadAberto(l.id)}>{l.nome}</div>
-                            <div className="kc-icons-row">
-                              {l.whatsapp && <button className="iconbtn" onClick={(e) => { e.stopPropagation(); onAbrirWhatsApp && onAbrirWhatsApp(l.whatsapp); }} title="Abrir conversa"><WhatsIcon size={15} /></button>}
-                              {l.email && <span className="kc-email-ico" title={l.email}>✉</span>}
-                              {l.responsavelId && pesMap[l.responsavelId] && <span className="kc-resp-inline">👤 {pesMap[l.responsavelId].nome}</span>}
-                            </div>
+                      <div key={l.id} className={`kb-card ${dragId === l.id ? "kb-card-drag" : ""}`} draggable
+                        onDragStart={(e) => { e.dataTransfer.setData("leadId", l.id); setDragId(l.id); }}
+                        onDragEnd={() => { setDragId(null); setDropCol(null); }}
+                        onClick={() => setLeadAberto(l.id)}>
+                        <div className="kb-card-top">
+                          <div className="kb-card-nome" title={semNome ? "Lead sem nome" : l.nome}>
+                            {semNome ? "Lead sem nome" : l.nome}
                           </div>
-                          <div className="kc-acoes">
-                            <button className="iconbtn" onClick={() => setModal(l)} title="Editar"><Icon.Edit /></button>
-                            <button className="iconbtn" onClick={() => excluirLead(l.id)} title="Excluir"><Icon.Trash /></button>
+                          <div className="kb-card-acoes" onClick={(e) => e.stopPropagation()}>
+                            {l.whatsapp && <button className="kb-ico" title="Abrir conversa no WhatsApp" onClick={() => onAbrirWhatsApp && onAbrirWhatsApp(l.whatsapp)}>
+                              <WhatsIcon size={14} />
+                            </button>}
+                            <button className="kb-ico" title="Editar lead" onClick={() => setModal(l)}><Icon.Edit /></button>
+                            <button className="kb-ico kb-ico-del" title="Excluir lead" onClick={() => excluirLead(l.id)}><Icon.Trash /></button>
                           </div>
                         </div>
-                        {lTags.length > 0 && <div className="kc-tags">{lTags.map((tid) => tagMap[tid] && <span key={tid} className="kc-tag" style={{ background: tagMap[tid].cor }}>{tagMap[tid].nome}</span>)}</div>}
-                        <div className="kc-bottom"><span>{fmtDataBR(l.criadoEm)}</span>{l.valor > 0 && <span className="kc-valor-bottom">{fmtMoeda(l.valor)}{prodMap[l.produtoId] && <span className="kc-produto"> · {prodMap[l.produtoId].nome}</span>}</span>}</div>
+
+                        {semNome && (
+                          <div className="kb-card-sub">
+                            {foneOk ? l.whatsapp : "Telefone não validado"}
+                          </div>
+                        )}
+
+                        <div className="kb-card-linha">
+                          {prodMap[l.produtoId] && <span className="kb-produto">{prodMap[l.produtoId].nome}</span>}
+                          {prodMap[l.produtoId] && l.valor > 0 && <span className="kb-sep">·</span>}
+                          {l.valor > 0 && <span className="kb-valor">{fmtMoeda(l.valor)}</span>}
+                          {!prodMap[l.produtoId] && !l.valor && <span className="kb-vazio-txt">Sem valor definido</span>}
+                        </div>
+
+                        {tagsVis.length > 0 && (
+                          <div className="kb-card-tags">
+                            {tagsVis.slice(0, 2).map((t) => (
+                              <span key={t.id} className="kb-tag" style={{ background: (t.cor || "#667085") + "1F", color: t.cor || "#667085" }}>{t.nome}</span>
+                            ))}
+                            {tagsVis.length > 2 && <span className="kb-tag kb-tag-mais">+{tagsVis.length - 2}</span>}
+                          </div>
+                        )}
+
+                        <div className="kb-card-foot">
+                          <span className="kb-resp">{pesMap[l.responsavelId]?.nome || "Sem responsável"}</span>
+                          <span className="kb-data">Entrada: {fmtDataBR(l.criadoEm)}</span>
+                        </div>
                       </div>
                     );
                   })}
-                  <button className="kanban-add" onClick={() => setModal({ etapaId: etapa.id })}><Icon.Plus /> Lead</button>
                 </div>
               </div>
             );
