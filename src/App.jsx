@@ -23,7 +23,7 @@ import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
-import { supabaseConfigured } from "./supabaseClient";
+import { supabaseConfigured, supabase } from "./supabaseClient";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
 
