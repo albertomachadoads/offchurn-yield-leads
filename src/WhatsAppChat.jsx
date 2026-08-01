@@ -5,7 +5,6 @@ import * as api from "./api.js";
 import WhatsAppConectar from "./WhatsAppConectar.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const fmtHora = (d) => { if (!d) return ""; const x = new Date(d); return `${String(x.getHours()).padStart(2,"0")}:${String(x.getMinutes()).padStart(2,"0")}`; };
 const fmtData = (d) => { if (!d) return ""; const x = new Date(d); return `${String(x.getDate()).padStart(2,"0")}/${String(x.getMonth()+1).padStart(2,"0")}`; };
 const fmtTimer = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
@@ -213,9 +212,12 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   // Consulta o status real na UAZAPI
   const consultarStatus = useCallback(async (id) => {
     try {
+      const sess = await supabase.auth.getSession();
+      const tk = sess.data.session?.access_token;
+      if (!tk) return null;
       const r = await fetch(`${SUPABASE_URL.replace(/\/+$/, "")}/functions/v1/whatsapp-provisionar`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tk}` },
         body: JSON.stringify({ acao: "status", instanciaId: id }),
       });
       const d = await r.json();

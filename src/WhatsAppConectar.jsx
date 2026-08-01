@@ -6,14 +6,16 @@ import { supabase } from "./supabaseClient.js";
    ============================================================ */
 
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
-const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 async function provisionar(payload) {
+  const sess = await supabase.auth.getSession();
+  const token = sess.data.session?.access_token;
+  if (!token) throw new Error("Sua sessão expirou. Entre no sistema novamente.");
   let r;
   try {
     r = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-provisionar`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON}`, apikey: ANON },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
     });
   } catch {
