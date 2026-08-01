@@ -4,6 +4,12 @@ import { supabase } from "./supabaseClient";
 export async function signIn(email, senha) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
   if (error) throw error;
+  // Inserir na tabela pessoas para FK de responsável funcionar
+  if (data?.user?.id) {
+    await supabase.from("pessoas").upsert({
+      id: data.user.id, nome,
+    }, { onConflict: "id" }).catch(() => {});
+  }
   return data;
 }
 

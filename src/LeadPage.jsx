@@ -247,7 +247,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                         </a>
                       </span>}
-                    </span><span className="lead-valor">{lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}><WhatsIcon size={16} /> {lead.whatsapp}</a> : "—"}</span></div>
+                    </span><span className="lead-valor">{lead.whatsapp || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Email</span><span className="lead-valor">{lead.email || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Valor</span><span className="lead-valor">{lead.valor > 0 ? fmtMoeda(lead.valor) : "—"}</span></div>
             {lead.motivoPerdaId && (

@@ -29,6 +29,10 @@ import * as api from "./api";
 
 const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [], recebiveis: [], desempenho: [] };
 
+function BtnReload({ onClick }) {
+  return <button className="btn btn-sm btn-ghost" onClick={onClick} title="Recarregar">🔄</button>;
+}
+
 function SemPermissao() {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", color: "var(--ink-faint)" }}>

@@ -301,7 +301,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
                           <div className="kc-info-col">
                             <div className="kc-nome" onClick={() => setLeadAberto(l.id)}>{l.nome}</div>
                             <div className="kc-icons-row">
-                              {l.whatsapp && <a href={whatsLink(l.whatsapp)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="WhatsApp"><WhatsIcon size={15} /></a>}
+                              {l.whatsapp && <button className="iconbtn" onClick={(e) => { e.stopPropagation(); onAbrirWhatsApp && onAbrirWhatsApp(l.whatsapp); }} title="Abrir conversa"><WhatsIcon size={15} /></button>}
                               {l.email && <span className="kc-email-ico" title={l.email}>✉</span>}
                               {l.responsavelId && pesMap[l.responsavelId] && <span className="kc-resp-inline">👤 {pesMap[l.responsavelId].nome}</span>}
                             </div>
