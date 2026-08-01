@@ -110,7 +110,11 @@ function MsgBolha({ msg }) {
       {t === "text" && msg.conteudo && <p className="wa-msg-text">{msg.conteudo}</p>}
       {!["image","sticker","audio","ptt","video","document","contact","location","text"].includes(t) && msg.conteudo && <p className="wa-msg-text">{msg.conteudo}</p>}
       {hasMedia && (t === "image" || t === "video") && msg.conteudo && !hideText && <p className="wa-msg-caption">{msg.conteudo}</p>}
-      <span className="wa-hora">{fmtHora(msg.criado_em)}</span>
+      <span className="wa-hora">
+        {msg._enviando && <span className="wa-sending">⏳</span>}
+        {msg._erro && <span className="wa-error" title="Falha no envio">⚠️</span>}
+        {fmtHora(msg.criado_em)}
+      </span>
     </div>
   );
 }
@@ -194,8 +198,17 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
 
   async function enviarTexto() {
     if (!texto.trim() || !convAberta || !instAtiva || enviando) return;
-    setEnviando(true);
-    try { await enviarAPI({ instanciaId: instAtiva.id, numero: convAberta.numero, tipo: "text", conteudo: texto.trim() }); setTexto(""); } catch (e) { onToast("Erro: " + e.message); } finally { setEnviando(false); }
+    const msg = texto.trim();
+    setTexto("");
+    // Otimista: mostrar imediatamente no chat
+    const tempId = "temp_" + Date.now();
+    setMensagens((prev) => [...prev, { id: tempId, direcao: "out", tipo: "text", conteudo: msg, criado_em: new Date().toISOString(), _enviando: true }]);
+    setTimeout(() => { chatRef.current && (chatRef.current.scrollTop = chatRef.current.scrollHeight); }, 30);
+    // Enviar em background
+    try { await enviarAPI({ instanciaId: instAtiva.id, numero: convAberta.numero, tipo: "text", conteudo: msg }); }
+    catch (e) { onToast("Erro: " + e.message); setMensagens((prev) => prev.map((m) => m.id === tempId ? { ...m, _erro: true, _enviando: false } : m)); return; }
+    // Atualizar com dados reais do banco
+    loadMsgs();
   }
 
   function abrirUpload(tipo, accept) { setFileTipo(tipo); setFileAccept(accept); setShowAttach(false); setTimeout(() => fileRef.current?.click(), 50); }

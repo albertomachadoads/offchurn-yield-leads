@@ -1308,3 +1308,7 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .wa-status-offline { background: #ef4444; box-shadow: 0 0 4px rgba(239,68,68,0.5); }
 .wa-status-text { color: var(--ink-faint); }
 .tema-escuro .wa-inst-status { background: #1a2b1e; border-color: #2a3e2e; }
+
+.wa-sending { font-size: 10px; margin-right: 3px; animation: wa-fade 1s infinite; }
+@keyframes wa-fade { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.wa-error { font-size: 10px; margin-right: 3px; cursor: pointer; }
