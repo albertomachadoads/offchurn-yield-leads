@@ -54,6 +54,7 @@ export default function App() {
   const [view, setView] = useState("dashboard");
   const [toast, setToast] = useState(null);
   const [userPerms, setUserPerms] = useState({});
+  const [notifs, setNotifs] = useState([]);
   // sidebar recolhida por padrão; expande no hover ou fixada por botão
   const [sidebarFixa, setSidebarFixa] = useState(false);
   // tema (claro/escuro) — lê preferência salva
@@ -87,6 +88,12 @@ export default function App() {
   const MASTER_EMAILS = ["albertomachadoads@gmail.com"];
   const isMaster = MASTER_EMAILS.includes(user?.email?.toLowerCase());
   const isAdmin = isMaster || user?.papel === "admin";
+  const addNotif = (msg, tipo) => {
+    const id = Date.now();
+    setNotifs((p) => [...p, { id, msg, tipo }]);
+    setTimeout(() => setNotifs((p) => p.filter((n) => n.id !== id)), 8000);
+  };
+
   const temPerm = (mod) => { try { return isMaster || isAdmin || !userPerms?.modulos?.length || (userPerms?.modulos || []).includes(mod); } catch { return true; } };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -138,6 +145,23 @@ export default function App() {
   }, [user]);
 
   useEffect(() => { if (user) recarregar(); }, [user, recarregar]);
+
+  // Notificações em tempo real
+  useEffect(() => {
+    const ch = supabase.channel("notifs-global")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_mensagens" }, (payload) => {
+        if (payload.new?.direcao === "in") {
+          addNotif("Nova mensagem no WhatsApp", "whatsapp");
+        }
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "crm_atividades" }, (payload) => {
+        if (payload.new?.tipo === "tarefa") {
+          addNotif("Você possui uma nova tarefa", "tarefa");
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
   // Carregar permissões do usuário logado
   useEffect(() => {
@@ -463,7 +487,7 @@ export default function App() {
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
         {view === "dashboard" && (
-          <Dashboard clientes={data.clientes || []} tarefas={data.tarefas || []} onToast={showToast} />
+          <Dashboard clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} />
         )}
 
         {view === "acompanhamento" && (

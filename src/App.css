@@ -1324,3 +1324,41 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .dash-tarefa-num { font-size: 26px; font-weight: 800; }
 .dash-tarefa-label { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
 .tema-escuro .dash-tarefa-item { background: var(--surface); }
+
+/* Dashboard vendedores */
+.dash-h3 { margin: 0 0 14px; font-size: 14px; font-weight: 800; }
+.dash-filtro-vendedores { display: flex; gap: 4px; flex-wrap: wrap; }
+.dash-vf-btn { padding: 4px 10px; border: 1px solid var(--line); border-radius: 16px; background: transparent; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--ink-faint); transition: all .12s; }
+.dash-vf-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+.dash-vf-btn:hover { border-color: var(--green); }
+
+.dash-vendedores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.dash-vendedor-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.dash-vendedor-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+.dash-vendedor-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dash-vstat { text-align: center; padding: 8px 0; background: var(--bg); border-radius: 6px; }
+.dash-vstat-n { display: block; font-size: 18px; font-weight: 800; }
+.dash-vstat-l { font-size: 10px; color: var(--ink-faint); }
+.tema-escuro .dash-vstat { background: var(--surface); }
+
+.dash-meta-gauge { margin-bottom: 8px; }
+.dash-meta-label { font-size: 11px; font-weight: 600; color: var(--ink-faint); }
+.dash-meta-valores { font-size: 13px; }
+.dash-meta-bar { height: 5px; background: var(--gray-soft); border-radius: 3px; overflow: hidden; margin: 3px 0; }
+.dash-meta-bar div { height: 100%; border-radius: 3px; transition: width .4s; }
+.dash-meta-status { font-size: 10px; font-weight: 700; }
+
+.dash-reunioes { display: flex; flex-direction: column; gap: 6px; max-height: 250px; overflow-y: auto; }
+.dash-reuniao-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg); border-radius: 6px; font-size: 13px; }
+.dash-reuniao-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+.tema-escuro .dash-reuniao-item { background: var(--surface); }
+
+/* Notificações */
+.notif-stack { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; max-width: 340px; }
+.notif-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); cursor: pointer; animation: notif-in .3s ease; font-size: 13px; font-weight: 600; }
+.notif-whatsapp { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.notif-tarefa { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+.notif-icon { font-size: 20px; }
+@keyframes notif-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.tema-escuro .notif-whatsapp { background: #14532d; color: #bbf7d0; border-color: #166534; }
+.tema-escuro .notif-tarefa { background: #1e3a5f; color: #93c5fd; border-color: #1e40af; }
