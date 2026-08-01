@@ -131,7 +131,7 @@ function InstanciaModal({ base, onSave, onClose }) {
   );
 }
 
-function CriarLeadModal({ numero, nome, onClose, onToast }) {
+function CriarLeadModal({ numero, nome, conversaId, onClose, onToast }) {
   const [crm, setCrm] = useState(null);
   const [f, setF] = useState({ nome: nome || "", whatsapp: numero || "", email: "", funilId: "" });
   const [salvando, setSalvando] = useState(false);
@@ -143,11 +143,18 @@ function CriarLeadModal({ numero, nome, onClose, onToast }) {
     try {
       const result = await api.crmLeadSave({ nome: f.nome, whatsapp: f.whatsapp, email: f.email || null, funilId: f.funilId, etapaId: pe?.id, valor: 0, tags: "[]", camposCustom: "{}" });
       const leadId = result?.id;
-      const num = f.whatsapp.replace(/\D/g, "");
-      if (leadId && num) {
-        await supabase.from("wa_conversas").update({ lead_id: leadId }).eq("numero", num);
-        if (num.length > 8) {
-          await supabase.from("wa_conversas").update({ lead_id: leadId }).ilike("numero", `%${num.slice(-8)}%`);
+      if (leadId) {
+        // Vincular pelo ID da conversa (mais confiável)
+        if (conversaId) {
+          await supabase.from("wa_conversas").update({ lead_id: leadId }).eq("id", conversaId);
+        }
+        // Também tentar pelo número
+        const num = f.whatsapp.replace(/\D/g, "");
+        if (num) {
+          await supabase.from("wa_conversas").update({ lead_id: leadId }).eq("numero", num);
+          if (num.length > 8) {
+            await supabase.from("wa_conversas").update({ lead_id: leadId }).ilike("numero", `%${num.slice(-8)}%`);
+          }
         }
       }
       onToast("Lead criado e vinculado!");
@@ -306,7 +313,7 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
           <button className="iconbtn wa-back-btn" onClick={() => setConvAberta(null)}>‹</button>
           <Avatar nome={convAberta.nome} foto={convAberta.foto_url} />
           <div className="wa-chat-header-info"><div className="wa-chat-header-nome">{convAberta.nome || convAberta.numero}</div><div className="wa-chat-header-num">{convAberta.numero}</div></div>
-          {convAberta.lead_id ? <button className="btn btn-sm btn-ghost wa-ver-crm" onClick={() => onVerLead && onVerLead(convAberta.lead_id)}>Ver no CRM ›</button> : <button className="btn btn-sm btn-primary" onClick={() => setModalLead({ numero: convAberta.numero, nome: convAberta.nome })}>+ Negociação</button>}
+          {convAberta.lead_id ? <button className="btn btn-sm btn-ghost wa-ver-crm" onClick={() => onVerLead && onVerLead(convAberta.lead_id)}>Ver no CRM ›</button> : <button className="btn btn-sm btn-primary" onClick={() => setModalLead({ numero: convAberta.numero, nome: convAberta.nome, conversaId: convAberta.id })}>+ Negociação</button>}
         </div>
         <div className="wa-messages" ref={chatRef}>{mensagens.map((m) => <MsgBolha key={m.id} msg={m} />)}</div>
         <div className="wa-input-bar">
@@ -336,7 +343,7 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
         </div>
       </>)}</div>
     </div>
-    {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} onClose={async () => {
+    {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} conversaId={modalLead.conversaId} onClose={async () => {
         setModalLead(null);
         await loadConvs();
         // Recarregar conversa aberta para atualizar lead_id
