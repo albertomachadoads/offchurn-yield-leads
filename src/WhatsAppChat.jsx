@@ -215,8 +215,21 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   async function onFile(e) {
     const f = e.target.files?.[0]; if (!f || !convAberta || !instAtiva) return;
     if (f.size > 16 * 1024 * 1024) { onToast("Máx. 16MB"); return; }
-    setEnviando(true);
-    try { const b64 = await fileToBase64(f); await enviarAPI({ instanciaId: instAtiva.id, numero: convAberta.numero, tipo: fileTipo, fileBase64: b64, conteudo: "", nomeArquivo: f.name }); onToast("Enviado!"); } catch (err) { onToast("Erro: " + err.message); } finally { setEnviando(false); e.target.value = ""; }
+    const localUrl = URL.createObjectURL(f);
+    const tempId = "temp_" + Date.now();
+    // Otimista: mostrar preview imediato
+    setMensagens((prev) => [...prev, { id: tempId, direcao: "out", tipo: fileTipo, conteudo: "", midia_url: localUrl, nome_arquivo: f.name, criado_em: new Date().toISOString(), _enviando: true }]);
+    setTimeout(() => { chatRef.current && (chatRef.current.scrollTop = chatRef.current.scrollHeight); }, 30);
+    try {
+      const b64 = await fileToBase64(f);
+      await enviarAPI({ instanciaId: instAtiva.id, numero: convAberta.numero, tipo: fileTipo, fileBase64: b64, conteudo: "", nomeArquivo: f.name });
+    } catch (err) {
+      onToast("Erro: " + err.message);
+      setMensagens((prev) => prev.map((m) => m.id === tempId ? { ...m, _erro: true, _enviando: false } : m));
+      e.target.value = ""; return;
+    }
+    e.target.value = "";
+    loadMsgs();
   }
 
   async function iniciarGrav() {
@@ -227,8 +240,12 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
       recRef.current.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop()); clearInterval(timerRef.current); setTempoGrav(0);
         const blob = new Blob(chunksRef.current, { type: "audio/ogg" });
-        setEnviando(true);
-        try { const b64 = await fileToBase64(blob); await enviarAPI({ instanciaId: instAtiva.id, numero: convAberta.numero, tipo: "ptt", fileBase64: b64, conteudo: "" }); } catch (err) { onToast("Erro: " + err.message); } finally { setEnviando(false); }
+        const localUrl = URL.createObjectURL(blob);
+        const tempId = "temp_" + Date.now();
+        setMensagens((prev) => [...prev, { id: tempId, direcao: "out", tipo: "ptt", conteudo: "", midia_url: localUrl, criado_em: new Date().toISOString(), _enviando: true }]);
+        setTimeout(() => { chatRef.current && (chatRef.current.scrollTop = chatRef.current.scrollHeight); }, 30);
+        try { const b64 = await fileToBase64(blob); await enviarAPI({ instanciaId: instAtiva.id, numero: convAberta.numero, tipo: "ptt", fileBase64: b64, conteudo: "" }); } catch (err) { onToast("Erro: " + err.message); setMensagens((prev) => prev.map((m) => m.id === tempId ? { ...m, _erro: true, _enviando: false } : m)); return; }
+        loadMsgs();
       };
       recRef.current.start(); setGravando(true); setTempoGrav(0);
       timerRef.current = setInterval(() => setTempoGrav((t) => t + 1), 1000);
