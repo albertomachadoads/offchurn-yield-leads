@@ -149,6 +149,7 @@ function CriarLeadModal({ numero, nome, onClose, onToast }) {
 }
 
 export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPermitidas }) {
+  const perms = instanciasPermitidas || [];
   const [instancias, setInstancias] = useState([]);
   const [instAtiva, setInstAtiva] = useState(null);
   const [conversas, setConversas] = useState([]);
@@ -175,8 +176,8 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
     const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true);
     let filtered = data || [];
     // Se não é admin e tem permissões configuradas, filtrar
-    if (!isAdmin && instanciasPermitidas?.length > 0) {
-      filtered = filtered.filter((i) => instanciasPermitidas.includes(i.id));
+    if (!isAdmin && perms.length > 0) {
+      filtered = filtered.filter((i) => perms.includes(i.id));
     }
     setInstancias(filtered);
     if (filtered.length > 0 && !instAtiva) setInstAtiva(filtered[0]);
