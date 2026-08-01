@@ -23,17 +23,76 @@ function Avatar({ nome, foto }) {
   return <div className="wa-avatar wa-avatar-default"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" opacity="0.3"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg></div>;
 }
 
+function AudioPlayer({ src }) {
+  const [tocando, setTocando] = useState(false);
+  const [progresso, setProgresso] = useState(0);
+  const [duracao, setDuracao] = useState(0);
+  const audioRef = useRef(null);
+
+  function togglePlay() {
+    if (!audioRef.current) return;
+    if (tocando) { audioRef.current.pause(); } else { audioRef.current.play(); }
+    setTocando(!tocando);
+  }
+
+  function onTimeUpdate() {
+    if (!audioRef.current) return;
+    const p = audioRef.current.duration ? (audioRef.current.currentTime / audioRef.current.duration) * 100 : 0;
+    setProgresso(p);
+  }
+
+  function onLoaded() { if (audioRef.current) setDuracao(audioRef.current.duration || 0); }
+  function onEnded() { setTocando(false); setProgresso(0); }
+  function onSeek(e) {
+    if (!audioRef.current || !audioRef.current.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audioRef.current.currentTime = pct * audioRef.current.duration;
+  }
+
+  const fmtDur = (s) => { if (!s || !isFinite(s)) return "0:00"; return Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0"); };
+
+  return (
+    <div className="wa-audio-player">
+      <audio ref={audioRef} src={src} preload="metadata" onTimeUpdate={onTimeUpdate} onLoadedMetadata={onLoaded} onEnded={onEnded} />
+      <button className="wa-audio-play" onClick={togglePlay}>
+        {tocando ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        )}
+      </button>
+      <div className="wa-audio-track" onClick={onSeek}>
+        <div className="wa-audio-progress" style={{ width: progresso + "%" }} />
+      </div>
+      <span className="wa-audio-dur">{fmtDur(duracao)}</span>
+    </div>
+  );
+}
+
 function MsgBolha({ msg }) {
   const isOut = msg.direcao === "out";
-  const hasMedia = msg.midia_url && msg.midia_url.startsWith("http");
+  const url = msg.midia_url;
+  const hasMedia = url && url.startsWith("http");
+  const t = msg.tipo || "text";
+  const hideText = ["[Imagem]","[Áudio]","[Vídeo]","[Sticker]","[sticker]","[Documento]"].includes(msg.conteudo);
   return (
     <div className={`wa-bolha ${isOut ? "wa-out" : "wa-in"}`}>
-      {msg.tipo === "image" && hasMedia && <a href={msg.midia_url} target="_blank" rel="noopener noreferrer"><img src={msg.midia_url} alt="" className="wa-msg-img" loading="lazy" /></a>}
-      {msg.tipo === "sticker" && hasMedia && <img src={msg.midia_url} alt="" className="wa-msg-sticker" loading="lazy" />}
-      {(msg.tipo === "audio" || msg.tipo === "ptt") && hasMedia && <div className="wa-msg-audio"><audio controls src={msg.midia_url} preload="none" /></div>}
-      {msg.tipo === "video" && hasMedia && <video controls src={msg.midia_url} className="wa-msg-video" preload="none" />}
-      {msg.tipo === "document" && hasMedia && <a href={msg.midia_url} target="_blank" rel="noopener noreferrer" className="wa-msg-doc"><span className="wa-doc-icon">📄</span><div><strong>{msg.nome_arquivo || "Documento"}</strong><small>Baixar</small></div></a>}
-      {msg.conteudo && !["[Imagem]","[Áudio]","[Vídeo]","[sticker]","[Sticker]"].includes(msg.conteudo) && <p className="wa-msg-text">{msg.conteudo}</p>}
+      {t === "image" && hasMedia && <a href={url} target="_blank" rel="noopener noreferrer"><img src={url} alt="" className="wa-msg-img" loading="lazy" /></a>}
+      {t === "image" && !hasMedia && <p className="wa-msg-text">📷 {msg.conteudo || "[Imagem]"}</p>}
+      {t === "sticker" && hasMedia && <img src={url} alt="" className="wa-msg-sticker" loading="lazy" />}
+      {t === "sticker" && !hasMedia && <p className="wa-msg-text">🏷️ [Sticker]</p>}
+      {(t === "audio" || t === "ptt") && hasMedia && <AudioPlayer src={url} />}
+      {(t === "audio" || t === "ptt") && !hasMedia && <p className="wa-msg-text">🎵 [Áudio]</p>}
+      {t === "video" && hasMedia && <video controls src={url} className="wa-msg-video" preload="none" />}
+      {t === "video" && !hasMedia && <p className="wa-msg-text">🎬 [Vídeo]</p>}
+      {t === "document" && hasMedia && <a href={url} target="_blank" rel="noopener noreferrer" className="wa-msg-doc"><span className="wa-doc-icon">📄</span><div><strong>{msg.nome_arquivo || "Documento"}</strong><small>Baixar</small></div></a>}
+      {t === "document" && !hasMedia && <p className="wa-msg-text">📄 {msg.conteudo || "[Documento]"}</p>}
+      {t === "contact" && <p className="wa-msg-text">👤 {msg.conteudo}</p>}
+      {t === "location" && <p className="wa-msg-text">📍 {msg.conteudo}</p>}
+      {t === "text" && msg.conteudo && <p className="wa-msg-text">{msg.conteudo}</p>}
+      {!["image","sticker","audio","ptt","video","document","contact","location","text"].includes(t) && msg.conteudo && <p className="wa-msg-text">{msg.conteudo}</p>}
+      {hasMedia && (t === "image" || t === "video") && msg.conteudo && !hideText && <p className="wa-msg-caption">{msg.conteudo}</p>}
       <span className="wa-hora">{fmtHora(msg.criado_em)}</span>
     </div>
   );
