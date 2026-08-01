@@ -110,7 +110,15 @@ export default function App() {
     setTimeout(() => setNotifs((p) => p.filter((n) => n.id !== id)), 8000);
   };
 
-  const temPerm = (mod) => { try { return isMaster || isAdmin || !userPerms?.modulos?.length || (userPerms?.modulos || []).includes(mod); } catch { return true; } };
+  const temPerm = (mod) => {
+    try {
+      if (isMaster || isAdmin) return true;
+      // Se não tem registro de permissões, acesso total (padrão)
+      if (!userPerms || !userPerms.modulos) return true;
+      // Se tem registro mas modulos está vazio = sem acesso a nada
+      return userPerms.modulos.includes(mod);
+    } catch { return true; }
+  };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
@@ -406,60 +414,60 @@ export default function App() {
           {/* PRINCIPAIS */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
-            <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>
+            {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>
               <Icon.Chart /> <span>Dashboard</span>
-            </button>
-            <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
+            </button>}
+            {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
               <Icon.ListCheck /> <span>Acompanhamento</span>
-            </button>
-            <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
+            </button>}
+            {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
               <Icon.Clipboard /> <span>Tarefas</span>
-            </button>
+            </button>}
           </div>
 
           {/* COMERCIAL */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Comercial</div>
-            <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
+            {temPerm("whatsapp") && <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
               <Icon.Chat /> <span>Conversas</span>
-            </button>
-            <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}>
+            </button>}
+            {temPerm("crm") && <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}>
               <Icon.Users /> <span>CRM</span>
-            </button>
-            <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}>
+            </button>}
+            {temPerm("metas") && <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}>
               <Icon.Target /> <span>Painel de Metas</span>
-            </button>
-            <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
+            </button>}
+            {temPerm("crm-analises") && <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
               <Icon.Chart /> <span>Análises</span>
-            </button>
-            <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}>
+            </button>}
+            {temPerm("crm-auto") && <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}>
               <Icon.Target /> <span>Automações</span>
-            </button>
-            <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
+            </button>}
+            {temPerm("crm-params") && <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
               <Icon.Settings /> <span>Parâmetros de CRM</span>
-            </button>
+            </button>}
           </div>
 
           {/* FINANCEIRO */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Financeiro</div>
-            <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
+            {temPerm("fluxo") && <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
               <Icon.Cash /> <span>Fluxo de Caixa</span>
-            </button>
-            <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
+            </button>}
+            {temPerm("gestao") && <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
               <Icon.Users /> <span>Gestão de Clientes</span>
-            </button>
-            <button className={view === "obz" ? "active" : ""} onClick={() => setView("obz")}>
+            </button>}
+            {temPerm("obz") && <button className={view === "obz" ? "active" : ""} onClick={() => setView("obz")}>
               <Icon.Cash /> <span>OBZ</span>
-            </button>
+            </button>}
           </div>
 
           {/* LOG DE TAREFAS */}
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Log de Tarefas</div>
-            <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}>
+            {temPerm("registro-tarefas") && <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}>
               <Icon.ListCheck /> <span>Registro de Tarefas</span>
-            </button>
+            </button>}
           </div>
 
           {/* ADMINISTRATIVO */}
