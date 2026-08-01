@@ -73,6 +73,8 @@ export default function App() {
   const [clienteAberto, setClienteAberto] = useState(null);
 
   const isAdmin = user?.papel === "admin";
+  const temPerm = (mod) => { try { return isAdmin || !userPerms?.modulos?.length || (userPerms?.modulos || []).includes(mod); } catch { return true; } };
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   // ----- inicialização da sessão -----
