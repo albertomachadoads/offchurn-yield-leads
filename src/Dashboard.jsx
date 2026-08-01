@@ -85,7 +85,7 @@ function VendedorCard({ pessoa, leads, etGanho, etPerdido, tarefas, meta }) {
   );
 }
 
-export default function Dashboard({ clientes, tarefas, pessoas, onToast, isAdmin }) {
+export default function Dashboard({ clientes, tarefas, pessoas, onToast, isAdmin, onVerLead }) {
   const [periodo, setPeriodo] = useState("30d");
   const [crm, setCrm] = useState(null);
   const [vendedorFiltro, setVendedorFiltro] = useState(["todos"]);
@@ -180,6 +180,56 @@ export default function Dashboard({ clientes, tarefas, pessoas, onToast, isAdmin
           </div>
         </div>
 
+        {/* Lista detalhada de tarefas do CRM */}
+        <div className="card card-pad" style={{ gridColumn: "1 / -1" }}>
+          <h3 className="dash-h3">Tarefas do CRM</h3>
+          {(() => {
+            const hoje = new Date().toISOString().slice(0, 10);
+            const ativCRM = (crm?.atividades || []).filter((a) => a.tipo === "tarefa" && a.status !== "cancelada");
+            const leadsMap = {};
+            (crm?.leads || []).forEach((l) => { leadsMap[l.id] = l; });
+            const tarefasCRM = ativCRM.map((a) => ({
+              ...a,
+              leadNome: leadsMap[a.leadId]?.nome || "—",
+              leadId: a.leadId,
+              atrasada: a.dataPrevista && a.dataPrevista.slice(0, 10) < hoje && a.status !== "concluida",
+              pendente: !a.status || a.status === "pendente",
+              concluida: a.status === "concluida",
+            })).sort((a, b) => (a.atrasada ? -1 : 1));
+            
+            if (tarefasCRM.length === 0) return <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Nenhuma tarefa no CRM</p>;
+            
+            return (
+              <div className="dash-tarefas-lista">
+                {tarefasCRM.slice(0, 20).map((t) => (
+                  <div key={t.id} className={`dash-tarefa-row ${t.atrasada ? "dash-tarefa-atrasada" : ""}`}
+                    onClick={() => onVerLead && onVerLead(t.leadId)} style={{ cursor: "pointer" }}>
+                    <div className="dash-tarefa-status">
+                      {t.concluida ? <span style={{ color: "var(--green)" }}>✓</span> : t.atrasada ? <span style={{ color: "var(--red)" }}>!</span> : <span style={{ color: "var(--amber, #e6a817)" }}>●</span>}
+                    </div>
+                    <div className="dash-tarefa-info">
+                      <div className="dash-tarefa-desc">{t.descricao}</div>
+                      <div className="dash-tarefa-meta">
+                        <span className="dash-tarefa-lead">📋 {t.leadNome}</span>
+                        {t.dataPrevista && <span> · Prevista: {t.dataPrevista.slice(0, 10).split("-").reverse().join("/")}</span>}
+                        {t.responsavelNome && <span> · {t.responsavelNome}</span>}
+                      </div>
+                    </div>
+                    <div>
+                      {t.atrasada && <span className="pill" style={{ background: "#fee2e2", color: "#dc2626", fontSize: 9 }}>ATRASADA</span>}
+                      {t.pendente && !t.atrasada && <span className="pill" style={{ background: "#fef3c7", color: "#d97706", fontSize: 9 }}>PENDENTE</span>}
+                      {t.concluida && <span className="pill done" style={{ fontSize: 9 }}>CONCLUÍDA</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+
+      </div>
+
+      <div className="dash-grid">
         <div className="card card-pad">
           <h3 className="dash-h3">Reuniões agendadas</h3>
           {stats.reunioes?.length > 0 ? (

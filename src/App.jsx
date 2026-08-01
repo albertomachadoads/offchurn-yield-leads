@@ -519,7 +519,7 @@ export default function App() {
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
         {view === "dashboard" && (
-          <Dashboard clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} />
+          <Dashboard clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }} />
         )}
 
         {view === "acompanhamento" && (

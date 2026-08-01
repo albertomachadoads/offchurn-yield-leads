@@ -1374,3 +1374,16 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .perm-tab { }
 
 
+
+.dash-tarefas-lista { display: flex; flex-direction: column; gap: 4px; max-height: 400px; overflow-y: auto; }
+.dash-tarefa-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: var(--bg); transition: background .1s; }
+.dash-tarefa-row:hover { background: var(--green-softer); }
+.dash-tarefa-atrasada { background: #fff5f5; }
+.dash-tarefa-atrasada:hover { background: #fee2e2; }
+.tema-escuro .dash-tarefa-row { background: var(--surface); }
+.tema-escuro .dash-tarefa-atrasada { background: #3a1a1a; }
+.dash-tarefa-status { font-size: 16px; width: 24px; text-align: center; flex-shrink: 0; }
+.dash-tarefa-info { flex: 1; min-width: 0; }
+.dash-tarefa-desc { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-tarefa-meta { font-size: 11px; color: var(--ink-faint); display: flex; gap: 4px; flex-wrap: wrap; }
+.dash-tarefa-lead { font-weight: 600; }
