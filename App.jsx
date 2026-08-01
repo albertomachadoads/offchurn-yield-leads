@@ -4,16 +4,40 @@ import { CRITICIDADES, TIPOS_META, ADERENCIAS } from "./store";
 import { fmtData, fmtValor, fmtMoeda, hoje, exportarXLSX } from "./utils";
 import { Icon, Modal } from "./components.jsx";
 import { calcTaxas, corTaxa } from "./taxas";
-import Painel from "./Painel.jsx";
+import GestaoClientes from "./GestaoClientes.jsx";
+import FluxoCaixa from "./FluxoCaixa.jsx";
+import Clientes from "./Clientes.jsx";
+import ClienteDetalhe from "./ClienteDetalhe.jsx";
 import FollowAcoes from "./FollowAcoes.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
+import Logs from "./Logs.jsx";
+import OBZ from "./OBZ.jsx";
+import CRMParametros from "./CRMParametros.jsx";
+import CRM from "./CRM.jsx";
+import CRMAutomacoes from "./CRMAutomacoes.jsx";
+import WhatsAppChat from "./WhatsAppChat.jsx";
+import Dashboard from "./Dashboard.jsx";
+import PainelMetas from "./PainelMetas.jsx";
+import CRMAnalises from "./CRMAnalises.jsx";
+import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
+import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured } from "./supabaseClient";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
 
-const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [] };
+const EMPTY = { clientes: [], gestores: [], pessoas: [], acompanhamentos: [], tarefas: [], perfis: [], painel: [], recebiveis: [], desempenho: [] };
+
+function SemPermissao() {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", color: "var(--ink-faint)" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+      <h2 style={{ margin: 0, color: "var(--ink)" }}>Acesso restrito</h2>
+      <p style={{ marginTop: 8, fontSize: 14 }}>Você não tem permissão para acessar este módulo. Entre em contato com o administrador.</p>
+    </div>
+  );
+}
 
 export default function App() {
   // ----- sessão / auth -----
@@ -26,14 +50,38 @@ export default function App() {
   const [carregando, setCarregando] = useState(false);
   const [erroCarga, setErroCarga] = useState("");
 
-  const [view, setView] = useState("acompanhamento");
+  const [view, setView] = useState(() => {
+    const path = window.location.pathname.replace("/", "");
+    return path || "dashboard";
+  });
+
+  // Sync URL com view
+  useEffect(() => {
+    if (window.location.pathname !== "/" + view) {
+      window.history.pushState({}, "", "/" + view);
+    }
+  }, [view]);
+
+  // Botão voltar do navegador
+  useEffect(() => {
+    function onPop() { const p = window.location.pathname.replace("/", ""); setView(p || "dashboard"); }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [toast, setToast] = useState(null);
+  const [userPerms, setUserPerms] = useState({});
+  const [notifs, setNotifs] = useState([]);
   // sidebar recolhida por padrão; expande no hover ou fixada por botão
   const [sidebarFixa, setSidebarFixa] = useState(false);
   // tema (claro/escuro) — lê preferência salva
+  const [agFiltro, setAgFiltro] = useState("todas"); // "todas" | "Yield" | "Mads"
+
   const [tema, setTema] = useState(() => {
     try { return localStorage.getItem("offchurn_tema") || "claro"; } catch { return "claro"; }
   });
+  // instalar captura global de erros (uma vez)
+  useEffect(() => { instalarCaptura(); }, []);
+
   useEffect(() => {
     try { localStorage.setItem("offchurn_tema", tema); } catch { /* ignore */ }
   }, [tema]);
@@ -51,8 +99,27 @@ export default function App() {
   const [cliModal, setCliModal] = useState(null);
   const [gestModal, setGestModal] = useState(null);
   const [pesModal, setPesModal] = useState(null);
+  const [clienteAberto, setClienteAberto] = useState(null);
 
-  const isAdmin = user?.papel === "admin";
+  const MASTER_EMAILS = ["albertomachadoads@gmail.com"];
+  const isMaster = MASTER_EMAILS.includes(user?.email?.toLowerCase());
+  const isAdmin = isMaster || user?.papel === "admin";
+  const addNotif = (msg, tipo) => {
+    const id = Date.now();
+    setNotifs((p) => [...p, { id, msg, tipo }]);
+    setTimeout(() => setNotifs((p) => p.filter((n) => n.id !== id)), 8000);
+  };
+
+  const temPerm = (mod) => {
+    try {
+      if (isMaster || isAdmin) return true;
+      // Sem registro de permissões = acesso total (padrão)
+      if (!userPerms?._configured) return true;
+      // Com registro: verificar se módulo está na lista
+      return (userPerms.modulos || []).includes(mod);
+    } catch { return true; }
+  };
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   // ----- inicialização da sessão -----
@@ -63,6 +130,7 @@ export default function App() {
       try {
         const u = await getSessionUser();
         setUser(u);
+        if (u) setLogUser(u.id, u.nome);
       } catch (e) {
         if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
       } finally {
@@ -74,6 +142,7 @@ export default function App() {
           const u = await getSessionUser();
           setUser(u);
           setAvisoLogin("");
+          if (u) { setLogUser(u.id, u.nome); setProtecaoUser(u); instalarProtecaoDevTools(); logAcao("login", `${u.nome} entrou no sistema`); }
         } catch (e) {
           if (e?.bloqueado) { setUser(null); setAvisoLogin(e.message); }
         }
@@ -101,6 +170,58 @@ export default function App() {
 
   useEffect(() => { if (user) recarregar(); }, [user, recarregar]);
 
+  // Notificações em tempo real
+  useEffect(() => {
+    try {
+      const ch = supabase.channel("notifs-global")
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_mensagens" }, (payload) => {
+          try { if (payload.new?.direcao === "in") addNotif("Nova mensagem no WhatsApp", "whatsapp"); } catch {}
+        })
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "crm_atividades" }, (payload) => {
+          try { if (payload.new?.tipo === "tarefa") addNotif("Você possui uma nova tarefa", "tarefa"); } catch {}
+        })
+        .subscribe();
+      return () => { try { supabase.removeChannel(ch); } catch {} };
+    } catch { return () => {}; }
+  }, []);
+
+  // Carregar permissões do usuário logado
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      try {
+        let pessoaId = null;
+
+        // Tentar 1: perfis.id = user.id (tabela perfis usa auth UUID direto)
+        const r1 = await supabase.from("perfis").select("id").eq("id", user.id).maybeSingle();
+        if (r1.data) pessoaId = r1.data.id;
+
+        // Tentar 2: pessoas com auth_id
+        if (!pessoaId) {
+          const r2 = await supabase.from("pessoas").select("id").eq("auth_id", user.id).maybeSingle();
+          if (r2.data) pessoaId = r2.data.id;
+        }
+
+        // Tentar 3: pessoas com email
+        if (!pessoaId && user.email) {
+          const r3 = await supabase.from("pessoas").select("id").eq("email", user.email).maybeSingle();
+          if (r3.data) pessoaId = r3.data.id;
+        }
+
+        if (!pessoaId) { setUserPerms({ _none: true }); return; }
+
+        // Buscar permissões
+        const { data: perm } = await supabase.from("permissoes_usuario").select("*").eq("pessoa_id", pessoaId).maybeSingle();
+        
+        if (perm) {
+          setUserPerms({ ...perm, _configured: true });
+        } else {
+          setUserPerms({ _none: true }); // Sem config = acesso total
+        }
+      } catch { setUserPerms({ _none: true }); }
+    })();
+  }, [user?.id]);
+
   // ----- tempo real -----
   useEffect(() => {
     if (!user || !supabaseConfigured) return;
@@ -111,11 +232,19 @@ export default function App() {
   // ----- derivados -----
   const cliById = useMemo(() => Object.fromEntries(data.clientes.map((c) => [c.id, c])), [data.clientes]);
   const gestById = useMemo(() => Object.fromEntries(data.gestores.map((g) => [g.id, g])), [data.gestores]);
+  // filtra TUDO pela agência selecionada (exceto o próprio cadastro de clientes)
+  const clientesFiltrados = useMemo(() => {
+    if (agFiltro === "todas") return data.clientes;
+    return data.clientes.filter((c) => c.agencia === agFiltro);
+  }, [data.clientes, agFiltro]);
+  const idsAgencia = useMemo(() => new Set(clientesFiltrados.map((c) => c.id)), [clientesFiltrados]);
+
+  const pesById = useMemo(() => Object.fromEntries((data.pessoas || []).map((p) => [p.id, p])), [data.pessoas]);
   const respDoCliente = (clienteId) => gestById[cliById[clienteId]?.responsavelId]?.nome || "—";
 
   const registrosFiltrados = useMemo(() => {
     return (data.acompanhamentos || [])
-      .filter((r) => semana.size === 0 ? true : semana.has(r.clienteId))
+      .filter((r) => idsAgencia.has(r.clienteId)) // filtra por agência
       .filter((r) => {
         if (fGestor !== "todos" && cliById[r.clienteId]?.responsavelId !== fGestor) return false;
         if (fAder !== "todas" && r.aderencia !== fAder) return false;
@@ -148,13 +277,25 @@ export default function App() {
       await api.upsertAcomp(reg, user?.id);
       setRegModal(null);
       showToast("Acompanhamento salvo");
+      logAcao("acompanhamento", `Registro ${reg.id ? "editado" : "criado"} para cliente ${reg.clienteId?.slice(0,8)}`);
       recarregar();
     } catch (e) { showToast("Erro: " + (e.message || "falha ao salvar")); }
   }
   async function excluirRegistro(id) {
     if (!confirm("Excluir este registro do histórico?")) return;
-    try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.deleteAcomp(id); showToast("Registro removido"); recarregar();
+      logAcao("acompanhamento", "Registro de acompanhamento excluído");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("acompanhamento", "Falha ao excluir: " + e.message); }
+  }
+
+  async function excluirCliente(id) {
+    if (!confirm("Excluir este cliente permanentemente? Todos os dados relacionados serão removidos.")) return;
+    try {
+      await api.deleteCliente(id);
+      showToast("Cliente excluído");
+      logAcao("cliente", "Cliente excluído: " + id.slice(0,8));
+      recarregar();
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao excluir cliente: " + e.message); }
   }
 
   async function salvarCliente(c) {
@@ -162,45 +303,111 @@ export default function App() {
       const saved = await api.upsertCliente(c);
       if (saved.ativo) setSemana((s) => new Set(s).add(saved.id));
       setCliModal(null); showToast("Cliente salvo"); recarregar();
-    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+      logAcao("cliente", `Cliente ${c.id ? "editado" : "criado"}: ${c.nome}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao salvar cliente: " + e.message); }
   }
   async function toggleAtivo(c) {
-    try { await api.upsertCliente({ ...c, ativo: !c.ativo }); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertCliente({ ...c, ativo: !c.ativo }); recarregar();
+      logAcao("cliente", `${c.nome} marcado como ${!c.ativo ? "Ativo" : "Inativo"}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao alternar ativo: " + e.message); }
+  }
+
+  async function excluirGestor(id) {
+    if (!confirm("Excluir este gestor?")) return;
+    try { await api.deleteGestor(id); showToast("Gestor excluído"); recarregar();
+      logAcao("gestor", "Gestor excluído");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
+  }
+  async function excluirPessoa(id) {
+    if (!confirm("Excluir esta pessoa?")) return;
+    try { await api.deletePessoa(id); showToast("Pessoa excluída"); recarregar();
+      logAcao("equipe", "Pessoa excluída");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); }
   }
 
   async function salvarGestor(g) {
-    try { await api.upsertGestor(g); setGestModal(null); showToast("Gestor salvo"); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertGestor(g); setGestModal(null); showToast("Gestor salvo"); recarregar();
+      logAcao("gestor", `Gestor ${g.id ? "editado" : "criado"}: ${g.nome}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("gestor", "Falha ao salvar gestor: " + e.message); }
   }
   async function salvarPessoa(p) {
-    try { await api.upsertPessoa(p); setPesModal(null); showToast("Pessoa salva"); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertPessoa(p); setPesModal(null); showToast("Pessoa salva"); recarregar();
+      logAcao("equipe", `Pessoa ${p.id ? "editada" : "criada"}: ${p.nome}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("equipe", "Falha ao salvar pessoa: " + e.message); }
+  }
+
+  function iniciarOnboarding(lead) {
+    // Pré-preencher o modal de cliente com dados do lead
+    setCliModal({
+      nome: lead.nome || "",
+      email: lead.email || "",
+      whatsapp: lead.whatsapp || "",
+      ticket: lead.valor || "",
+      ativo: true,
+    });
+    setView("cadastros");
+    showToast("Preencha os dados do novo cliente");
   }
 
   async function salvarTarefa(t) {
-    try { await api.upsertTarefa(t, user?.id); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.upsertTarefa(t, user?.id); recarregar();
+      logAcao("tarefa", `Tarefa ${t.id ? "editada" : "criada"}: ${(t.acao || "").slice(0,40)}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("tarefa", "Falha ao salvar tarefa: " + e.message); }
   }
   async function excluirTarefa(id) {
-    try { await api.deleteTarefa(id); recarregar(); }
-    catch (e) { showToast("Erro: " + (e.message || "falha")); }
+    try { await api.deleteTarefa(id); recarregar();
+      logAcao("tarefa", "Tarefa excluída");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("tarefa", "Falha ao excluir tarefa: " + e.message); }
+  }
+
+  async function salvarFunil(dados) {
+    try {
+      await api.upsertFunil(dados, user?.id);
+      recarregar();
+      logAcao("funil", `Funil salvo: ${dados.plataforma} ${dados.competencia}`);
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("funil", "Falha ao salvar funil: " + e.message); }
   }
 
   async function salvarPainel(dados) {
-    await api.upsertPainel(dados, user?.id);
+    try {
+      await api.upsertPainel(dados, user?.id);
+      recarregar();
+      logAcao("painel", "Painel salvo");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("painel", "Falha ao salvar painel: " + e.message); }
+  }
+
+  async function lancarDesempenho(dados) {
+    try {
+      await api.upsertDesempenho(dados, user?.id);
+      recarregar();
+      logAcao("desempenho", "Desempenho lançado manualmente");
+    } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("desempenho", "Falha ao lançar desempenho: " + e.message); }
+  }
+
+  async function marcarPago(dados) {
+    await api.upsertRecebivel(dados, user?.id);
     recarregar();
   }
 
-  const painelPorCliente = useMemo(
-    () => Object.fromEntries((data.painel || []).map((p) => [p.clienteId, p])),
-    [data.painel]
-  );
+  const painelPorCliente = useMemo(() => {
+    const d = new Date();
+    const comp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const m = {};
+    (data.funil || []).filter((f) => f.competencia === comp).forEach((f) => {
+      const x = m[f.clienteId] || { captados: 0, qualificados: 0, fechados: 0 };
+      x.captados += f.captados || 0;
+      x.qualificados += f.qualificados || 0;
+      x.fechados += f.vendidos || 0;
+      m[f.clienteId] = x;
+    });
+    return m;
+  }, [data.funil]);
 
   function exportar() {
     const base = registrosFiltrados.length ? registrosFiltrados : data.acompanhamentos;
     exportarXLSX(base, data.clientes, data.gestores);
     showToast("Relatório exportado (.xlsx)");
+    logAcao("export", "Relatório de acompanhamento exportado");
   }
 
   // ----- telas de gate -----
@@ -219,28 +426,65 @@ export default function App() {
           </button>
           <div className="brand">
             <span className="mark">O</span>
-            <span className="name">OffChurn Yield Leads</span>
+            <span className="name">OffChurn</span>
           </div>
         </div>
+        <div className="ag-filtro">
+          <button className={agFiltro === "todas" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("todas")}>Todas</button>
+          <button className={agFiltro === "Yield" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Yield")}>Yield</button>
+          <button className={agFiltro === "Mads" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Mads")}>Mads</button>
+        </div>
         <nav className="nav">
-          <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
-            <Icon.ListCheck /> Acompanhamento
-          </button>
-          <button className={view === "painel" ? "active" : ""} onClick={() => setView("painel")}>
-            <Icon.Chart /> Painel
-          </button>
-          <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
-            <Icon.Target /> Follow de Ações
-          </button>
-          <button className={view === "semana" ? "active" : ""} onClick={() => setView("semana")}>
-            <Icon.Calendar /> Clientes da semana
-          </button>
-          {isAdmin && <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
-            <Icon.Folder /> Cadastros
-          </button>}
-          {isAdmin && <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-            <Icon.Users /> Administradores
-          </button>}
+          {/* PRINCIPAIS */}
+          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow")) && (
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Principais</div>
+            {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
+            {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
+            {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
+          </div>
+          )}
+
+          {/* COMERCIAL */}
+          {(temPerm("whatsapp") || temPerm("crm") || temPerm("metas") || temPerm("crm-analises") || temPerm("crm-auto") || temPerm("crm-params")) && (
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Comercial</div>
+            {temPerm("whatsapp") && <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}><Icon.Chat /> <span>Conversas</span></button>}
+            {temPerm("crm") && <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}><Icon.Users /> <span>CRM</span></button>}
+            {temPerm("metas") && <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}><Icon.Target /> <span>Painel de Metas</span></button>}
+            {temPerm("crm-analises") && <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}><Icon.Chart /> <span>Análises</span></button>}
+            {temPerm("crm-auto") && <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}><Icon.Target /> <span>Automações</span></button>}
+            {temPerm("crm-params") && <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}><Icon.Settings /> <span>Parâmetros de CRM</span></button>}
+          </div>
+          )}
+
+          {/* FINANCEIRO */}
+          {(temPerm("fluxo") || temPerm("gestao") || temPerm("obz")) && (
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Financeiro</div>
+            {temPerm("fluxo") && <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}><Icon.Cash /> <span>Fluxo de Caixa</span></button>}
+            {temPerm("gestao") && <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}><Icon.Users /> <span>Gestão de Clientes</span></button>}
+            {temPerm("obz") && <button className={view === "obz" ? "active" : ""} onClick={() => setView("obz")}><Icon.Cash /> <span>OBZ</span></button>}
+          </div>
+          )}
+
+          {/* LOG DE TAREFAS */}
+          {temPerm("registro-tarefas") && (
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Log de Tarefas</div>
+            <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}><Icon.ListCheck /> <span>Registro de Tarefas</span></button>
+          </div>
+          )}
+
+          {/* ADMINISTRATIVO — só admin/master */}
+          {isAdmin && (
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Administrativo</div>
+            <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}><Icon.Folder /> <span>Cadastros</span></button>
+            <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}><Icon.Settings /> <span>Administradores</span></button>
+            <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}><Icon.List /> <span>Logs</span></button>
+          </div>
+          )}
         </nav>
         <div className="sidebar-foot">
           <button className="btn btn-sm btn-ghost tema-toggle" onClick={() => setTema((t) => t === "claro" ? "escuro" : "claro")} title="Alternar tema">
@@ -261,6 +505,10 @@ export default function App() {
         <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
+        {view === "dashboard" && (
+          <Dashboard clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} />
+        )}
+
         {view === "acompanhamento" && (
           <Acompanhamento
             stats={stats} registros={registrosFiltrados} semana={semana}
@@ -271,24 +519,17 @@ export default function App() {
             fDe={fDe} setFDe={setFDe} fAte={fAte} setFAte={setFAte}
             gestores={data.gestores}
             painelPorCliente={painelPorCliente}
+            onAbrirCliente={(c) => { if (c) { setClienteAberto(c); setView("clientes"); } }}
             onNovo={() => setRegModal({ novo: true })}
             onEditar={(r) => setRegModal(r)}
             onExcluir={excluirRegistro}
             onExportar={exportar}
           />
         )}
-        {view === "painel" && (
-          <Painel
-            clientes={data.clientes}
-            painel={data.painel || []}
-            onSalvar={salvarPainel}
-            onToast={showToast}
-          />
-        )}
-        {view === "follow" && (
+                {view === "follow" && (
           <FollowAcoes
-            tarefas={data.tarefas || []}
-            clientes={data.clientes}
+            tarefas={(data.tarefas || []).filter((t) => idsAgencia.has(t.clienteId))}
+            clientes={clientesFiltrados}
             pessoas={data.pessoas || []}
             onSave={salvarTarefa}
             onDelete={excluirTarefa}
@@ -296,17 +537,97 @@ export default function App() {
             isAdmin={isAdmin}
           />
         )}
-        {view === "semana" && (
-          <SemanaSelector
-            clientes={data.clientes} semana={semana} setSemana={setSemana}
-            respDoCliente={respDoCliente}
+        {view === "clientes" && !clienteAberto && (
+          <Clientes
+            clientes={clientesFiltrados}
+            desempenho={data.desempenho || []}
+            onAbrir={(c) => setClienteAberto(c)}
+            onLancar={lancarDesempenho}
+            onVincularMeta={{
+              listar: api.metaListarContas,
+              salvar: async (contaId, clienteId) => {
+                // remove o vínculo de quem tinha essa conta e aplica no novo
+                const dono = data.clientes.find((c) => c.metaAdAccountId === contaId);
+                if (dono && dono.id !== clienteId) {
+                  await api.upsertCliente({ ...dono, metaAdAccountId: null });
+                }
+                if (clienteId) {
+                  const cli = data.clientes.find((c) => c.id === clienteId);
+                  if (cli) await api.upsertCliente({ ...cli, metaAdAccountId: contaId });
+                }
+                recarregar();
+              },
+            }}
+            onSincronizarMeta={async () => { const r = await api.metaSincronizar(); recarregar(); return r; }}
+            onToast={showToast}
           />
         )}
-        {view === "cadastros" && isAdmin && (
+        {view === "clientes" && clienteAberto && (
+          <ClienteDetalhe
+            cliente={data.clientes.find((c) => c.id === clienteAberto.id) || clienteAberto}
+            gestById={gestById}
+            desempenho={data.desempenho || []}
+            tarefas={data.tarefas || []}
+            pessoas={data.pessoas || []}
+            painel={data.painel || []}
+            acompanhamentos={data.acompanhamentos || []}
+            isAdmin={isAdmin}
+            onVoltar={() => setClienteAberto(null)}
+            onEditar={(c) => setCliModal(c)}
+            onListarContasMeta={api.metaListarContas}
+            onVincularConta={async (contaId) => {
+              const atual = data.clientes.find((c) => c.id === clienteAberto.id);
+              // desvincula quem tiver essa conta
+              if (contaId) {
+                const dono = data.clientes.find((c) => c.metaAdAccountId === contaId && c.id !== atual.id);
+                if (dono) await api.upsertCliente({ ...dono, metaAdAccountId: null });
+              }
+              await api.upsertCliente({ ...atual, metaAdAccountId: contaId });
+              recarregar();
+            }}
+            onSincronizarCliente={async () => { const r = await api.metaSincronizar(clienteAberto.id); recarregar(); return r; }}
+            funil={data.funil || []}
+            onSalvarFunil={salvarFunil}
+            onBuscarInsights={api.metaInsights}
+            onListarContasGoogle={api.googleListarContas}
+            onVincularContaGoogle={async (contaId, mccId) => {
+              const atual = data.clientes.find((c) => c.id === clienteAberto.id);
+              if (contaId) {
+                const dono = data.clientes.find((c) => c.googleAdCustomerId === contaId && c.id !== atual.id);
+                if (dono) await api.upsertCliente({ ...dono, googleAdCustomerId: null, googleMccId: null });
+              }
+              await api.upsertCliente({ ...atual, googleAdCustomerId: contaId, googleMccId: mccId });
+              recarregar();
+            }}
+            onSincronizarGoogle={async () => { const r = await api.googleSincronizar(clienteAberto.id); recarregar(); return r; }}
+            onBuscarInsightsGoogle={api.googleInsights}
+            onToast={showToast}
+          />
+        )}
+        {view === "gestao" && (
+          <GestaoClientes
+            clientes={clientesFiltrados}
+            gestById={gestById}
+            isAdmin={isAdmin}
+            onEditar={(c) => setCliModal(c)}
+          />
+        )}
+        {view === "fluxo" && (
+          <FluxoCaixa
+            clientes={clientesFiltrados}
+            recebiveis={data.recebiveis || []}
+            onMarcarPago={marcarPago}
+            onToast={showToast}
+          />
+        )}
+                {view === "cadastros" && isAdmin && (
           <Cadastros
             data={{ ...data, registros: data.acompanhamentos }}
             onNovoCliente={() => setCliModal({ novo: true })}
             onEditarCliente={(c) => setCliModal(c)}
+            onExcluirCliente={excluirCliente}
+            onExcluirGestor={excluirGestor}
+            onExcluirPessoa={excluirPessoa}
             onToggleAtivo={(id) => { const c = cliById[id]; if (c) toggleAtivo(c); }}
             onNovoGestor={() => setGestModal({ novo: true })}
             onEditarGestor={(g) => setGestModal(g)}
@@ -316,7 +637,74 @@ export default function App() {
           />
         )}
         {view === "admin" && isAdmin && (
-          <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} />
+          <Admin perfis={data.perfis || []} meuId={user.id} onToast={showToast} onReload={recarregar} isMaster={isMaster} />
+        )}
+        {view === "crm-params" && (
+          <CRMParametros onToast={showToast} />
+        )}
+
+        {view === "crm" && (
+          <CRM pessoas={data.pessoas || []} onToast={showToast} userName={user?.nome} isAdmin={isAdmin} onIniciarOnboarding={iniciarOnboarding} />
+        )}
+
+        {view === "crm-auto" && (
+          <CRMAutomacoes onToast={showToast} />
+        )}
+
+        {view === "whatsapp" && (
+          <WhatsAppChat isAdmin={isAdmin} onToast={showToast} instanciasPermitidas={userPerms?.wa_instancias || []} onVerLead={(leadId) => { setView("crm"); window.__abrirLeadId = leadId; }} />
+        )}
+
+        {view === "metas" && (
+          <PainelMetas clientes={data.clientes || []} onToast={showToast} />
+        )}
+
+        {view === "crm-analises" && (
+          <CRMAnalises onToast={showToast} pessoas={data.pessoas || []} />
+        )}
+
+        {view === "obz" && (
+          <OBZ
+            despesas={data.despesas || []}
+            clientes={clientesFiltrados}
+            recebiveis={data.recebiveis || []}
+            onSave={async (d) => { await api.upsertDespesa(d, user?.id); recarregar(); logAcao("obz", `Despesa ${d.id ? "editada" : "criada"}: ${d.nome}`); }}
+            onDelete={async (id) => { await api.deleteDespesa(id); recarregar(); logAcao("obz", "Despesa excluída"); }}
+            onToast={showToast}
+          />
+        )}
+
+        {view === "registro-tarefas" && (
+          <>
+            <div className="page-head">
+              <div><h1>Registro de Tarefas</h1><p>Todas as tarefas do sistema, com filtros e histórico completo.</p></div>
+            </div>
+            <div className="table-wrap">
+              <table className="grid">
+                <thead>
+                  <tr><th style={{width:90}}>ID</th><th style={{width:90}}>Grupo</th><th>Título</th><th>Cliente</th><th>Responsável</th><th>Status</th><th>Execução</th><th>Entrega</th></tr>
+                </thead>
+                <tbody>
+                  {(data.tarefas || []).filter((t) => idsAgencia.has(t.clienteId)).sort((a,b)=>(a.dataCriacao<b.dataCriacao?1:-1)).map((t) => (
+                    <tr key={t.id}>
+                      <td className="cell-num" style={{fontFamily:"monospace",fontSize:11}}>{t.id ? t.id.slice(0,8).toUpperCase() : "—"}</td>
+                      <td><span className="pill">Tráfego</span></td>
+                      <td className="cell-cliente">{t.titulo || t.acao || "—"}</td>
+                      <td>{cliById[t.clienteId]?.nome || "—"}</td>
+                      <td>{pesById[t.responsavelId]?.nome || "—"}</td>
+                      <td><span className={"pill " + (t.etapa === "Feito" ? "done" : t.etapa === "Atrasada" || t.etapa === "Parado" ? "off" : "")}>{t.etapa}</span></td>
+                      <td className="cell-num">{t.dataExecucao || "—"}</td>
+                      <td className="cell-num">{t.dataEntrega || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {view === "logs" && isAdmin && (
+          <Logs onToast={showToast} />
         )}
         </ErrorBoundary>
       </main>
@@ -339,6 +727,12 @@ export default function App() {
       )}
 
       {toast && <div className="toast"><Icon.Check stroke="#7ee0a6" /> {toast}</div>}
+      <div className="notif-stack">{notifs.map((n) => (
+        <div key={n.id} className={`notif-item notif-${n.tipo}`} onClick={() => { if (n.tipo === "whatsapp") setView("whatsapp"); setNotifs((p) => p.filter((x) => x.id !== n.id)); }}>
+          <span className="notif-icon">{n.tipo === "whatsapp" ? "💬" : "📋"}</span>
+          <span>{n.msg}</span>
+        </div>
+      ))}</div>
     </div>
   );
 }
@@ -388,7 +782,7 @@ function TaxaQualBar({ pct }) {
 function Acompanhamento(props) {
   const { stats, registros, semana, respDoCliente, cliById, busca, setBusca,
     fGestor, setFGestor, fAder, setFAder, fDe, setFDe, fAte, setFAte,
-    gestores, painelPorCliente, onNovo, onEditar, onExcluir, onExportar } = props;
+    gestores, painelPorCliente, onAbrirCliente, onNovo, onEditar, onExcluir, onExportar } = props;
 
   // taxa de qualificação do cliente, vinda do Painel
   const taxaQualDoCliente = (clienteId) => {
@@ -474,7 +868,7 @@ function Acompanhamento(props) {
                 <tr key={r.id}>
                   <td className="cell-num">{fmtData(r.data)}</td>
                   <td>{respDoCliente(r.clienteId)}</td>
-                  <td className="cell-cliente">{cliById[r.clienteId]?.nome || "—"}</td>
+                  <td className="cell-cliente"><button className="link-cliente" onClick={() => onAbrirCliente && onAbrirCliente(cliById[r.clienteId])}>{cliById[r.clienteId]?.nome || "—"}</button></td>
                   <td><TaxaQualBar pct={pctQual} /></td>
                   <td className="cell-acomp">{r.acompanhamento || "—"}</td>
                   <td>
@@ -534,7 +928,7 @@ function SemanaSelector({ clientes, semana, setSemana, respDoCliente }) {
 }
 
 /* ============ CADASTROS ============ */
-function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onNovaPessoa, onEditarPessoa, gestById }) {
+function Cadastros({ data, onNovoCliente, onEditarCliente, onExcluirCliente, onToggleAtivo, onNovoGestor, onEditarGestor, onExcluirGestor, onNovaPessoa, onEditarPessoa, onExcluirPessoa, gestById }) {
   const pessoas = data.pessoas || [];
   const tarefas = data.tarefas || [];
   return (
@@ -554,7 +948,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
                 <div>
                   <div className="lr-name">{c.nome}</div>
                   <div className="lr-meta">
-                    {gestById[c.responsavelId]?.nome || "Sem gestor"}
+                    {c.agencia && <><span className="pill pill-ag">{c.agencia}</span> · </>}{gestById[c.responsavelId]?.nome || "Sem gestor"}
                     {(c.verbaMensal != null || c.cpa != null) && (
                       <span className="lr-extra">
                         {c.verbaMensal != null && <> · Verba {fmtMoeda(c.verbaMensal)}</>}
@@ -568,6 +962,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
                     {c.ativo ? "Ativo" : "Inativo"}
                   </span>
                   <button className="iconbtn" onClick={() => onEditarCliente(c)} aria-label="Editar"><Icon.Edit /></button>
+                  <button className="iconbtn" onClick={() => onExcluirCliente(c.id)} aria-label="Excluir" title="Excluir cliente"><Icon.Trash /></button>
                 </div>
               </div>
             ))}
@@ -590,6 +985,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
                       <div className="lr-meta">{qtd} cliente(s)</div>
                     </div>
                     <button className="iconbtn" onClick={() => onEditarGestor(g)} aria-label="Editar"><Icon.Edit /></button>
+                    <button className="iconbtn" onClick={() => onExcluirGestor(g.id)} aria-label="Excluir" title="Excluir gestor"><Icon.Trash /></button>
                   </div>
                 );
               })}
@@ -613,6 +1009,7 @@ function Cadastros({ data, onNovoCliente, onEditarCliente, onToggleAtivo, onNovo
                       <div className="lr-meta">{qtd} tarefa(s) vinculada(s)</div>
                     </div>
                     <button className="iconbtn" onClick={() => onEditarPessoa(p)} aria-label="Editar"><Icon.Edit /></button>
+                    <button className="iconbtn" onClick={() => onExcluirPessoa(p.id)} aria-label="Excluir" title="Excluir pessoa"><Icon.Trash /></button>
                   </div>
                 );
               })}
@@ -635,6 +1032,7 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
     clienteId: base.clienteId || clientes[0]?.id || "",
     // campos legados mantidos com padrão (colunas ainda existem no banco)
     criticidade: base.criticidade || "Normal",
+    agencia: base.agencia || "Yield",
     tipoMeta: base.tipoMeta || "Faturamento",
     meta: base.meta ?? null,
     realizado: base.realizado ?? null,
@@ -692,6 +1090,21 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     ativo: base.ativo ?? true,
     cpa: base.cpa ?? "",
     verbaMensal: base.verbaMensal ?? "",
+    nicho: base.nicho || "",
+    objetivo: base.objetivo || "Lead",
+    dataEntrada: base.dataEntrada || "",
+    dataSaidaPrevista: base.dataSaidaPrevista || "",
+    ticket: base.ticket ?? "",
+    recorrencia: base.recorrencia || "Mensal",
+    diaPagamento: base.diaPagamento ?? "",
+    linkDrive: base.linkDrive || "",
+    nps: base.nps ?? "",
+    platGoogle: base.platGoogle ?? false,
+    platMeta: base.platMeta ?? false,
+    cpaMeta: base.cpaMeta ?? "",
+    metaAdAccountId: base.metaAdAccountId || null,
+    googleAdCustomerId: base.googleAdCustomerId || null,
+    googleMccId: base.googleMccId || null,
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   return (
@@ -703,28 +1116,123 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
         <button className="btn btn-primary" onClick={() => f.nome.trim() && onSave(f)} disabled={!f.nome.trim()}>Salvar</button>
       </>}
     >
-      <div className="form-row">
-        <label>Nome do cliente</label>
-        <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Pink Ninas" autoFocus />
+      <div className="form-grid">
+        <div className="form-row">
+          <label>Nome do cliente</label>
+          <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Pink Ninas" autoFocus />
+        </div>
+        <div className="form-row">
+          <label>Nicho</label>
+          <input className="input" value={f.nicho} onChange={(e) => set("nicho", e.target.value)} placeholder="Ex.: Moda, Advocacia" />
+        </div>
       </div>
+
+      <div className="form-row">
+        <label>Objetivo do cliente</label>
+        <select className="select" value={f.objetivo} onChange={(e) => set("objetivo", e.target.value)}>
+          <option value="Lead">Lead (funil de leads e taxas)</option>
+          <option value="Faturamento">Faturamento (vendas, VGV e ROAS)</option>
+          <option value="Não metrificado">Resultado não metrificado (painel em branco)</option>
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Agência</label>
+        <select className="select" value={f.agencia} onChange={(e) => set("agencia", e.target.value)}>
+          <option value="Yield">Yield</option>
+          <option value="Mads">Mads</option>
+        </select>
+      </div>
+      <div className="form-row">
+        <label>Nível de criticidade</label>
+        <select className="select" value={f.criticidade} onChange={(e) => set("criticidade", e.target.value)}>
+          <option value="Baixo">Baixo</option>
+          <option value="Normal">Normal</option>
+          <option value="Alto">Alto</option>
+          <option value="Crítico">Crítico</option>
+        </select>
+      </div>
+
       <div className="form-row">
         <label>Gestor responsável</label>
         <select className="select" value={f.responsavelId} onChange={(e) => set("responsavelId", e.target.value)}>
           {gestores.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </select>
       </div>
+
+      <div className="modal-sec">Contrato</div>
       <div className="form-grid">
         <div className="form-row">
-          <label>CPA (R$)</label>
-          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 45,00"
-            value={f.cpa} onChange={(e) => set("cpa", e.target.value)} />
+          <label>Data de entrada</label>
+          <input type="date" className="input" value={f.dataEntrada} onChange={(e) => set("dataEntrada", e.target.value)} />
         </div>
+        <div className="form-row">
+          <label>Saída prevista</label>
+          <input type="date" className="input" value={f.dataSaidaPrevista} onChange={(e) => set("dataSaidaPrevista", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="form-grid form-grid-3">
+        <div className="form-row">
+          <label>Ticket (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 2500,00"
+            value={f.ticket} onChange={(e) => set("ticket", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>Recorrência</label>
+          <select className="select" value={f.recorrencia} onChange={(e) => set("recorrencia", e.target.value)}>
+            <option value="Mensal">Mensal</option>
+            <option value="Único">Pagamento único</option>
+          </select>
+        </div>
+        <div className="form-row">
+          <label>Dia do pagamento</label>
+          <input type="number" min="1" max="31" className="input" placeholder="Ex.: 10"
+            value={f.diaPagamento} onChange={(e) => set("diaPagamento", e.target.value)}
+            disabled={f.recorrencia === "Único"} />
+        </div>
+      </div>
+
+      <div className="modal-sec">Tráfego</div>
+      <div className="form-grid form-grid-3">
         <div className="form-row">
           <label>Verba mensal (R$)</label>
           <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 10000,00"
             value={f.verbaMensal} onChange={(e) => set("verbaMensal", e.target.value)} />
         </div>
+        <div className="form-row">
+          <label>CPA alvo (R$)</label>
+          <input type="number" min="0" step="0.01" className="input" placeholder="Ex.: 45,00"
+            value={f.cpaMeta} onChange={(e) => set("cpaMeta", e.target.value)} />
+        </div>
+        <div className="form-row">
+          <label>NPS (0 a 100)</label>
+          <input type="number" min="0" max="100" className="input" placeholder="Ex.: 80"
+            value={f.nps} onChange={(e) => set("nps", e.target.value)} />
+        </div>
       </div>
+      <div className="form-row">
+        <label>Plataformas conectadas</label>
+        <div style={{ display: "flex", gap: 18, paddingTop: 4 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 500, cursor: "pointer" }}>
+            <input type="checkbox" checked={f.platGoogle} onChange={(e) => set("platGoogle", e.target.checked)} /> Google Ads
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 7, fontWeight: 500, cursor: "pointer" }}>
+            <input type="checkbox" checked={f.platMeta} onChange={(e) => set("platMeta", e.target.checked)} /> Meta Ads
+          </label>
+        </div>
+      </div>
+      <div className="form-row">
+        <label>CPA histórico (R$) — referência antiga</label>
+        <input type="number" min="0" step="0.01" className="input" placeholder="opcional"
+          value={f.cpa} onChange={(e) => set("cpa", e.target.value)} />
+      </div>
+
+      <div className="form-row">
+        <label>Link do Drive</label>
+        <input className="input" value={f.linkDrive} onChange={(e) => set("linkDrive", e.target.value)}
+          placeholder="https://drive.google.com/..." />
+      </div>
+
       <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <input type="checkbox" id="ativo" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} />
         <label htmlFor="ativo" style={{ margin: 0 }}>Cliente ativo (aparece no seletor da semana)</label>
