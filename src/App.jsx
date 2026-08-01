@@ -190,35 +190,26 @@ export default function App() {
     if (!user?.id) return;
     (async () => {
       try {
-        let pessoaId = null;
-
-        // Tentar 1: perfis.id = user.id (tabela perfis usa auth UUID direto)
-        const r1 = await supabase.from("perfis").select("id").eq("id", user.id).maybeSingle();
-        if (r1.data) pessoaId = r1.data.id;
-
-        // Tentar 2: pessoas com auth_id
-        if (!pessoaId) {
-          const r2 = await supabase.from("pessoas").select("id").eq("auth_id", user.id).maybeSingle();
-          if (r2.data) pessoaId = r2.data.id;
-        }
-
-        // Tentar 3: pessoas com email
-        if (!pessoaId && user.email) {
-          const r3 = await supabase.from("pessoas").select("id").eq("email", user.email).maybeSingle();
-          if (r3.data) pessoaId = r3.data.id;
-        }
-
-        if (!pessoaId) { setUserPerms({ _none: true }); return; }
-
-        // Buscar permissões
-        const { data: perm } = await supabase.from("permissoes_usuario").select("*").eq("pessoa_id", pessoaId).maybeSingle();
+        // Buscar permissões direto pelo user.id (= perfil.id = auth UUID)
+        const { data: perm, error } = await supabase
+          .from("permissoes_usuario")
+          .select("*")
+          .eq("pessoa_id", user.id)
+          .maybeSingle();
         
-        if (perm) {
+        console.log("[PERM] user.id:", user.id, "email:", user.email, "perm:", perm, "error:", error);
+        
+        if (perm && perm.modulos) {
+          console.log("[PERM] Módulos permitidos:", perm.modulos);
           setUserPerms({ ...perm, _configured: true });
         } else {
-          setUserPerms({ _none: true }); // Sem config = acesso total
+          console.log("[PERM] Sem permissões configuradas = acesso total");
+          setUserPerms({ _configured: false });
         }
-      } catch { setUserPerms({ _none: true }); }
+      } catch (e) {
+        console.log("[PERM] Erro:", e.message);
+        setUserPerms({ _configured: false });
+      }
     })();
   }, [user?.id]);
 
@@ -436,78 +427,54 @@ export default function App() {
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
+          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
-            {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}>
-              <Icon.Chart /> <span>Dashboard</span>
-            </button>}
-            {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}>
-              <Icon.ListCheck /> <span>Acompanhamento</span>
-            </button>}
-            {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}>
-              <Icon.Clipboard /> <span>Tarefas</span>
-            </button>}
+            {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
+            {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
+            {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
           </div>
+          )}
 
           {/* COMERCIAL */}
+          {(temPerm("whatsapp") || temPerm("crm") || temPerm("metas") || temPerm("crm-analises") || temPerm("crm-auto") || temPerm("crm-params")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Comercial</div>
-            {temPerm("whatsapp") && <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}>
-              <Icon.Chat /> <span>Conversas</span>
-            </button>}
-            {temPerm("crm") && <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}>
-              <Icon.Users /> <span>CRM</span>
-            </button>}
-            {temPerm("metas") && <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}>
-              <Icon.Target /> <span>Painel de Metas</span>
-            </button>}
-            {temPerm("crm-analises") && <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}>
-              <Icon.Chart /> <span>Análises</span>
-            </button>}
-            {temPerm("crm-auto") && <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}>
-              <Icon.Target /> <span>Automações</span>
-            </button>}
-            {temPerm("crm-params") && <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}>
-              <Icon.Settings /> <span>Parâmetros de CRM</span>
-            </button>}
+            {temPerm("whatsapp") && <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}><Icon.Chat /> <span>Conversas</span></button>}
+            {temPerm("crm") && <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}><Icon.Users /> <span>CRM</span></button>}
+            {temPerm("metas") && <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}><Icon.Target /> <span>Painel de Metas</span></button>}
+            {temPerm("crm-analises") && <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}><Icon.Chart /> <span>Análises</span></button>}
+            {temPerm("crm-auto") && <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}><Icon.Target /> <span>Automações</span></button>}
+            {temPerm("crm-params") && <button className={view === "crm-params" ? "active" : ""} onClick={() => setView("crm-params")}><Icon.Settings /> <span>Parâmetros de CRM</span></button>}
           </div>
+          )}
 
           {/* FINANCEIRO */}
+          {(temPerm("fluxo") || temPerm("gestao") || temPerm("obz")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Financeiro</div>
-            {temPerm("fluxo") && <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}>
-              <Icon.Cash /> <span>Fluxo de Caixa</span>
-            </button>}
-            {temPerm("gestao") && <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}>
-              <Icon.Users /> <span>Gestão de Clientes</span>
-            </button>}
-            {temPerm("obz") && <button className={view === "obz" ? "active" : ""} onClick={() => setView("obz")}>
-              <Icon.Cash /> <span>OBZ</span>
-            </button>}
+            {temPerm("fluxo") && <button className={view === "fluxo" ? "active" : ""} onClick={() => setView("fluxo")}><Icon.Cash /> <span>Fluxo de Caixa</span></button>}
+            {temPerm("gestao") && <button className={view === "gestao" ? "active" : ""} onClick={() => setView("gestao")}><Icon.Users /> <span>Gestão de Clientes</span></button>}
+            {temPerm("obz") && <button className={view === "obz" ? "active" : ""} onClick={() => setView("obz")}><Icon.Cash /> <span>OBZ</span></button>}
           </div>
+          )}
 
           {/* LOG DE TAREFAS */}
+          {temPerm("registro-tarefas") && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Log de Tarefas</div>
-            {temPerm("registro-tarefas") && <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}>
-              <Icon.ListCheck /> <span>Registro de Tarefas</span>
-            </button>}
+            <button className={view === "registro-tarefas" ? "active" : ""} onClick={() => setView("registro-tarefas")}><Icon.ListCheck /> <span>Registro de Tarefas</span></button>
           </div>
+          )}
 
-          {/* ADMINISTRATIVO */}
+          {/* ADMINISTRATIVO — só admin/master */}
           {isAdmin && (
-            <div className="nav-grupo">
-              <div className="nav-grupo-titulo">Administrativo</div>
-              <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}>
-                <Icon.Folder /> <span>Cadastros</span>
-              </button>
-              <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}>
-                <Icon.Settings /> <span>Administradores</span>
-              </button>
-              <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}>
-                <Icon.List /> <span>Logs</span>
-              </button>
-            </div>
+          <div className="nav-grupo">
+            <div className="nav-grupo-titulo">Administrativo</div>
+            <button className={view === "cadastros" ? "active" : ""} onClick={() => setView("cadastros")}><Icon.Folder /> <span>Cadastros</span></button>
+            <button className={view === "admin" ? "active" : ""} onClick={() => setView("admin")}><Icon.Settings /> <span>Administradores</span></button>
+            <button className={view === "logs" ? "active" : ""} onClick={() => setView("logs")}><Icon.List /> <span>Logs</span></button>
+          </div>
           )}
         </nav>
         <div className="sidebar-foot">
