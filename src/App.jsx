@@ -185,6 +185,13 @@ export default function App() {
     } catch { return () => {}; }
   }, []);
 
+  // Auto-setar agência quando user só tem uma permitida
+  useEffect(() => {
+    if (userPerms?._configured && userPerms?.agencias?.length === 1) {
+      setAgFiltro(userPerms.agencias[0]);
+    }
+  }, [userPerms]);
+
   // Carregar permissões do usuário logado
   useEffect(() => {
     if (!user?.id) return;
@@ -422,9 +429,15 @@ export default function App() {
           </div>
         </div>
         <div className="ag-filtro">
-          <button className={agFiltro === "todas" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("todas")}>Todas</button>
-          <button className={agFiltro === "Yield" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Yield")}>Yield</button>
-          <button className={agFiltro === "Mads" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Mads")}>Mads</button>
+          {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.length > 1 || isMaster || isAdmin) && (
+            <button className={agFiltro === "todas" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("todas")}>Todas</button>
+          )}
+          {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.includes("Yield") || isMaster || isAdmin) && (
+            <button className={agFiltro === "Yield" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Yield")}>Yield</button>
+          )}
+          {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.includes("Mads") || isMaster || isAdmin) && (
+            <button className={agFiltro === "Mads" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Mads")}>Mads</button>
+          )}
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
@@ -519,7 +532,7 @@ export default function App() {
           />
         )}
                 {view === "follow" && (
-          <FollowAcoes
+          <FollowAcoes userId={user?.id} isAdmin={isAdmin}
             tarefas={(data.tarefas || []).filter((t) => idsAgencia.has(t.clienteId))}
             clientes={clientesFiltrados}
             pessoas={data.pessoas || []}
@@ -636,7 +649,7 @@ export default function App() {
         )}
 
         {view === "crm" && (
-          <CRM pessoas={data.pessoas || []} onToast={showToast} userName={user?.nome} isAdmin={isAdmin} onIniciarOnboarding={iniciarOnboarding} />
+          <CRM onAbrirWhatsApp={(numero) => { window.__waAbrirNumero = numero; setView("whatsapp"); }} pessoas={[...(data.pessoas || []), ...(data.perfis || []).filter((pf) => !(data.pessoas || []).some((pe) => pe.id === pf.id)).map((pf) => ({ id: pf.id, nome: pf.nome, email: pf.email, papel: pf.papel }))]} onToast={showToast} userName={user?.nome} isAdmin={isAdmin} onIniciarOnboarding={iniciarOnboarding} />
         )}
 
         {view === "crm-auto" && (

@@ -120,7 +120,7 @@ function ModalPerda({ motivos, onConfirm, onClose }) {
 }
 
 /* ---- Principal ---- */
-export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnboarding }) {
+export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnboarding , onAbrirWhatsApp}) {
   const [crm, setCrm] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [funilId, setFunilId] = useState(null);
@@ -138,6 +138,14 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
     catch (e) { onToast("Erro: " + e.message); } finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); }, []);
+
+  // Abrir lead específico vindo do WhatsApp
+  useEffect(() => {
+    if (window.__abrirLeadId && crm?.leads) {
+      const lead = crm.leads.find((l) => l.id === window.__abrirLeadId);
+      if (lead) { setLeadAberto(lead); window.__abrirLeadId = null; }
+    }
+  }, [crm?.leads]);
 
   if (carregando) return <div style={{ padding: 40, textAlign: "center" }}>Carregando CRM…</div>;
   if (!crm || crm.funis.length === 0) return <div className="empty" style={{ padding: 60 }}><h2>Nenhum funil</h2><p>Vá em Parâmetros de CRM.</p></div>;
@@ -167,7 +175,7 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
     if (la) return <LeadPage lead={la} etapas={etapas} tags={tags} origens={origens} produtos={produtos}
       campos={(crm.campos || []).filter((c) => c.funilId === funil.id)} produtos={produtos} crm={crm}
       motivos={(crm.motivos || []).filter((m) => m.funilId === funil.id)} pessoas={pessoas} atividades={crm.atividades || []}
-      userName={userName} isAdmin={isAdmin} onIniciarOnboarding={onIniciarOnboarding} onVoltar={() => { setLeadAberto(null); carregar(); }}
+      userName={userName} isAdmin={isAdmin} onIniciarOnboarding={onIniciarOnboarding} onAbrirWhatsApp={onAbrirWhatsApp} onVoltar={() => { setLeadAberto(null); carregar(); }}
       onSave={async (d) => { await api.crmLeadSave({ ...d, funilId: funil.id }); carregar(); }} onToast={onToast} />;
     setLeadAberto(null);
   }

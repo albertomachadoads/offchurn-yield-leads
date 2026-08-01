@@ -75,7 +75,7 @@ function NovaAtividadeModal({ tipo, pessoas, onSave, onClose }) {
 }
 
 /* ---- Componente principal ---- */
-export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, crm, onVoltar, onSave, onToast, userName, isAdmin, onIniciarOnboarding }) {
+export default function LeadPage({ lead, etapas, tags, origens, campos, produtos, pessoas, atividades, motivos, crm, onVoltar, onSave, onToast, userName, isAdmin, onIniciarOnboarding, onAbrirWhatsApp }) {
   const crm_motivos = motivos || [];
   const [showOnboard, setShowOnboard] = useState(false);
   const [editContato, setEditContato] = useState(false);
@@ -113,6 +113,8 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
   async function mudarEtapa(etapaId) {
     const nome = etapas.find((e) => e.id === etapaId)?.nome || "?";
     const tipo = etapas.find((e) => e.id === etapaId)?.tipo;
+    // Se perdido, abrir modal de motivo antes de salvar
+    if (tipo === "perdido") { setModalPerdaLP(etapaId); return; }
     try {
       await onSave({ ...lead, etapaId }); await reg("sistema", `Movido para "${nome}"`);
       const leadAtualizado = { ...lead, etapaId };
@@ -121,9 +123,6 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
         dispararConfetes(); logAcao("crm", `VENDA: Lead "${lead.nome}"`); onToast("🎉 VENDA MARCADA! Parabéns!");
         try { await executarAutomacoes({ evento: "lead_ganho", lead: leadAtualizado, funilId: lead.funilId, crm, userName }); } catch {}
         setTimeout(() => setShowOnboard(true), 1500);
-      } else if (tipo === "perdido") {
-        logAcao("crm", `PERDA: Lead "${lead.nome}"`); onToast("Lead marcado como perdido");
-        try { await executarAutomacoes({ evento: "lead_perdido", lead: leadAtualizado, funilId: lead.funilId, crm, userName }); } catch {}
       } else onToast("Etapa atualizada");
     } catch (e) { onToast("Erro: " + e.message); }
   }
@@ -239,7 +238,16 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
               <button className="iconbtn" onClick={() => setEditContato(true)}><Icon.Edit /></button>
             </div>
             <div className="lead-campo"><span className="lead-label">Nome</span><span className="lead-valor">{lead.nome}</span></div>
-            <div className="lead-campo"><span className="lead-label">WhatsApp</span><span className="lead-valor">{lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}><WhatsIcon size={16} /> {lead.whatsapp}</a> : "—"}</span></div>
+            <div className="lead-campo"><span className="lead-label">WhatsApp
+                      {lead.whatsapp && <span style={{ marginLeft: 6, display: "inline-flex", gap: 4 }}>
+                        <button className="iconbtn" title="Abrir conversa no sistema" onClick={() => onAbrirWhatsApp && onAbrirWhatsApp(lead.whatsapp)} style={{ padding: 2 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>
+                        </button>
+                        <a href={"https://wa.me/" + lead.whatsapp.replace(/\D/g,"")} target="_blank" rel="noopener noreferrer" className="iconbtn" title="Abrir no WhatsApp Web" style={{ padding: 2 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        </a>
+                      </span>}
+                    </span><span className="lead-valor">{lead.whatsapp ? <a href={whatsLink(lead.whatsapp)} target="_blank" rel="noopener noreferrer" style={{ color: "#25d366", display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}><WhatsIcon size={16} /> {lead.whatsapp}</a> : "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Email</span><span className="lead-valor">{lead.email || "—"}</span></div>
             <div className="lead-campo"><span className="lead-label">Valor</span><span className="lead-valor">{lead.valor > 0 ? fmtMoeda(lead.valor) : "—"}</span></div>
             {lead.motivoPerdaId && (
@@ -335,7 +343,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
                   return (
                     <div key={c.id} className="lead-campo">
                       <span className="lead-label">{c.nome}{c.obrigatorio && " *"}</span>
-                      {isAdmin ? (
+                      {true ? (
                         c.tipo === "alternativas" && alts.length > 0 ? (
                           <select className="select" style={{ fontSize: 12, padding: "4px 8px" }} value={camposForm[c.id] || ""}
                             onChange={(e) => setCamposForm((p) => ({ ...p, [c.id]: e.target.value }))}>
@@ -359,7 +367,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
                   );
                 })}
               </div>
-              {isAdmin && <button className="btn btn-sm btn-primary" style={{ marginTop: 10 }} onClick={salvarCamposPersonalizados}>Salvar campos</button>}
+              <button className="btn btn-sm btn-primary" style={{ marginTop: 10 }} onClick={salvarCamposPersonalizados}>Salvar campos</button>
             </div>
           )}
 

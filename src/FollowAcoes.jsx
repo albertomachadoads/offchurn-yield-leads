@@ -77,7 +77,7 @@ function EtapaBadge({ etapa }) {
   );
 }
 
-export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDelete, onToast, isAdmin }) {
+export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDelete, onToast, isAdmin, userId }) {
   const [modal, setModal] = useState(null);
   const [fCriador, setFCriador] = useState("todos");
   const [fResp, setFResp] = useState("todos");

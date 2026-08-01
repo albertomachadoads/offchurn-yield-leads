@@ -176,6 +176,15 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   const [fileTipo, setFileTipo] = useState("document");
   const [fileAccept, setFileAccept] = useState("*/*");
 
+  // Abrir conversa por número (vindo do CRM)
+  useEffect(() => {
+    if (window.__waAbrirNumero && conversas.length > 0) {
+      const num = window.__waAbrirNumero.replace(/\D/g, "");
+      const conv = conversas.find((c) => c.numero.includes(num.slice(-8)));
+      if (conv) { setConvAberta(conv); window.__waAbrirNumero = null; }
+    }
+  }, [conversas]);
+
   async function loadInst() {
     const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true);
     let filtered = data || [];
@@ -256,7 +265,7 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
 
   async function salvarInst(i) { try { await supabase.from("wa_instancias").upsert({ id: i.id || undefined, nome: i.nome, server_url: i.server_url, instancia: i.instancia, token: i.token, agencia: i.agencia, ativo: true }); setModalInst(null); loadInst(); onToast("Salvo"); } catch (e) { onToast("Erro: " + e.message); } }
 
-  const filtradas = busca ? conversas.filter((c) => (c.nome || c.numero || "").toLowerCase().includes(busca.toLowerCase())) : conversas;
+  const filtradas = busca ? conversas.filter((c) => (c.nome || "").toLowerCase().includes(busca.toLowerCase()) || (c.numero || "").includes(busca.replace(/\D/g, ""))) : conversas;
 
   if (viewInst) return (
     <><div className="page-head"><div><h1>Instâncias WhatsApp</h1></div><div className="head-actions"><button className="btn btn-sm btn-ghost" onClick={() => setViewInst(false)}>‹ Voltar</button><button className="btn btn-sm btn-primary" onClick={() => setModalInst({})}><Icon.Plus /> Nova</button></div></div>
@@ -315,7 +324,15 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
         </div>
       </>)}</div>
     </div>
-    {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} onClose={() => { setModalLead(null); loadConvs(); }} onToast={onToast} />}
+    {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} onClose={async () => {
+        setModalLead(null);
+        await loadConvs();
+        // Recarregar conversa aberta para atualizar lead_id
+        if (convAberta) {
+          const { data: convAtualizada } = await supabase.from("wa_conversas").select("*").eq("id", convAberta.id).single();
+          if (convAtualizada) setConvAberta(convAtualizada);
+        }
+      }} onToast={onToast} />}
     </>
   );
 }
