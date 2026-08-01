@@ -190,25 +190,27 @@ export default function App() {
     if (!user?.id) return;
     (async () => {
       try {
-        // Buscar permissões direto pelo user.id (= perfil.id = auth UUID)
-        const { data: perm, error } = await supabase
+        // Buscar TODAS as permissões e filtrar por user.id
+        const { data: todas, error } = await supabase
           .from("permissoes_usuario")
-          .select("*")
-          .eq("pessoa_id", user.id)
-          .maybeSingle();
+          .select("*");
         
-        console.log("[PERM] user.id:", user.id, "email:", user.email, "perm:", perm, "error:", error);
+        const perm = (todas || []).find((p) => p.pessoa_id === user.id);
         
-        if (perm && perm.modulos) {
-          console.log("[PERM] Módulos permitidos:", perm.modulos);
-          setUserPerms({ ...perm, _configured: true });
+        console.log("[PERM] user.id:", user.id, "total registros:", (todas||[]).length, "encontrou:", !!perm, "error:", error?.message);
+        if (perm) console.log("[PERM] modulos:", perm.modulos);
+        
+        if (perm && perm.modulos && Array.isArray(perm.modulos) && perm.modulos.length > 0) {
+          setUserPerms({ ...perm, _configured: true, _debug: `${perm.modulos.length} mods` });
+        } else if (perm && perm.modulos) {
+          // modulos existe mas pode estar vazio ou em formato errado
+          setUserPerms({ ...perm, _configured: true, _debug: `mods=${JSON.stringify(perm.modulos).slice(0,30)}` });
         } else {
-          console.log("[PERM] Sem permissões configuradas = acesso total");
-          setUserPerms({ _configured: false });
+          setUserPerms({ _configured: false, _debug: perm ? "sem modulos" : `nao achou (${(todas||[]).length} total)` });
         }
       } catch (e) {
         console.log("[PERM] Erro:", e.message);
-        setUserPerms({ _configured: false });
+        setUserPerms({ _configured: false, _debug: "erro: " + e.message });
       }
     })();
   }, [user?.id]);
@@ -479,7 +481,7 @@ export default function App() {
         </nav>
         {/* DEBUG temporário — remover depois */}
         <div style={{ padding: "4px 12px", fontSize: 9, color: "var(--ink-faint)", borderTop: "1px solid var(--line)" }}>
-          PERM: {userPerms?._configured ? `${(userPerms.modulos||[]).length} módulos` : "sem config (acesso total)"}
+          PERM: {userPerms?._configured ? `✓ ${(userPerms.modulos||[]).length} mods` : "✗ livre"} | {userPerms?._debug || "?"}
           {" | ID: "}{user?.id?.slice(0,8)}
         </div>
         <div className="sidebar-foot">
