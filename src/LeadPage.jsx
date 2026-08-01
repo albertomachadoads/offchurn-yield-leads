@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Icon, Modal } from "./components.jsx";
+import { supabase } from "./supabaseClient.js";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
 import { logAcao } from "./logger.js";
@@ -179,14 +180,22 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
 
   async function concluirAtividade(atvId) {
     const atv = atvsLocal.find((a) => a.id === atvId); if (!atv) return;
-    await reg("sistema", `Atividade concluída: "${atv.descricao.slice(0,50)}"`);
-    setAtvsLocal((p) => p.map((a) => a.id === atvId ? { ...a, tipo: "sistema", descricao: `✅ CONCLUÍDA: ${a.descricao}` } : a));
+    try {
+      await supabase.from("crm_atividades").update({ status: "concluida" }).eq("id", atvId);
+      await reg("sistema", `Tarefa concluída: "${atv.descricao.slice(0,50)}"`);
+      setAtvsLocal((p) => p.map((a) => a.id === atvId ? { ...a, status: "concluida" } : a));
+      onToast("Tarefa concluída!");
+    } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function cancelarAtividade(atvId) {
     const atv = atvsLocal.find((a) => a.id === atvId); if (!atv) return;
-    await reg("sistema", `Atividade cancelada: "${atv.descricao.slice(0,50)}"`);
-    setAtvsLocal((p) => p.map((a) => a.id === atvId ? { ...a, tipo: "sistema", descricao: `❌ CANCELADA: ${a.descricao}` } : a));
+    try {
+      await supabase.from("crm_atividades").update({ status: "cancelada" }).eq("id", atvId);
+      await reg("sistema", `Tarefa cancelada: "${atv.descricao.slice(0,50)}"`);
+      setAtvsLocal((p) => p.map((a) => a.id === atvId ? { ...a, status: "cancelada" } : a));
+      onToast("Tarefa cancelada");
+    } catch (e) { onToast("Erro: " + e.message); }
   }
 
   async function addNota() {
@@ -382,21 +391,27 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
             {ativTarefas.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Nenhuma atividade criada.</p> : (
               <div className="atv-lista">
                 {ativTarefas.map((a) => {
-                  const atrasada = isAtrasada(a);
-                  const concluida = a.descricao.startsWith("✅ CONCLUÍDA");
-                  const cancelada = a.descricao.startsWith("❌ CANCELADA");
+                  const atrasada = isAtrasada(a) && a.status !== "concluida" && a.status !== "cancelada";
+                  const concluida = a.status === "concluida";
+                  const cancelada = a.status === "cancelada";
+                  const pendente = !concluida && !cancelada;
                   const icons = { ligacao: "📞", email: "✉️", tarefa: "✅" };
+                  const tipoLabel = a.tipo === "ligacao" ? "Ligação" : a.tipo === "email" ? "E-mail" : "Tarefa";
                   return (
-                    <div key={a.id} className={`atv-card ${atrasada && !concluida && !cancelada ? "atv-atrasada" : ""} ${concluida ? "atv-concluida" : ""} ${cancelada ? "atv-cancelada" : ""}`}>
+                    <div key={a.id} className={`atv-card ${atrasada ? "atv-atrasada" : ""} ${concluida ? "atv-concluida" : ""} ${cancelada ? "atv-cancelada" : ""}`}>
                       <div className="atv-card-top">
-                        <span>{icons[a.tipo] || "•"} <strong>{a.tipo === "ligacao" ? "Ligação" : a.tipo === "email" ? "E-mail" : "Tarefa"}</strong></span>
-                        {atrasada && !concluida && !cancelada && <span className="atv-badge-atraso">ATRASADA</span>}
+                        <span>{icons[a.tipo] || "•"} <strong>{tipoLabel}</strong></span>
+                        {a.dataPrevista && <span style={{ fontSize: 11, color: "var(--ink-faint)" }}>Prevista: {a.dataPrevista.slice(0,10).split("-").reverse().join("/")}</span>}
+                        {atrasada && <span className="atv-badge-atraso">ATRASADA</span>}
                         {concluida && <span className="atv-badge-ok">CONCLUÍDA</span>}
                         {cancelada && <span className="atv-badge-cancel">CANCELADA</span>}
                       </div>
-                      <div className="atv-card-desc">{a.descricao.replace(/^(✅ CONCLUÍDA: |❌ CANCELADA: )/, "")}</div>
-                      <div className="atv-card-meta">{a.autorNome} · {fmtDH(a.criadoEm)}</div>
-                      {!concluida && !cancelada && (
+                      <div className="atv-card-desc">{a.descricao}</div>
+                      <div className="atv-card-meta">
+                        {a.responsavelNome && <span>Resp: {a.responsavelNome} · </span>}
+                        {a.autorNome} · {fmtDH(a.criadoEm)}
+                      </div>
+                      {pendente && (
                         <div className="atv-card-acoes">
                           <button className="btn btn-sm btn-primary" onClick={() => concluirAtividade(a.id)}>Concluir</button>
                           <button className="btn btn-sm btn-ghost" onClick={() => cancelarAtividade(a.id)}>Cancelar</button>

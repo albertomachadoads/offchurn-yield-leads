@@ -361,7 +361,7 @@ const mapAutomacao = (r) => ({
   acoes: r.acoes, posicoes: r.posicoes,
   criadoEm: r.criado_em, atualizadoEm: r.atualizado_em,
 });
-const mapAtividade = (r) => ({ id: r.id, leadId: r.lead_id, tipo: r.tipo, descricao: r.descricao, autorNome: r.autor_nome, criadoEm: r.criado_em });
+const mapAtividade = (r) => ({ id: r.id, leadId: r.lead_id, tipo: r.tipo, descricao: r.descricao, autorNome: r.autor_nome, criadoEm: r.criado_em, status: r.status || "pendente", dataPrevista: r.data_prevista, responsavelId: r.responsavel_id, responsavelNome: r.responsavel_nome });
 
 export async function fetchCRM() {
   const [funis, etapas, tags, motivos, campos, origens, produtos, leads, atividades] = await Promise.all([
