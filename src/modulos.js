@@ -9,6 +9,7 @@ const MODULOS = [
   { id: "dashboard", nome: "Dashboard", grupo: "Principais" },
   { id: "acompanhamento", nome: "Acompanhamento", grupo: "Principais" },
   { id: "follow", nome: "Tarefas", grupo: "Principais" },
+  { id: "clientes", nome: "Clientes", grupo: "Principais" },
 
   // COMERCIAL
   { id: "whatsapp", nome: "Conversas", grupo: "Comercial" },

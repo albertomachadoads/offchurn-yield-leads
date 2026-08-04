@@ -267,7 +267,16 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { if (!instAtiva) return; const c = supabase.channel("wc" + instAtiva.id).on("postgres_changes", { event: "*", schema: "public", table: "wa_conversas" }, loadConvs).subscribe(); return () => supabase.removeChannel(c); }, [instAtiva?.id]);
 
-  const loadMsgs = useCallback(async () => { if (!convAberta) return; const { data } = await supabase.from("wa_mensagens").select("*").eq("conversa_id", convAberta.id).order("criado_em", { ascending: true }); setMensagens(data || []); setTimeout(() => { chatRef.current && (chatRef.current.scrollTop = chatRef.current.scrollHeight); }, 80); supabase.from("wa_conversas").update({ nao_lidas: 0 }).eq("id", convAberta.id); }, [convAberta?.id]);
+  const loadMsgs = useCallback(async () => { if (!convAberta) return; const { data } = await supabase.from("wa_mensagens").select("*").eq("conversa_id", convAberta.id).order("criado_em", { ascending: true });
+    // Remove duplicatas: mesma msg_id, ou mesma mídia/texto em janela de 15s
+    const vistos = new Set(); const limpas = [];
+    for (const m of (data || [])) {
+      const chave = m.msg_id ? `id:${m.msg_id}`
+        : `${m.direcao}|${m.tipo}|${m.midia_url || m.conteudo || ""}|${Math.floor(new Date(m.criado_em).getTime() / 15000)}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave); limpas.push(m);
+    }
+    setMensagens(limpas); setTimeout(() => { chatRef.current && (chatRef.current.scrollTop = chatRef.current.scrollHeight); }, 80); supabase.from("wa_conversas").update({ nao_lidas: 0 }).eq("id", convAberta.id); }, [convAberta?.id]);
   useEffect(() => { loadMsgs(); }, [loadMsgs]);
   useEffect(() => { if (!convAberta) return; const c = supabase.channel("wm" + convAberta.id).on("postgres_changes", { event: "INSERT", schema: "public", table: "wa_mensagens", filter: `conversa_id=eq.${convAberta.id}` }, loadMsgs).subscribe(); return () => supabase.removeChannel(c); }, [convAberta?.id]);
 
