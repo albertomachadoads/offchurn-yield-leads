@@ -3,6 +3,7 @@ import { Icon, Modal } from "./components.jsx";
 import { supabase } from "./supabaseClient.js";
 import * as api from "./api.js";
 import WhatsAppConectar from "./WhatsAppConectar.jsx";
+import NovaConversaModal from "./NovaConversa.jsx";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const fmtHora = (d) => { if (!d) return ""; const x = new Date(d); return `${String(x.getHours()).padStart(2,"0")}:${String(x.getMinutes()).padStart(2,"0")}`; };
@@ -108,8 +109,8 @@ function MsgBolha({ msg }) {
       {t === "document" && !hasMedia && <p className="wa-msg-text">📄 {msg.conteudo || "[Documento]"}</p>}
       {t === "contact" && <p className="wa-msg-text">👤 {msg.conteudo}</p>}
       {t === "location" && <p className="wa-msg-text">📍 {msg.conteudo}</p>}
-      {t === "text" && msg.conteudo && <p className="wa-msg-text">{msg.conteudo}</p>}
-      {!["image","sticker","audio","ptt","video","document","contact","location","text"].includes(t) && msg.conteudo && <p className="wa-msg-text">{msg.conteudo}</p>}
+      {t === "text" && <p className="wa-msg-text">{msg.conteudo || <em className="wa-vazia">Mensagem sem texto</em>}</p>}
+      {!["image","sticker","audio","ptt","video","document","contact","location","text"].includes(t) && <p className="wa-msg-text">{msg.conteudo || <em className="wa-vazia">[{t}]</em>}</p>}
       {hasMedia && (t === "image" || t === "video") && msg.conteudo && !hideText && <p className="wa-msg-caption">{msg.conteudo}</p>}
       <span className="wa-hora">
         {msg._enviando && <span className="wa-sending">⏳</span>}
@@ -186,6 +187,8 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   const [viewInst, setViewInst] = useState(false);
   const [modalLead, setModalLead] = useState(null);
   const [modalConectar, setModalConectar] = useState(false);
+  const [modalNova, setModalNova] = useState(false);
+  const [filtro, setFiltro] = useState("todas");
   const [statusConn, setStatusConn] = useState(null);
   const [statusPorInst, setStatusPorInst] = useState({});
   const [instReconectar, setInstReconectar] = useState(null);
@@ -250,6 +253,41 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
     const t = setInterval(checarTodas, 30000);
     return () => { vivo = false; clearInterval(t); };
   }, [viewInst, instancias, consultarStatus]);
+
+  // Abre uma conversa nova (ou existente) a partir de um número
+  async function iniciarConversa(numero, nome) {
+    if (!instAtiva) { onToast("Conecte um WhatsApp antes de iniciar uma conversa"); return; }
+    try {
+      // Já existe?
+      const { data: existente } = await supabase.from("wa_conversas").select("*")
+        .eq("instancia_id", instAtiva.id).eq("numero", numero).limit(1).maybeSingle();
+
+      if (existente) {
+        setModalNova(false); setFiltro("todas"); setBusca("");
+        setConvAberta(existente);
+        onToast("Conversa já existente — abrindo");
+        return;
+      }
+
+      const { data: nova, error } = await supabase.from("wa_conversas").insert({
+        instancia_id: instAtiva.id, numero, nome: nome || numero,
+        ultima_msg: "", ultima_msg_em: new Date().toISOString(), nao_lidas: 0,
+      }).select().single();
+      if (error) throw error;
+
+      // Vincular a um lead do CRM, se houver
+      try {
+        const { data: lead } = await supabase.from("crm_leads").select("id")
+          .ilike("whatsapp", `%${numero.slice(-8)}%`).limit(1).maybeSingle();
+        if (lead) await supabase.from("wa_conversas").update({ lead_id: lead.id }).eq("id", nova.id);
+      } catch {}
+
+      setModalNova(false); setFiltro("todas"); setBusca("");
+      await loadConvs();
+      setConvAberta(nova);
+      onToast("Conversa criada — envie a primeira mensagem");
+    } catch (e) { onToast("Erro: " + e.message); }
+  }
 
   async function loadInst() {
     const { data } = await supabase.from("wa_instancias").select("*").eq("ativo", true);
@@ -340,7 +378,22 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
 
   async function salvarInst(i) { try { await supabase.from("wa_instancias").upsert({ id: i.id || undefined, nome: i.nome, server_url: i.server_url, instancia: i.instancia, token: i.token, agencia: i.agencia, ativo: true }); setModalInst(null); loadInst(); onToast("Salvo"); } catch (e) { onToast("Erro: " + e.message); } }
 
-  const filtradas = busca ? conversas.filter((c) => (c.nome || "").toLowerCase().includes(busca.toLowerCase()) || (c.numero || "").includes(busca.replace(/\D/g, ""))) : conversas;
+  const filtradas = (() => {
+    let lista = conversas;
+    if (filtro === "nao_lidas") lista = lista.filter((c) => (c.nao_lidas || 0) > 0);
+    else if (filtro === "negociacao") lista = lista.filter((c) => c.lead_id);
+    else if (filtro === "sem_negociacao") lista = lista.filter((c) => !c.lead_id);
+    if (busca) {
+      const q = busca.toLowerCase(); const qn = busca.replace(/\D/g, "");
+      lista = lista.filter((c) => (c.nome || "").toLowerCase().includes(q) || (qn && (c.numero || "").includes(qn)));
+    }
+    return lista;
+  })();
+  const contarFiltro = (f) =>
+    f === "todas" ? conversas.length
+    : f === "nao_lidas" ? conversas.filter((c) => (c.nao_lidas || 0) > 0).length
+    : f === "negociacao" ? conversas.filter((c) => c.lead_id).length
+    : conversas.filter((c) => !c.lead_id).length;
 
   if (viewInst) return (
     <>
@@ -416,7 +469,8 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
       )}
 
       {modalInst && <InstanciaModal base={modalInst} onSave={salvarInst} onClose={() => setModalInst(null)} />}
-      {modalConectar && <WhatsAppConectar usuario={usuario} agencia={agencia} isAdmin={isAdmin}
+      {modalNova && <NovaConversaModal onIniciar={iniciarConversa} onFechar={() => setModalNova(false)} />}
+    {modalConectar && <WhatsAppConectar usuario={usuario} agencia={agencia} isAdmin={isAdmin}
         instanciaExistente={instReconectar}
         onToast={onToast}
         onFechar={() => { setModalConectar(false); setInstReconectar(null); }}
@@ -439,7 +493,27 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
     </div></div>
     <div className="wa-layout">
       <div className="wa-sidebar">
-        <div className="wa-search"><input className="input" placeholder="Buscar…" value={busca} onChange={(e) => setBusca(e.target.value)} /></div>
+        <div className="wa-topo">
+          <div className="wa-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input placeholder="Buscar por nome ou número…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            {busca && <button className="wa-search-x" onClick={() => setBusca("")} aria-label="Limpar">×</button>}
+          </div>
+          <div className="wa-filtros">
+            {[["todas","Todas"],["nao_lidas","Não lidas"],["sem_negociacao","Novos"],["negociacao","Com negociação"]].map(([id, lb]) => {
+              const n = contarFiltro(id);
+              return (
+                <button key={id} className={`wa-fbtn ${filtro === id ? "on" : ""}`} onClick={() => setFiltro(id)}>
+                  {lb}{n > 0 && <span className="wa-fnum">{n}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <button className="wa-nova" onClick={() => setModalNova(true)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            Nova conversa
+          </button>
+        </div>
         <div className="wa-conv-list">{filtradas.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "var(--ink-faint)", fontSize: 13 }}>{instancias.length === 0 ? "Configure uma instância." : "Nenhuma conversa."}</div> : filtradas.map((c) => (
           <div key={c.id} className={`wa-conv-item ${convAberta?.id === c.id ? "wa-conv-ativa" : ""}`} onClick={() => setConvAberta(c)}>
             <Avatar nome={c.nome} foto={c.foto_url} />
@@ -483,6 +557,7 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
         </div>
       </>)}</div>
     </div>
+    {modalNova && <NovaConversaModal onIniciar={iniciarConversa} onFechar={() => setModalNova(false)} />}
     {modalConectar && <WhatsAppConectar usuario={usuario} agencia={agencia} isAdmin={isAdmin}
       onToast={onToast} onFechar={() => setModalConectar(false)}
       onConectado={() => { loadInst(); loadConvs(); }} />}
