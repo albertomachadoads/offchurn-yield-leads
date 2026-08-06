@@ -2025,3 +2025,13 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .lead-origem-tag { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 5px; background: #2563EB; color: #fff; flex-shrink: 0; }
 .lead-origem-txt strong { display: block; font-size: 13px; font-weight: 600; }
 .lead-origem-txt small { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+
+/* Bloco de trackeamento na página do lead */
+.trk-linha { display: flex; align-items: baseline; gap: 7px; padding: 5px 0; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+.trk-linha:last-of-type { border-bottom: none; }
+.trk-chave { color: var(--ink-faint); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px; flex-shrink: 0; }
+.trk-valor { font-weight: 600; word-break: break-word; min-width: 0; }
+.trk-valor.vazio { font-weight: 400; color: var(--ink-faint); opacity: .6; }
+.trk-copiar { border: 1px solid var(--line); background: var(--surface); color: var(--ink-faint); width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .12s; }
+.trk-copiar:hover { border-color: var(--green); color: var(--green); }
+.trk-nota { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; margin: 10px 0 0; }

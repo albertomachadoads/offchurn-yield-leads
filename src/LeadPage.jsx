@@ -322,15 +322,49 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
             </div>
           </div>
 
-          {/* UTMs */}
-          {(lead.utmSource || lead.utmMedium || lead.utmCampaign) && (
-            <div className="lead-section">
-              <h3 className="lead-sec-title">UTMs</h3>
-              {lead.utmSource && <div className="lead-campo"><span className="lead-label">Source</span><span className="lead-valor">{lead.utmSource}</span></div>}
-              {lead.utmMedium && <div className="lead-campo"><span className="lead-label">Medium</span><span className="lead-valor">{lead.utmMedium}</span></div>}
-              {lead.utmCampaign && <div className="lead-campo"><span className="lead-label">Campaign</span><span className="lead-valor">{lead.utmCampaign}</span></div>}
+          {/* Trackeamento */}
+          <div className="lead-section">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <h3 className="lead-sec-title" style={{ margin: 0 }}>Trackeamento</h3>
+              {(lead.utmSource || lead.utmCampaign) && (
+                <button className="trk-copiar" title="Copiar todas as UTMs"
+                  onClick={() => {
+                    const txt = [
+                      `utm_campaign: ${lead.utmCampaign || "—"}`,
+                      `utm_medium: ${lead.utmMedium || "—"}`,
+                      `utm_content: ${lead.utmContent || "—"}`,
+                      `utm_source: ${lead.utmSource || "—"}`,
+                      `utm_term: ${lead.utmTerm || "—"}`,
+                    ].join("\n");
+                    navigator.clipboard?.writeText(txt)
+                      .then(() => onToast("UTMs copiadas"))
+                      .catch(() => onToast("Não foi possível copiar"));
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                </button>
+              )}
             </div>
-          )}
+
+            {[
+              ["utm_campaign", lead.utmCampaign],
+              ["utm_medium", lead.utmMedium],
+              ["utm_content", lead.utmContent],
+              ["utm_source", lead.utmSource],
+              ["utm_term", lead.utmTerm],
+            ].map(([chave, valor]) => (
+              <div key={chave} className="trk-linha">
+                <span className="trk-chave">{chave}:</span>
+                <span className={`trk-valor ${valor ? "" : "vazio"}`} title={valor || ""}>{valor || "—"}</span>
+              </div>
+            ))}
+
+            {!lead.utmSource && !lead.utmCampaign && (
+              <p className="trk-nota">
+                Sem dados de origem. Leads que chegam por anúncio Click-to-WhatsApp
+                são marcados automaticamente.
+              </p>
+            )}
+          </div>
         </div>
 
         {/* MAIN */}
