@@ -2005,3 +2005,10 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .cli-ag-btn.on .cli-ag-n { background: rgba(255,255,255,.24); }
 .tema-escuro .cli-ag-n { background: rgba(255,255,255,.12); }
 @media (max-width: 640px) { .cli-agencias { width: 100%; } .cli-ag-btn { flex: 1; justify-content: center; } }
+
+/* Indicador de sincronização em Clientes */
+.cli-sync { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 12px; color: var(--ink-faint); }
+.cli-sync.ativo { color: var(--green); }
+.cli-sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: cli-pulse 1.3s ease-in-out infinite; }
+@keyframes cli-pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.72); } }
+@media (prefers-reduced-motion: reduce) { .cli-sync-dot { animation: none; } }

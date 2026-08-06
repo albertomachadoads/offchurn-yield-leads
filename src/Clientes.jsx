@@ -7,6 +7,19 @@ import {
 } from "./projecao";
 import { AGENCIAS } from "./config.js";
 
+/* Sincronização automática com o Meta Ads */
+const CHAVE_SYNC = "offchurn_ultima_sync_meta";
+const INTERVALO_SYNC = 10 * 60 * 1000; // 10 minutos
+
+function formatarDesde(ts) {
+  const min = Math.floor((Date.now() - ts) / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h / 24)}d`;
+}
+
 /* ===== Avatar com iniciais ===== */
 export function Avatar({ nome, size = 44 }) {
   return (
@@ -136,22 +149,42 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVi
   const [modal, setModal] = useState(null);
   const [modalMeta, setModalMeta] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
+  const [ultimaSync, setUltimaSync] = useState(() => {
+    const v = Number(localStorage.getItem(CHAVE_SYNC) || 0);
+    return v > 0 ? v : null;
+  });
   const comp = competencia();
 
-  async function sincronizar() {
+  async function sincronizar({ silencioso = false } = {}) {
+    if (sincronizando) return;
     setSincronizando(true);
     try {
       const r = await onSincronizarMeta();
       const ok = (r?.resultados || []).filter((x) => x.ok).length;
       const falhas = (r?.resultados || []).filter((x) => !x.ok);
-      onToast(`Meta sincronizada: ${ok} cliente(s) atualizados${falhas.length ? `, ${falhas.length} com erro` : ""}`);
+      const agora = Date.now();
+      localStorage.setItem(CHAVE_SYNC, String(agora));
+      setUltimaSync(agora);
+      if (!silencioso) {
+        onToast(`Meta sincronizada: ${ok} cliente(s) atualizados${falhas.length ? `, ${falhas.length} com erro` : ""}`);
+      }
       if (falhas.length) console.warn("Falhas na sincronização Meta:", falhas);
     } catch (e) {
-      onToast("Erro na sincronização: " + (e.message || "falha"));
+      // Em modo automático não interrompe o trabalho com um alerta
+      if (!silencioso) onToast("Erro na sincronização: " + (e.message || "falha"));
+      else console.warn("Sincronização automática falhou:", e.message);
     } finally {
       setSincronizando(false);
     }
   }
+
+  /* Atualiza sozinho ao abrir a aba, respeitando o intervalo mínimo
+     para não estourar o limite de requisições da API do Meta. */
+  useEffect(() => {
+    const ultima = Number(localStorage.getItem(CHAVE_SYNC) || 0);
+    if (Date.now() - ultima > INTERVALO_SYNC) sincronizar({ silencioso: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const desempPorCliente = useMemo(() => {
     const m = {};
@@ -181,13 +214,20 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVi
       <div className="page-head">
         <div>
           <h1>Clientes</h1>
-          <p>Acompanhamento de verba e CPA do mês corrente. Clique num cliente para ver a ficha completa.</p>
+          <p>
+            Acompanhamento de verba e CPA do mês corrente.
+            {sincronizando
+              ? <span className="cli-sync ativo"><span className="cli-sync-dot" /> atualizando dados do Meta…</span>
+              : ultimaSync
+                ? <span className="cli-sync">atualizado {formatarDesde(ultimaSync)}</span>
+                : null}
+          </p>
         </div>
         <div className="head-actions">
           <button className="btn" onClick={() => setModalMeta(true)}>
             <Icon.Users /> Contas Meta
           </button>
-          <button className="btn" onClick={sincronizar} disabled={sincronizando}>
+          <button className="btn" onClick={() => sincronizar()} disabled={sincronizando}>
             {sincronizando ? "Sincronizando…" : <>↻ Sincronizar Meta</>}
           </button>
           <button className="btn btn-primary" onClick={() => setModal({ novo: true })}>
