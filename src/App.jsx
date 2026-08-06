@@ -554,7 +554,8 @@ export default function App() {
         )}
         {view === "clientes" && !clienteAberto && (
           <Clientes
-            clientes={clientesFiltrados}
+            clientes={data.clientes || []}
+            agenciaGlobal={agFiltro}
             desempenho={data.desempenho || []}
             onAbrir={(c) => setClienteAberto(c)}
             onLancar={lancarDesempenho}

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fmtMoeda } from "./utils";
 import { Icon, Modal } from "./components.jsx";
 import {
   projecaoVerba, projecaoCPA, corVerba, corCPA,
   iniciais, corAvatar, competencia, tempoDeCasa, faixaNPS,
 } from "./projecao";
+import { AGENCIAS } from "./config.js";
 
 /* ===== Avatar com iniciais ===== */
 export function Avatar({ nome, size = 44 }) {
@@ -128,8 +129,10 @@ function CardCliente({ cliente, desemp, onAbrir }) {
 }
 
 /* ===== Módulo principal ===== */
-export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVincularMeta, onSincronizarMeta, onToast }) {
+export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVincularMeta, onSincronizarMeta, onToast , agenciaGlobal }) {
   const [busca, setBusca] = useState("");
+  const [fAgencia, setFAgencia] = useState(agenciaGlobal || "todas");
+  useEffect(() => { setFAgencia(agenciaGlobal || "todas"); }, [agenciaGlobal]);
   const [modal, setModal] = useState(null);
   const [modalMeta, setModalMeta] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
@@ -158,8 +161,9 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVi
 
   const lista = useMemo(() => (clientes || [])
     .filter((c) => c.ativo)
+    .filter((c) => fAgencia === "todas" || (c.agencia || AGENCIAS[0]) === fAgencia)
     .filter((c) => !busca.trim() || (c.nome || "").toLowerCase().includes(busca.toLowerCase()))
-    .sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [clientes, busca]);
+    .sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [clientes, busca, fAgencia]);
 
   // resumo: quantos estão estourando a verba
   const estourando = lista.filter((c) => {
@@ -204,6 +208,22 @@ export default function Clientes({ clientes, desempenho, onAbrir, onLancar, onVi
           <Icon.Search />
           <input className="input" placeholder="Buscar cliente…" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
+        {AGENCIAS.length > 1 && (
+          <div className="cli-agencias">
+            {["todas", ...AGENCIAS].map((ag) => {
+              const n = ag === "todas"
+                ? clientes.length
+                : clientes.filter((c) => (c.agencia || AGENCIAS[0]) === ag).length;
+              return (
+                <button key={ag} className={`cli-ag-btn ${fAgencia === ag ? "on" : ""}`}
+                  onClick={() => setFAgencia(ag)}>
+                  {ag === "todas" ? "Todas" : ag}
+                  <span className="cli-ag-n">{n}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {lista.length === 0 ? (

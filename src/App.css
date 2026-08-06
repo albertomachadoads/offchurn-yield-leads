@@ -780,7 +780,7 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 @media (max-width: 600px) { .obz-grid { grid-template-columns: 1fr; } }
 
 /* ============================================================
-   FILTRO DE AGÊNCIA (Yield / Mads)
+   FILTRO DE UNIDADE DE NEGÓCIO
    ============================================================ */
 .ag-filtro {
   display: flex; gap: 2px; padding: 6px 12px;
@@ -1995,3 +1995,13 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .nc-btn-primary { color: #08130D; }
 .nc-btn-primary:hover:not(:disabled) { opacity: .9; }
 .nc-btn-primary:disabled { opacity: .4; cursor: default; }
+
+/* Filtro de agência na aba Clientes */
+.cli-agencias { display: flex; gap: 5px; flex-wrap: wrap; }
+.cli-ag-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 12.5px; font-weight: 500; color: var(--ink-faint); cursor: pointer; font-family: inherit; transition: .12s; }
+.cli-ag-btn:hover { border-color: var(--green); color: var(--green); }
+.cli-ag-btn.on { background: var(--green); border-color: var(--green); color: #fff; }
+.cli-ag-n { font-size: 10.5px; font-weight: 700; background: rgba(0,0,0,.09); padding: 1px 6px; border-radius: 9px; min-width: 18px; text-align: center; }
+.cli-ag-btn.on .cli-ag-n { background: rgba(255,255,255,.24); }
+.tema-escuro .cli-ag-n { background: rgba(255,255,255,.12); }
+@media (max-width: 640px) { .cli-agencias { width: 100%; } .cli-ag-btn { flex: 1; justify-content: center; } }
