@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import MODULOS from "./modulos.js";
+import { AGENCIAS, MODULOS_ATIVOS } from "./config.js";
 import { adminCriarUsuario, atualizarPerfil, definirBloqueio, excluirPerfil } from "./auth";
 import { Icon, Modal } from "./components.jsx";
 import { supabase } from "./supabaseClient.js";
 
 const TODOS_MODS = MODULOS.map((m) => m.id);
 const GRUPOS = [...new Set(MODULOS.map((m) => m.grupo))];
-const AGENCIAS = ["Yield", "Mads"];
+
 
 function PermissoesTab({ pessoa, instancias, onToast }) {
   const [perm, setPerm] = useState(null);

@@ -4,7 +4,9 @@
    O Admin (permissões) e a Sidebar usam esta mesma lista.
    ============================================================ */
 
-const MODULOS = [
+import { MODULOS_ATIVOS } from "./config.js";
+
+const TODOS = [
   // PRINCIPAIS
   { id: "dashboard", nome: "Dashboard", grupo: "Principais" },
   { id: "acompanhamento", nome: "Acompanhamento", grupo: "Principais" },
@@ -32,5 +34,7 @@ const MODULOS = [
   { id: "admin", nome: "Administradores", grupo: "Admin" },
   { id: "logs", nome: "Logs", grupo: "Admin" },
 ];
+
+const MODULOS = TODOS.filter((m) => MODULOS_ATIVOS.includes(m.id));
 
 export default MODULOS;

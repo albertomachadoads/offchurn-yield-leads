@@ -4,6 +4,7 @@ import { supabase } from "./supabaseClient.js";
 import * as api from "./api.js";
 import WhatsAppConectar from "./WhatsAppConectar.jsx";
 import NovaConversaModal from "./NovaConversa.jsx";
+import { AGENCIAS, UAZAPI_SERVER_PADRAO } from "./config.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const fmtHora = (d) => { if (!d) return ""; const x = new Date(d); return `${String(x.getHours()).padStart(2,"0")}:${String(x.getMinutes()).padStart(2,"0")}`; };
@@ -122,12 +123,12 @@ function MsgBolha({ msg }) {
 }
 
 function InstanciaModal({ base, onSave, onClose }) {
-  const [f, setF] = useState({ nome: base?.nome || "", server_url: base?.server_url || "https://madsoffchurn.uazapi.com", instancia: base?.instancia || "", token: base?.token || "", agencia: base?.agencia || "Yield" });
+  const [f, setF] = useState({ nome: base?.nome || "", server_url: base?.server_url || UAZAPI_SERVER_PADRAO, instancia: base?.instancia || "", token: base?.token || "", agencia: base?.agencia || AGENCIAS[0] });
   const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
   return (
     <Modal title={base?.id ? "Editar instância" : "Nova instância"} onClose={onClose} footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button><button className="btn btn-primary" disabled={!f.nome || !f.instancia || !f.token} onClick={() => onSave({ ...base, ...f })}>Salvar</button></>}>
       <div className="form-row"><label>Nome</label><input className="input" value={f.nome} onChange={(e) => s("nome", e.target.value)} autoFocus /></div>
-      <div className="form-grid"><div className="form-row"><label>Server URL</label><input className="input" value={f.server_url} onChange={(e) => s("server_url", e.target.value)} /></div><div className="form-row"><label>Agência</label><select className="select" value={f.agencia} onChange={(e) => s("agencia", e.target.value)}><option>Yield</option><option>Mads</option></select></div></div>
+      <div className="form-grid"><div className="form-row"><label>Server URL</label><input className="input" value={f.server_url} onChange={(e) => s("server_url", e.target.value)} /></div><div className="form-row"><label>Agência</label><select className="select" value={f.agencia} onChange={(e) => s("agencia", e.target.value)}>{AGENCIAS.map((a) => <option key={a} value={a}>{a}</option>)}</select></div></div>
       <div className="form-grid"><div className="form-row"><label>ID instância</label><input className="input" value={f.instancia} onChange={(e) => s("instancia", e.target.value)} /></div><div className="form-row"><label>Token</label><input className="input" value={f.token} onChange={(e) => s("token", e.target.value)} /></div></div>
     </Modal>
   );

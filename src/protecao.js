@@ -1,3 +1,4 @@
+import { EMAIL_MASTER } from "./config.js";
 // ============================================================
 // OffChurn — Proteção contra DevTools
 // Detecta tentativa de abrir ferramentas de desenvolvedor.
@@ -10,7 +11,7 @@
 
 import { supabase } from "./supabaseClient";
 
-const ADMIN_ISENTO = "albertomachadoads@gmail.com";
+const ADMIN_ISENTO = EMAIL_MASTER;
 
 let _user = null;
 let _jaDisparou = false; // evita disparar múltiplas vezes

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { signIn } from "./auth";
 import { verificarIPBanido } from "./protecao";
+import { NOME_COMPLETO } from "./config.js";
 
 export default function Login({ aviso }) {
   const [email, setEmail] = useState("");
@@ -35,7 +36,7 @@ export default function Login({ aviso }) {
         <div className="login-brand">
           <span className="mark">O</span>
           <div>
-            <div className="login-name">OffChurn Yield Leads</div>
+            <div className="login-name">{NOME_COMPLETO}</div>
             <div className="login-sub">Acesso restrito</div>
           </div>
         </div>

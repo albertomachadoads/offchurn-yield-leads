@@ -1,3 +1,4 @@
+import { AGENCIAS } from "./config.js";
 import { supabase } from "./supabaseClient";
 
 // ===== Mapeamento banco (snake_case) <-> app (camelCase) =====
@@ -14,7 +15,7 @@ const mapCliente = (r) => ({
   googleMccId: r.google_mcc_id,
   objetivo: r.objetivo || "Lead",
   criticidade: r.criticidade || "Normal",
-  agencia: r.agencia || "Yield",
+  agencia: r.agencia || AGENCIAS[0],
 });
 const mapFunil = (r) => ({
   id: r.id, clienteId: r.cliente_id, competencia: r.competencia, plataforma: r.plataforma,
@@ -108,7 +109,7 @@ export async function upsertCliente(c) {
     plat_meta: !!c.platMeta,
     objetivo: c.objetivo || "Lead",
     criticidade: c.criticidade || "Normal",
-    agencia: c.agencia || "Yield",
+    agencia: c.agencia || AGENCIAS[0],
     google_mcc_id: (c.googleMccId === "" || c.googleMccId == null) ? null : String(c.googleMccId),
     google_ad_customer_id: (c.googleAdCustomerId === "" || c.googleAdCustomerId == null) ? null : String(c.googleAdCustomerId),
     meta_ad_account_id: (c.metaAdAccountId === "" || c.metaAdAccountId == null) ? null : String(c.metaAdAccountId),

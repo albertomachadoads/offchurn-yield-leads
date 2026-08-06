@@ -24,6 +24,7 @@ import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured, supabase } from "./supabaseClient";
+import { EMAIL_MASTER, AGENCIAS, NOME_SISTEMA, NOME_COMPLETO, moduloAtivo } from "./config.js";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
 
@@ -78,7 +79,7 @@ export default function App() {
   // sidebar recolhida por padrão; expande no hover ou fixada por botão
   const [sidebarFixa, setSidebarFixa] = useState(false);
   // tema (claro/escuro) — lê preferência salva
-  const [agFiltro, setAgFiltro] = useState("todas"); // "todas" | "Yield" | "Mads"
+  const [agFiltro, setAgFiltro] = useState("todas"); // "todas" ou uma das AGENCIAS definidas em config.js
 
   const [tema, setTema] = useState(() => {
     try { return localStorage.getItem("offchurn_tema") || "claro"; } catch { return "claro"; }
@@ -105,8 +106,7 @@ export default function App() {
   const [pesModal, setPesModal] = useState(null);
   const [clienteAberto, setClienteAberto] = useState(null);
 
-  const MASTER_EMAILS = ["albertomachadoads@gmail.com"];
-  const isMaster = MASTER_EMAILS.includes(user?.email?.toLowerCase());
+  const isMaster = !!user?.email && user.email.toLowerCase() === EMAIL_MASTER.toLowerCase();
   const isAdmin = isMaster || user?.papel === "admin";
   const addNotif = (msg, tipo) => {
     const id = Date.now();
@@ -118,6 +118,7 @@ export default function App() {
 
   const temPerm = (mod) => {
     try {
+      if (!moduloAtivo(mod)) return false;
       if (isMaster || isAdmin) return true;
       // Sem registro de permissões = acesso total (padrão)
       if (!userPerms?._configured) return true;
@@ -431,28 +432,28 @@ export default function App() {
           </button>
           <div className="brand">
             <span className="mark">O</span>
-            <span className="name">OffChurn</span>
+            <span className="name">{NOME_SISTEMA}</span>
           </div>
         </div>
         <div className="ag-filtro">
-          {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.length > 1 || isMaster || isAdmin) && (
+          {AGENCIAS.length > 1 && (!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.length > 1 || isMaster || isAdmin) && (
             <button className={agFiltro === "todas" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("todas")}>Todas</button>
           )}
-          {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.includes("Yield") || isMaster || isAdmin) && (
-            <button className={agFiltro === "Yield" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Yield")}>Yield</button>
-          )}
-          {(!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.includes("Mads") || isMaster || isAdmin) && (
-            <button className={agFiltro === "Mads" ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro("Mads")}>Mads</button>
-          )}
+          {AGENCIAS.length > 1 && AGENCIAS.map((ag) => (
+            (!userPerms?._configured || !userPerms?.agencias?.length || userPerms.agencias.includes(ag) || isMaster || isAdmin) && (
+              <button key={ag} className={agFiltro === ag ? "ag-btn ag-on" : "ag-btn"} onClick={() => setAgFiltro(ag)}>{ag}</button>
+            )
+          ))}
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
-          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow")) && (
+          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
             {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
             {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
             {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
+            {temPerm("clientes") && <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}><Icon.Grid /> <span>Clientes</span></button>}
           </div>
           )}
 
@@ -666,7 +667,7 @@ export default function App() {
         )}
 
         {view === "whatsapp" && (
-          <WhatsAppChat usuario={user} agencia={agFiltro === "todas" ? "Yield" : agFiltro} isAdmin={isAdmin} onToast={showToast} instanciasPermitidas={userPerms?.wa_instancias || []} onVerLead={(leadId) => { setView("crm"); window.__abrirLeadId = leadId; }} />
+          <WhatsAppChat usuario={user} agencia={agFiltro === "todas" ? AGENCIAS[0] : agFiltro} isAdmin={isAdmin} onToast={showToast} instanciasPermitidas={userPerms?.wa_instancias || []} onVerLead={(leadId) => { setView("crm"); window.__abrirLeadId = leadId; }} />
         )}
 
         {view === "metas" && (
@@ -763,7 +764,7 @@ function SetupNeeded() {
         <div className="login-brand">
           <span className="mark">O</span>
           <div>
-            <div className="login-name">OffChurn Yield Leads</div>
+            <div className="login-name">{NOME_COMPLETO}</div>
             <div className="login-sub">Configuração necessária</div>
           </div>
         </div>
@@ -1046,7 +1047,7 @@ function RegistroModal({ base, clientes, onClose, onSave, respDoCliente }) {
     clienteId: base.clienteId || clientes[0]?.id || "",
     // campos legados mantidos com padrão (colunas ainda existem no banco)
     criticidade: base.criticidade || "Normal",
-    agencia: base.agencia || "Yield",
+    agencia: base.agencia || AGENCIAS[0],
     tipoMeta: base.tipoMeta || "Faturamento",
     meta: base.meta ?? null,
     realizado: base.realizado ?? null,
@@ -1133,7 +1134,7 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
       <div className="form-grid">
         <div className="form-row">
           <label>Nome do cliente</label>
-          <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Pink Ninas" autoFocus />
+          <input className="input" value={f.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Nome do cliente" autoFocus />
         </div>
         <div className="form-row">
           <label>Nicho</label>
@@ -1152,8 +1153,7 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
       <div className="form-row">
         <label>Agência</label>
         <select className="select" value={f.agencia} onChange={(e) => set("agencia", e.target.value)}>
-          <option value="Yield">Yield</option>
-          <option value="Mads">Mads</option>
+          {AGENCIAS.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
       <div className="form-row">
