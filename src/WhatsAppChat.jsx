@@ -134,7 +134,7 @@ function InstanciaModal({ base, onSave, onClose }) {
   );
 }
 
-function CriarLeadModal({ numero, nome, conversaId, onClose, onToast }) {
+function CriarLeadModal({ numero, nome, conversaId, conversa, onClose, onToast }) {
   const [crm, setCrm] = useState(null);
   const [f, setF] = useState({ nome: nome || "", whatsapp: numero || "", email: "", funilId: "" });
   const [salvando, setSalvando] = useState(false);
@@ -144,7 +144,16 @@ function CriarLeadModal({ numero, nome, conversaId, onClose, onToast }) {
   async function salvar() {
     if (!f.nome.trim() || !f.funilId) return; setSalvando(true);
     try {
-      const result = await api.crmLeadSave({ nome: f.nome, whatsapp: f.whatsapp, email: f.email || null, funilId: f.funilId, etapaId: pe?.id, valor: 0, tags: "[]", camposCustom: "{}" });
+      const result = await api.crmLeadSave({
+        nome: f.nome, whatsapp: f.whatsapp, email: f.email || null,
+        funilId: f.funilId, etapaId: pe?.id, valor: 0, tags: "[]", camposCustom: "{}",
+        // Origem herdada da conversa (anúncio Click-to-WhatsApp)
+        utmSource: conversa?.utm_source || null,
+        utmMedium: conversa?.utm_medium || null,
+        utmCampaign: conversa?.utm_campaign || null,
+        utmTerm: conversa?.utm_term || null,
+        utmContent: conversa?.utm_content || null,
+      });
       const leadId = result?.id;
       if (leadId) {
         // Vincular pelo ID da conversa (mais confiável)
@@ -167,6 +176,15 @@ function CriarLeadModal({ numero, nome, conversaId, onClose, onToast }) {
   return (
     <Modal title="Nova negociação" onClose={onClose} footer={<><button className="btn btn-ghost" onClick={onClose}>Cancelar</button><button className="btn btn-primary" disabled={!f.nome || !f.funilId || salvando} onClick={salvar}>{salvando ? "Criando…" : "Criar lead"}</button></>}>
       <div className="form-row"><label>Nome *</label><input className="input" value={f.nome} onChange={(e) => setF((p) => ({ ...p, nome: e.target.value }))} autoFocus /></div>
+      {conversa?.origem_tipo === "meta_ads" && (
+        <div className="lead-origem">
+          <span className="lead-origem-tag">Meta Ads</span>
+          <div className="lead-origem-txt">
+            <strong>{conversa.utm_campaign || conversa.ad_titulo || "Campanha não identificada"}</strong>
+            <small>Esta origem será registrada no lead automaticamente.</small>
+          </div>
+        </div>
+      )}
       <div className="form-grid"><div className="form-row"><label>WhatsApp</label><input className="input" value={f.whatsapp} readOnly style={{ opacity: 0.6 }} /></div><div className="form-row"><label>Email (opc.)</label><input className="input" value={f.email} onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))} /></div></div>
       <div className="form-row"><label>Funil *</label><select className="select" value={f.funilId} onChange={(e) => setF((p) => ({ ...p, funilId: e.target.value }))}><option value="">Selecione</option>{funis.map((fn) => <option key={fn.id} value={fn.id}>{fn.nome}</option>)}</select></div>
       {pe && <p style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 6 }}>Etapa: <strong>{pe.nome}</strong></p>}
@@ -518,7 +536,7 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
         <div className="wa-conv-list">{filtradas.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "var(--ink-faint)", fontSize: 13 }}>{instancias.length === 0 ? "Configure uma instância." : "Nenhuma conversa."}</div> : filtradas.map((c) => (
           <div key={c.id} className={`wa-conv-item ${convAberta?.id === c.id ? "wa-conv-ativa" : ""}`} onClick={() => setConvAberta(c)}>
             <Avatar nome={c.nome} foto={c.foto_url} />
-            <div className="wa-conv-info"><div className="wa-conv-nome">{c.nome || c.numero}{!c.lead_id && <span className="wa-new-badge">🆕</span>}</div><div className="wa-conv-ultima">{c.ultima_msg || "…"}</div></div>
+            <div className="wa-conv-info"><div className="wa-conv-nome">{c.nome || c.numero}{c.origem_tipo === "meta_ads" && <span className="wa-ad-selo" title={c.utm_campaign || c.ad_titulo || "Veio de anúncio"}>Ads</span>}{!c.lead_id && <span className="wa-new-badge">🆕</span>}</div><div className="wa-conv-ultima">{c.ultima_msg || "…"}</div></div>
             <div className="wa-conv-meta"><div className="wa-conv-hora">{fmtData(c.ultima_msg_em)} {fmtHora(c.ultima_msg_em)}</div>{c.nao_lidas > 0 && <div className="wa-badge">{c.nao_lidas}</div>}</div>
           </div>
         ))}</div>
@@ -527,8 +545,16 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
         <div className="wa-chat-header">
           <button className="iconbtn wa-back-btn" onClick={() => setConvAberta(null)}>‹</button>
           <Avatar nome={convAberta.nome} foto={convAberta.foto_url} />
-          <div className="wa-chat-header-info"><div className="wa-chat-header-nome">{convAberta.nome || convAberta.numero}</div><div className="wa-chat-header-num">{convAberta.numero}</div></div>
-          {convAberta.lead_id ? <button className="btn btn-sm btn-ghost wa-ver-crm" onClick={() => onVerLead && onVerLead(convAberta.lead_id)}>Ver no CRM ›</button> : <button className="btn btn-sm btn-primary" onClick={() => setModalLead({ numero: convAberta.numero, nome: convAberta.nome, conversaId: convAberta.id })}>+ Negociação</button>}
+          <div className="wa-chat-header-info"><div className="wa-chat-header-nome">{convAberta.nome || convAberta.numero}</div><div className="wa-chat-header-num">
+            {convAberta.numero}
+            {convAberta.origem_tipo === "meta_ads" && (
+              <span className="wa-origem-chip" title={convAberta.ad_url || ""}>
+                <span className="wa-ad-selo">Ads</span>
+                {convAberta.utm_campaign || convAberta.ad_titulo || "Anúncio"}
+              </span>
+            )}
+          </div></div>
+          {convAberta.lead_id ? <button className="btn btn-sm btn-ghost wa-ver-crm" onClick={() => onVerLead && onVerLead(convAberta.lead_id)}>Ver no CRM ›</button> : <button className="btn btn-sm btn-primary" onClick={() => setModalLead({ numero: convAberta.numero, nome: convAberta.nome, conversaId: convAberta.id, conversa: convAberta })}>+ Negociação</button>}
         </div>
         <div className="wa-messages" ref={chatRef}>{mensagens.map((m) => <MsgBolha key={m.id} msg={m} />)}</div>
         <div className="wa-input-bar">
@@ -562,7 +588,7 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
     {modalConectar && <WhatsAppConectar usuario={usuario} agencia={agencia} isAdmin={isAdmin}
       onToast={onToast} onFechar={() => setModalConectar(false)}
       onConectado={() => { loadInst(); loadConvs(); }} />}
-    {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} conversaId={modalLead.conversaId} onClose={async () => {
+    {modalLead && <CriarLeadModal numero={modalLead.numero} nome={modalLead.nome} conversaId={modalLead.conversaId} conversa={modalLead.conversa} onClose={async () => {
         setModalLead(null);
         await loadConvs();
         // Recarregar conversa aberta para atualizar lead_id
