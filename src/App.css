@@ -2035,3 +2035,14 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .trk-copiar { border: 1px solid var(--line); background: var(--surface); color: var(--ink-faint); width: 26px; height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .12s; }
 .trk-copiar:hover { border-color: var(--green); color: var(--green); }
 .trk-nota { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; margin: 10px 0 0; }
+
+/* Anúncio de origem no bloco de trackeamento */
+.trk-anuncio { margin-top: 12px; padding: 11px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; }
+.tema-escuro .trk-anuncio { background: var(--surface); }
+.trk-anuncio-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.trk-canal { font-size: 10px; font-weight: 700; letter-spacing: .3px; padding: 2px 8px; border-radius: 4px; background: #E0EAFF; color: #2563EB; }
+.tema-escuro .trk-canal { background: #16223A; color: #60A5FA; }
+.trk-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--green); text-decoration: none; font-weight: 500; }
+.trk-link:hover { text-decoration: underline; }
+.trk-criativo { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
+.trk-adid { font-size: 10.5px; color: var(--ink-faint); margin-top: 3px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { supabase } from "./supabaseClient.js";
 import { fmtMoeda } from "./utils";
@@ -82,6 +82,20 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
   const [editContato, setEditContato] = useState(false);
   const [editOrigem, setEditOrigem] = useState(false);
   const [modalPerdaLP, setModalPerdaLP] = useState(false);
+  const [origemWa, setOrigemWa] = useState(null);
+
+  // Dados do anúncio ficam na conversa do WhatsApp, não no lead
+  useEffect(() => {
+    if (!lead?.id) return;
+    let vivo = true;
+    supabase.from("wa_conversas")
+      .select("ad_id, ad_titulo, ad_url, ad_app, origem_tipo")
+      .eq("lead_id", lead.id).eq("origem_tipo", "meta_ads")
+      .limit(1).maybeSingle()
+      .then(({ data }) => { if (vivo && data) setOrigemWa(data); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [lead?.id]);
   const [modalAtiv, setModalAtiv] = useState(null);
   const [nota, setNota] = useState("");
   const [camposForm, setCamposForm] = useState(() => { try { return JSON.parse(lead.camposCustom || "{}"); } catch { return {}; } });
@@ -358,7 +372,23 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
               </div>
             ))}
 
-            {!lead.utmSource && !lead.utmCampaign && (
+            {origemWa && (
+              <div className="trk-anuncio">
+                <div className="trk-anuncio-top">
+                  <span className="trk-canal">{origemWa.ad_app === "instagram" ? "Instagram" : origemWa.ad_app === "facebook" ? "Facebook" : "Meta Ads"}</span>
+                  {origemWa.ad_url && (
+                    <a href={origemWa.ad_url} target="_blank" rel="noopener noreferrer" className="trk-link" title="Abrir o post do anúncio">
+                      ver anúncio
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                  )}
+                </div>
+                {origemWa.ad_titulo && <div className="trk-criativo">{origemWa.ad_titulo}</div>}
+                {origemWa.ad_id && <div className="trk-adid">ID do anúncio: {origemWa.ad_id}</div>}
+              </div>
+            )}
+
+            {!lead.utmSource && !lead.utmCampaign && !origemWa && (
               <p className="trk-nota">
                 Sem dados de origem. Leads que chegam por anúncio Click-to-WhatsApp
                 são marcados automaticamente.
