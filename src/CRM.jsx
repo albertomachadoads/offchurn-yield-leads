@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon, Modal } from "./components.jsx";
 import { fmtMoeda } from "./utils";
 import * as api from "./api.js";
+import { supabase } from "./supabaseClient.js";
 import LeadPage from "./LeadPage.jsx";
 import { logAcao } from "./logger.js";
 import { executarAutomacoes } from "./autoEngine.js";
@@ -263,16 +264,72 @@ export default function CRM({ pessoas, onToast, userName, isAdmin, onIniciarOnbo
     try { await api.crmLeadDelete(id); logAcao("crm", `Lead excluído: ${lead?.nome || id}`); carregar(); }
     catch (e) { onToast("Erro: " + e.message); }
   }
-  function exportarCSV() {
-    const header = ["Nome","WhatsApp","Email","Etapa","Produto","Valor","Responsável","Tags","Origem","Criado em"];
+  async function exportarCSV() {
+    // As UTMs podem estar apenas na conversa do WhatsApp, quando o lead
+    // ainda não foi sincronizado. Buscamos as duas fontes.
+    const porTelefone = {};
+    try {
+      const { data: convs } = await supabase.from("wa_conversas")
+        .select("numero, lead_id, utm_source, utm_medium, utm_campaign, utm_term, utm_content, ad_id, ad_titulo, ad_app, origem_tipo");
+      (convs || []).forEach((c) => {
+        if (c.lead_id) porTelefone["id:" + c.lead_id] = c;
+        if (c.numero) porTelefone["tel:" + c.numero.slice(-8)] = c;
+      });
+    } catch { /* segue sem os dados da conversa */ }
+
+    const origemDe = (l) => {
+      const porId = porTelefone["id:" + l.id];
+      if (porId) return porId;
+      const tel = (l.whatsapp || "").replace(/\D/g, "");
+      return tel.length >= 8 ? porTelefone["tel:" + tel.slice(-8)] : null;
+    };
+
+    const header = [
+      "Nome","WhatsApp","Email","Etapa","Tipo da etapa","Produto","Valor",
+      "Responsável","Tags","Origem","Criado em","Atualizado em",
+      "Motivo da perda","Justificativa da perda",
+      "utm_campaign","utm_medium","utm_content","utm_source","utm_term",
+      "Canal do anúncio","ID do anúncio","Criativo","Origem do contato",
+    ];
+
     const rows = leads.map((l) => {
-      const etapa = etapas.find((e) => e.id === l.etapaId); let tgN = ""; try { tgN = JSON.parse(l.tags||"[]").map((tid) => tagMap[tid]?.nome||"").filter(Boolean).join(", "); } catch {}
-      return [l.nome, l.whatsapp||"", l.email||"", etapa?.nome||"", prodMap[l.produtoId]?.nome||"", l.valor, pesMap[l.responsavelId]?.nome||"", tgN, origens.find((o)=>o.id===l.origemId)?.nome||"", l.criadoEm?.split("T")[0]||""];
+      const etapa = etapas.find((e) => e.id === l.etapaId);
+      let tgN = "";
+      try { tgN = JSON.parse(l.tags || "[]").map((tid) => tagMap[tid]?.nome || "").filter(Boolean).join(", "); } catch {}
+      const wa = origemDe(l) || {};
+      const motivo = (crm.motivos || []).find((m) => m.id === l.motivoPerdaId);
+
+      return [
+        l.nome, l.whatsapp || "", l.email || "",
+        etapa?.nome || "", etapa?.tipo || "aberto",
+        prodMap[l.produtoId]?.nome || "", l.valor,
+        pesMap[l.responsavelId]?.nome || "", tgN,
+        origens.find((o) => o.id === l.origemId)?.nome || "",
+        l.criadoEm?.split("T")[0] || "",
+        l.atualizadoEm?.split("T")[0] || "",
+        motivo?.nome || "", l.justificativaPerda || "",
+        // UTMs: o lead manda; a conversa serve de reserva
+        l.utmCampaign || wa.utm_campaign || "",
+        l.utmMedium   || wa.utm_medium   || "",
+        l.utmContent  || wa.utm_content  || "",
+        l.utmSource   || wa.utm_source   || "",
+        l.utmTerm     || wa.utm_term     || "",
+        wa.ad_app || "", wa.ad_id || "", wa.ad_titulo || "",
+        wa.origem_tipo === "meta_ads" ? "Anúncio" : wa.origem_tipo === "organico" ? "Orgânico" : "",
+      ];
     });
-    const csv = [header,...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF"+csv], { type: "text/csv;charset=utf-8;" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `crm_${funil.nome.replace(/\s/g,"_")}.csv`; a.click();
-    onToast("CSV exportado");
+
+    // Ponto e vírgula: o Excel em português abre direto, sem assistente
+    const csv = [header, ...rows]
+      .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const hoje = new Date().toISOString().slice(0, 10);
+    a.download = `crm_${funil.nome.replace(/\s/g, "_")}_${hoje}.csv`;
+    a.click();
+    onToast(`CSV exportado — ${rows.length} lead${rows.length !== 1 ? "s" : ""}`);
   }
 
   return (
