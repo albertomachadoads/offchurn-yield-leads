@@ -89,7 +89,7 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
     if (!lead?.id) return;
     let vivo = true;
     supabase.from("wa_conversas")
-      .select("ad_id, ad_titulo, ad_url, ad_app, origem_tipo")
+      .select("ad_id, ad_titulo, ad_url, ad_app, origem_tipo, utm_source, utm_medium, utm_campaign, utm_term, utm_content")
       .eq("lead_id", lead.id).eq("origem_tipo", "meta_ads")
       .limit(1).maybeSingle()
       .then(({ data }) => { if (vivo && data) setOrigemWa(data); })
@@ -340,15 +340,15 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
           <div className="lead-section">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <h3 className="lead-sec-title" style={{ margin: 0 }}>Trackeamento</h3>
-              {(lead.utmSource || lead.utmCampaign) && (
+              {(lead.utmCampaign || origemWa?.utm_campaign) && (
                 <button className="trk-copiar" title="Copiar todas as UTMs"
                   onClick={() => {
                     const txt = [
-                      `utm_campaign: ${lead.utmCampaign || "—"}`,
-                      `utm_medium: ${lead.utmMedium || "—"}`,
-                      `utm_content: ${lead.utmContent || "—"}`,
-                      `utm_source: ${lead.utmSource || "—"}`,
-                      `utm_term: ${lead.utmTerm || "—"}`,
+                      `utm_campaign: ${lead.utmCampaign || origemWa?.utm_campaign || "—"}`,
+                      `utm_medium: ${lead.utmMedium || origemWa?.utm_medium || "—"}`,
+                      `utm_content: ${lead.utmContent || origemWa?.utm_content || "—"}`,
+                      `utm_source: ${lead.utmSource || origemWa?.utm_source || "—"}`,
+                      `utm_term: ${lead.utmTerm || origemWa?.utm_term || "—"}`,
                     ].join("\n");
                     navigator.clipboard?.writeText(txt)
                       .then(() => onToast("UTMs copiadas"))
@@ -360,11 +360,11 @@ export default function LeadPage({ lead, etapas, tags, origens, campos, produtos
             </div>
 
             {[
-              ["utm_campaign", lead.utmCampaign],
-              ["utm_medium", lead.utmMedium],
-              ["utm_content", lead.utmContent],
-              ["utm_source", lead.utmSource],
-              ["utm_term", lead.utmTerm],
+              ["utm_campaign", lead.utmCampaign || origemWa?.utm_campaign],
+              ["utm_medium", lead.utmMedium || origemWa?.utm_medium],
+              ["utm_content", lead.utmContent || origemWa?.utm_content],
+              ["utm_source", lead.utmSource || origemWa?.utm_source],
+              ["utm_term", lead.utmTerm || origemWa?.utm_term],
             ].map(([chave, valor]) => (
               <div key={chave} className="trk-linha">
                 <span className="trk-chave">{chave}:</span>
