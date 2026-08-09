@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { fmtMoeda } from "./utils";
+import { supabase } from "./supabaseClient.js";
 import * as api from "./api.js";
 
 /* ============================================================
-   Análises do CRM — dashboards de performance comercial.
-   Receita ganha/perdida, ticket médio, conversão, funil,
-   análise entre funis, movimentações, novos contatos.
+   Análises do CRM — performance comercial cruzada com a
+   origem de mídia (campanha, conjunto e anúncio do Meta).
    ============================================================ */
 
 const FILTROS = [
@@ -17,36 +17,40 @@ const FILTROS = [
   { id: "custom", l: "Personalizado" },
 ];
 const limDate = (f) => { if (!f) return null; const d = new Date(); d.setDate(d.getDate() - parseInt(f)); return d.toISOString(); };
-const pct = (a, b) => b > 0 ? ((a / b) * 100).toFixed(1) : "0.0";
+const pct = (a, b) => (b > 0 ? (a / b) * 100 : 0);
+const fmtP = (v) => `${v.toFixed(1)}%`;
 
-/* ---- Barra horizontal ---- */
-function Bar({ label, valor, max, cor, sub }) {
-  const w = max > 0 ? Math.min((valor / max) * 100, 100) : 0;
+/* ---------- Cartão de indicador ---------- */
+function Kpi({ label, valor, sub, tom }) {
   return (
-    <div className="ana-bar">
-      <div className="ana-bar-head">
-        <span className="ana-bar-label">{label}</span>
-        <span className="ana-bar-valor" style={{ color: cor }}>{sub || valor}</span>
-      </div>
-      <div className="ana-bar-track"><div className="ana-bar-fill" style={{ width: `${w}%`, background: cor || "var(--green)" }} /></div>
+    <div className={`an-kpi ${tom ? "an-kpi-" + tom : ""}`}>
+      <span className="an-kpi-l">{label}</span>
+      <span className="an-kpi-v">{valor}</span>
+      {sub && <span className="an-kpi-s">{sub}</span>}
     </div>
   );
 }
 
-/* ---- Gráfico de funil (pirâmide) ---- */
-function GraficoFunil({ etapas, leadsPorEtapa }) {
-  const maxLeads = Math.max(...etapas.map((e) => (leadsPorEtapa[e.id] || []).length), 1);
+/* ---------- Funil com degradê ---------- */
+function Funil({ etapas, contagem, acumulado }) {
+  const base = Math.max(acumulado[0] || 1, 1);
   return (
-    <div className="funil-chart">
+    <div className="an-funil">
       {etapas.map((e, i) => {
-        const qtd = (leadsPorEtapa[e.id] || []).length;
-        const w = maxLeads > 0 ? Math.max((qtd / maxLeads) * 100, 8) : 8;
+        const larg = Math.max(pct(acumulado[i], base), 6);
+        const conv = i === 0 ? null : pct(acumulado[i], acumulado[i - 1]);
+        const tipo = e.tipo === "ganho" ? "ganho" : e.tipo === "perdido" ? "perdido" : "aberto";
         return (
-          <div key={e.id} className="funil-row">
-            <div className="funil-bar-wrap" style={{ width: `${w}%` }}>
-              <div className="funil-bar" style={{ background: e.cor || "var(--green)" }}>{qtd}</div>
+          <div key={e.id} className="an-funil-linha">
+            <div className="an-funil-info">
+              <span className="an-funil-nome">{e.nome}</span>
+              {conv != null && <span className="an-funil-conv">{fmtP(conv)} avançaram</span>}
             </div>
-            <span className="funil-label">{e.nome}</span>
+            <div className="an-funil-trilha">
+              <div className={`an-funil-barra an-${tipo}`} style={{ width: `${larg}%` }}>
+                <span>{contagem[i]}</span>
+              </div>
+            </div>
           </div>
         );
       })}
@@ -54,25 +58,43 @@ function GraficoFunil({ etapas, leadsPorEtapa }) {
   );
 }
 
-/* ---- Pizza simples CSS ---- */
-function Pizza({ fatias }) {
-  const total = fatias.reduce((s, f) => s + f.valor, 0);
-  if (total === 0) return <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Sem dados</p>;
-  let acc = 0;
-  const gradParts = fatias.map((f) => {
-    const start = (acc / total) * 360;
-    acc += f.valor;
-    const end = (acc / total) * 360;
-    return `${f.cor} ${start}deg ${end}deg`;
-  });
+/* ---------- Rosca com degradê ---------- */
+function Rosca({ fatias, total, legenda }) {
+  const S = 168, R = 62, W = 22, CX = S / 2, CY = S / 2;
+  const circ = 2 * Math.PI * R;
+  const soma = fatias.reduce((a, f) => a + f.v, 0) || 1;
+  let off = 0;
   return (
-    <div style={{ display: "flex", gap: 20, alignItems: "center", flexWrap: "wrap" }}>
-      <div className="pizza-circle" style={{ background: `conic-gradient(${gradParts.join(", ")})` }} />
-      <div className="pizza-legend">
+    <div className="an-rosca-wrap">
+      <svg viewBox={`0 0 ${S} ${S}`} className="an-rosca">
+        <defs>
+          {fatias.map((f, i) => (
+            <linearGradient key={i} id={`gr${f.id}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={f.c1} />
+              <stop offset="100%" stopColor={f.c2} />
+            </linearGradient>
+          ))}
+        </defs>
+        {fatias.map((f, i) => {
+          const dash = (f.v / soma) * circ;
+          const o = off; off += dash;
+          return f.v > 0 && (
+            <circle key={i} cx={CX} cy={CY} r={R} fill="none" stroke={`url(#gr${f.id})`} strokeWidth={W}
+              strokeDasharray={`${dash - 2} ${circ - dash + 2}`} strokeDashoffset={-o}
+              strokeLinecap="round" transform={`rotate(-90 ${CX} ${CY})`}
+              style={{ transition: "stroke-dasharray .5s" }} />
+          );
+        })}
+        <text x={CX} y={CY - 4} textAnchor="middle" className="an-rosca-n">{total}</text>
+        <text x={CX} y={CY + 14} textAnchor="middle" className="an-rosca-l">{legenda}</text>
+      </svg>
+      <div className="an-rosca-leg">
         {fatias.map((f, i) => (
-          <div key={i} className="pizza-item">
-            <span className="pizza-dot" style={{ background: f.cor }} />
-            <span>{f.label}: <strong>{f.valor}</strong> ({pct(f.valor, total)}%)</span>
+          <div key={i} className="an-leg-item">
+            <span className="an-leg-dot" style={{ background: `linear-gradient(135deg, ${f.c1}, ${f.c2})` }} />
+            <span className="an-leg-nome">{f.l}</span>
+            <strong>{f.v}</strong>
+            <span className="an-leg-pct">{fmtP(pct(f.v, soma))}</span>
           </div>
         ))}
       </div>
@@ -80,252 +102,347 @@ function Pizza({ fatias }) {
   );
 }
 
-/* ---- Principal ---- */
+/* ---------- Barra de ranking ---------- */
+function BarraRank({ nome, valor, max, sub, cor }) {
+  return (
+    <div className="an-rank">
+      <div className="an-rank-top">
+        <span className="an-rank-nome" title={nome}>{nome}</span>
+        <span className="an-rank-v">{valor}{sub && <em>{sub}</em>}</span>
+      </div>
+      <div className="an-rank-trilha">
+        <div className="an-rank-barra" style={{ width: `${Math.max(pct(valor, max), 2)}%`, background: cor }} />
+      </div>
+    </div>
+  );
+}
+
+/* ================= COMPONENTE ================= */
 export default function CRMAnalises({ onToast, pessoas }) {
   const [crm, setCrm] = useState(null);
+  const [convs, setConvs] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [periodo, setPeriodo] = useState("30d");
   const [funilId, setFunilId] = useState(null);
   const [customDe, setCustomDe] = useState("");
   const [customAte, setCustomAte] = useState("");
+  const [agrup, setAgrup] = useState("campanha");  // campanha | conjunto | anuncio
+  const [ordenar, setOrdenar] = useState("leads");
 
   async function carregar() {
-    try { const d = await api.fetchCRM(); setCrm(d); if (!funilId && d.funis.length > 0) setFunilId(d.funis[0].id); }
-    catch (e) { onToast("Erro: " + e.message); } finally { setCarregando(false); }
+    try {
+      const d = await api.fetchCRM();
+      setCrm(d);
+      if (!funilId && d.funis.length > 0) setFunilId(d.funis[0].id);
+      const { data } = await supabase.from("wa_conversas")
+        .select("numero, lead_id, utm_source, utm_medium, utm_campaign, utm_content, ad_id, ad_app, origem_tipo");
+      setConvs(data || []);
+    } catch (e) { onToast("Erro: " + e.message); }
+    finally { setCarregando(false); }
   }
   useEffect(() => { carregar(); }, []);
 
+  const D = useMemo(() => {
+    if (!crm || !crm.funis?.length) return null;
+
+    const lim = periodo === "custom" ? (customDe ? new Date(customDe).toISOString() : null) : limDate(periodo);
+    const limAte = periodo === "custom" && customAte ? new Date(customAte + "T23:59:59").toISOString() : null;
+    const funil = crm.funis.find((f) => f.id === funilId) || crm.funis[0];
+    const etapas = (crm.etapas || []).filter((e) => e.funilId === funil.id).sort((a, b) => a.ordem - b.ordem);
+    const idsGanho = new Set(etapas.filter((e) => e.tipo === "ganho").map((e) => e.id));
+    const idsPerdido = new Set(etapas.filter((e) => e.tipo === "perdido").map((e) => e.id));
+
+    let leads = (crm.leads || []).filter((l) => l.funilId === funil.id);
+    if (lim) leads = leads.filter((l) => l.criadoEm >= lim);
+    if (limAte) leads = leads.filter((l) => l.criadoEm <= limAte);
+
+    const ganhos = leads.filter((l) => idsGanho.has(l.etapaId));
+    const perdidos = leads.filter((l) => idsPerdido.has(l.etapaId));
+    const abertos = leads.filter((l) => !idsGanho.has(l.etapaId) && !idsPerdido.has(l.etapaId));
+    const receitaGanha = ganhos.reduce((s, l) => s + (l.valor || 0), 0);
+    const receitaPerdida = perdidos.reduce((s, l) => s + (l.valor || 0), 0);
+    const valorAberto = abertos.reduce((s, l) => s + (l.valor || 0), 0);
+
+    /* --- Etapas comerciais em ordem, sem "perdido" --- */
+    const comerciais = etapas.filter((e) => e.tipo !== "perdido");
+    const ordemPorEtapa = {};
+    comerciais.forEach((e, i) => { ordemPorEtapa[e.id] = i; });
+
+    const contagem = comerciais.map((e) => leads.filter((l) => l.etapaId === e.id).length);
+    // Acumulado: quem está nesta etapa ou já passou dela
+    const acumulado = comerciais.map((_, i) =>
+      leads.filter((l) => {
+        const pos = ordemPorEtapa[l.etapaId];
+        return pos !== undefined && pos >= i;
+      }).length
+    );
+
+    /* --- Marcos: qualificação e reunião --- */
+    const acharEtapa = (regex, padraoIdx) => {
+      const achou = comerciais.findIndex((e) => regex.test(e.nome || ""));
+      return achou >= 0 ? achou : Math.min(padraoIdx, comerciais.length - 1);
+    };
+    const idxQualif = acharEtapa(/qualific/i, 2);
+    const idxReuniao = acharEtapa(/reuni/i, 3);
+
+    const chegouEm = (l, idx) => {
+      if (idsGanho.has(l.etapaId)) return true;
+      const pos = ordemPorEtapa[l.etapaId];
+      return pos !== undefined && pos >= idx;
+    };
+
+    /* --- Origem de mídia por lead --- */
+    const porLeadId = {}, porTel = {};
+    convs.forEach((c) => {
+      if (c.lead_id) porLeadId[c.lead_id] = c;
+      if (c.numero) porTel[c.numero.slice(-8)] = c;
+    });
+    const origemDe = (l) => {
+      if (l.utmCampaign) return { campanha: l.utmCampaign, conjunto: l.utmMedium, anuncio: l.utmContent, canal: l.utmSource };
+      const c = porLeadId[l.id] || porTel[(l.whatsapp || "").replace(/\D/g, "").slice(-8)];
+      if (c?.utm_campaign) return { campanha: c.utm_campaign, conjunto: c.utm_medium, anuncio: c.utm_content, canal: c.utm_source };
+      if (c?.origem_tipo === "meta_ads") return { campanha: "(anúncio não identificado)", conjunto: null, anuncio: null, canal: c.ad_app };
+      return null;
+    };
+
+    /* --- Agregação por campanha / conjunto / anúncio --- */
+    const chaveDe = (o) => (agrup === "campanha" ? o.campanha : agrup === "conjunto" ? o.conjunto : o.anuncio) || "(não informado)";
+    const grupos = {};
+    let comOrigem = 0;
+
+    leads.forEach((l) => {
+      const o = origemDe(l);
+      if (!o) return;
+      comOrigem++;
+      const k = chaveDe(o);
+      if (!grupos[k]) grupos[k] = { nome: k, campanha: o.campanha, leads: 0, qualificados: 0, reunioes: 0, vendas: 0, perdidos: 0, receita: 0 };
+      const g = grupos[k];
+      g.leads++;
+      if (chegouEm(l, idxQualif)) g.qualificados++;
+      if (chegouEm(l, idxReuniao)) g.reunioes++;
+      if (idsGanho.has(l.etapaId)) { g.vendas++; g.receita += l.valor || 0; }
+      if (idsPerdido.has(l.etapaId)) g.perdidos++;
+    });
+
+    const lista = Object.values(grupos).map((g) => ({
+      ...g,
+      taxaQualif: pct(g.qualificados, g.leads),
+      taxaReuniao: pct(g.reunioes, g.leads),
+      taxaVenda: pct(g.vendas, g.leads),
+      ticket: g.vendas > 0 ? g.receita / g.vendas : 0,
+    })).sort((a, b) => (b[ordenar] ?? 0) - (a[ordenar] ?? 0));
+
+    /* --- Motivos de perda --- */
+    const motivos = {};
+    perdidos.forEach((l) => {
+      const nome = (crm.motivos || []).find((m) => m.id === l.motivoPerdaId)?.nome || "Não informado";
+      motivos[nome] = (motivos[nome] || 0) + 1;
+    });
+    const motivosLista = Object.entries(motivos).map(([nome, qtd]) => ({ nome, qtd })).sort((a, b) => b.qtd - a.qtd);
+
+    /* --- Vendedores --- */
+    const porPessoa = {};
+    leads.forEach((l) => {
+      const id = l.responsavelId || "_sem";
+      if (!porPessoa[id]) porPessoa[id] = { nome: (pessoas || []).find((p) => p.id === id)?.nome || "Sem responsável", leads: 0, ganhos: 0, perdidos: 0, receita: 0 };
+      const v = porPessoa[id];
+      v.leads++;
+      if (idsGanho.has(l.etapaId)) { v.ganhos++; v.receita += l.valor || 0; }
+      if (idsPerdido.has(l.etapaId)) v.perdidos++;
+    });
+    const vendedores = Object.values(porPessoa)
+      .map((v) => ({ ...v, conv: pct(v.ganhos, v.leads) }))
+      .sort((a, b) => b.receita - a.receita);
+
+    return {
+      funil, etapas, comerciais, contagem, acumulado,
+      leads: leads.length, ganhos: ganhos.length, perdidos: perdidos.length, abertos: abertos.length,
+      receitaGanha, receitaPerdida, valorAberto,
+      ticket: ganhos.length ? receitaGanha / ganhos.length : 0,
+      conversao: pct(ganhos.length, leads.length),
+      lista, comOrigem, semOrigem: leads.length - comOrigem,
+      nomeQualif: comerciais[idxQualif]?.nome || "Qualificado",
+      nomeReuniao: comerciais[idxReuniao]?.nome || "Reunião",
+      motivosLista, vendedores,
+    };
+  }, [crm, convs, periodo, funilId, customDe, customAte, agrup, ordenar, pessoas]);
+
   if (carregando) return <div style={{ padding: 40, textAlign: "center" }}>Carregando análises…</div>;
   if (!crm || crm.funis.length === 0) return <div className="empty"><p>Crie funis no CRM para ver as análises.</p></div>;
+  if (!D) return null;
 
-  const lim = periodo === "custom" ? (customDe ? new Date(customDe).toISOString() : null) : limDate(periodo);
-  const limAte = periodo === "custom" && customAte ? new Date(customAte + "T23:59:59").toISOString() : null;
-  const funil = crm.funis.find((f) => f.id === funilId) || crm.funis[0];
-  const etapas = (crm.etapas || []).filter((e) => e.funilId === funil.id).sort((a, b) => a.ordem - b.ordem);
-  const etGanho = etapas.filter((e) => e.tipo === "ganho");
-  const etPerdido = etapas.filter((e) => e.tipo === "perdido");
-  const idsGanho = new Set(etGanho.map((e) => e.id));
-  const idsPerdido = new Set(etPerdido.map((e) => e.id));
-
-  let leads = (crm.leads || []).filter((l) => l.funilId === funil.id);
-  if (lim) leads = leads.filter((l) => l.criadoEm >= lim);
-  if (limAte) leads = leads.filter((l) => l.criadoEm <= limAte);
-
-  const ganhos = leads.filter((l) => idsGanho.has(l.etapaId));
-  const perdidos = leads.filter((l) => idsPerdido.has(l.etapaId));
-  const abertos = leads.filter((l) => !idsGanho.has(l.etapaId) && !idsPerdido.has(l.etapaId));
-
-  const receitaGanha = ganhos.reduce((s, l) => s + (l.valor || 0), 0);
-  const receitaPerdida = perdidos.reduce((s, l) => s + (l.valor || 0), 0);
-  const ticketMedio = ganhos.length > 0 ? receitaGanha / ganhos.length : 0;
-  const taxaConversao = leads.length > 0 ? (ganhos.length / leads.length) * 100 : 0;
-
-  // atividades do período
-  let atividades = (crm.atividades || []);
-  if (lim) atividades = atividades.filter((a) => a.criadoEm >= lim);
-  const atvsFunil = atividades.filter((a) => leads.some((l) => l.id === a.leadId));
-  const reunioes = atvsFunil.filter((a) => a.tipo === "reuniao").length;
-  const ligacoes = atvsFunil.filter((a) => a.tipo === "ligacao").length;
-  const tarefas = atvsFunil.filter((a) => a.tipo === "tarefa").length;
-  const movimentacoes = atvsFunil.filter((a) => a.tipo === "sistema" && a.descricao?.includes("Movido")).length;
-  const novosContatos = leads.length;
-
-  // leads por etapa
-  const leadsPorEtapa = {};
-  etapas.forEach((e) => { leadsPorEtapa[e.id] = []; });
-  leads.forEach((l) => { if (leadsPorEtapa[l.etapaId]) leadsPorEtapa[l.etapaId].push(l); });
-
-  // taxas de progressão entre etapas
-  const taxasProgressao = etapas.slice(0, -1).map((e, i) => {
-    const qtdAtual = (leadsPorEtapa[e.id] || []).length;
-    const qtdProx = (leadsPorEtapa[etapas[i + 1]?.id] || []).length;
-    return { de: e.nome, para: etapas[i + 1]?.nome, taxa: qtdAtual > 0 ? (qtdProx / qtdAtual * 100).toFixed(1) : "0.0" };
-  });
-
-  // análise entre funis
-  const todosFunis = crm.funis.map((f) => {
-    const fLeads = (crm.leads || []).filter((l) => l.funilId === f.id);
-    const fEtapas = (crm.etapas || []).filter((e) => e.funilId === f.id);
-    const fGanho = fLeads.filter((l) => fEtapas.find((e) => e.id === l.etapaId)?.tipo === "ganho");
-    return { nome: f.nome, total: fLeads.length, ganhos: fGanho.length, receita: fGanho.reduce((s, l) => s + (l.valor || 0), 0), taxa: fLeads.length > 0 ? (fGanho.length / fLeads.length * 100).toFixed(1) : "0.0" };
-  });
-
-  // produtos mais vendidos
-  const prodMap = Object.fromEntries((crm.produtos || []).map((p) => [p.id, p]));
-  const prodContagem = {};
-  ganhos.forEach((l) => { if (l.produtoId) prodContagem[l.produtoId] = (prodContagem[l.produtoId] || 0) + 1; });
-  const topProdutos = Object.entries(prodContagem).map(([id, qtd]) => ({ nome: prodMap[id]?.nome || "?", qtd, valor: (prodMap[id]?.valor || 0) * qtd })).sort((a, b) => b.qtd - a.qtd).slice(0, 5);
+  const maxLista = Math.max(...D.lista.map((g) => g[ordenar] || 0), 1);
+  const rotuloAgrup = agrup === "campanha" ? "Campanha" : agrup === "conjunto" ? "Conjunto" : "Anúncio";
 
   return (
-    <>
+    <div className="an">
       <div className="page-head">
-        <div><h1>Análises do CRM</h1><p>Performance comercial — {funil.nome}</p></div>
+        <div>
+          <h1>Análises do CRM</h1>
+          <p>Performance comercial e origem de mídia — {D.funil.nome}</p>
+        </div>
         <div className="head-actions">
+          <button className="toolbar-btn" onClick={() => { setCarregando(true); carregar(); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            Atualizar
+          </button>
           <select className="select" style={{ width: "auto" }} value={funilId || ""} onChange={(e) => setFunilId(e.target.value)}>
             {crm.funis.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
           </select>
           <select className="select" style={{ width: "auto" }} value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
             {FILTROS.map((f) => <option key={f.id} value={f.id}>{f.l}</option>)}
           </select>
-          {periodo === "custom" && (
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="date" className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={customDe} onChange={(e) => setCustomDe(e.target.value)} />
-              <span style={{ fontSize: 11 }}>até</span>
-              <input type="date" className="input" style={{ fontSize: 12, padding: "4px 8px" }} value={customAte} onChange={(e) => setCustomAte(e.target.value)} />
-            </div>
-          )}
+          {periodo === "custom" && (<>
+            <input type="date" className="select" style={{ width: "auto" }} value={customDe} onChange={(e) => setCustomDe(e.target.value)} />
+            <input type="date" className="select" style={{ width: "auto" }} value={customAte} onChange={(e) => setCustomAte(e.target.value)} />
+          </>)}
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="tiles ana-tiles">
-        <div className="tile"><div className="label">Receita ganha</div><div className="value" style={{ color: "var(--green)" }}>{fmtMoeda(receitaGanha)}</div><div className="hint">{ganhos.length} vendas</div></div>
-        <div className="tile"><div className="label">Receita perdida</div><div className="value" style={{ color: "var(--red)" }}>{fmtMoeda(receitaPerdida)}</div><div className="hint">{perdidos.length} perdidos</div></div>
-        <div className="tile"><div className="label">Em aberto</div><div className="value">{abertos.length}</div><div className="hint">{fmtMoeda(abertos.reduce((s, l) => s + (l.valor || 0), 0))}</div></div>
-        <div className="tile"><div className="label">Ticket médio</div><div className="value">{fmtMoeda(ticketMedio)}</div></div>
-        <div className="tile"><div className="label">Taxa de conversão</div><div className="value" style={{ color: taxaConversao >= 20 ? "var(--green)" : taxaConversao >= 10 ? "var(--amber, #e6a817)" : "var(--red)" }}>{taxaConversao.toFixed(1)}%</div><div className="hint">{ganhos.length}/{leads.length}</div></div>
-        <div className="tile"><div className="label">Novos contatos</div><div className="value">{novosContatos}</div></div>
+      <div className="an-kpis">
+        <Kpi label="Receita ganha" valor={fmtMoeda(D.receitaGanha)} sub={`${D.ganhos} ${D.ganhos === 1 ? "venda" : "vendas"}`} tom="ok" />
+        <Kpi label="Receita perdida" valor={fmtMoeda(D.receitaPerdida)} sub={`${D.perdidos} perdidos`} tom="err" />
+        <Kpi label="Em aberto" valor={D.abertos} sub={fmtMoeda(D.valorAberto)} tom="info" />
+        <Kpi label="Ticket médio" valor={fmtMoeda(D.ticket)} />
+        <Kpi label="Taxa de conversão" valor={fmtP(D.conversao)} sub={`${D.ganhos} de ${D.leads}`} tom={D.conversao >= 5 ? "ok" : "avi"} />
+        <Kpi label="Novos contatos" valor={D.leads} sub={`${D.comOrigem} com origem`} />
       </div>
 
-      <div className="ana-grid">
-        {/* Gráfico de funil */}
-        <div className="card card-pad">
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Funil por estágio</h3>
-          <GraficoFunil etapas={etapas} leadsPorEtapa={leadsPorEtapa} />
-        </div>
+      {/* Funil + distribuição */}
+      <div className="an-g2">
+        <section className="an-card">
+          <div className="an-card-head"><h3>Funil por estágio</h3><span className="an-hint">largura = leads que chegaram até a etapa</span></div>
+          <Funil etapas={D.comerciais} contagem={D.contagem} acumulado={D.acumulado} />
+        </section>
 
-        {/* Distribuição ganhos/perdidos/abertos */}
-        <div className="card card-pad">
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Distribuição de leads</h3>
-          <Pizza fatias={[
-            { label: "Ganhos", valor: ganhos.length, cor: "#22c55e" },
-            { label: "Perdidos", valor: perdidos.length, cor: "#ef4444" },
-            { label: "Em aberto", valor: abertos.length, cor: "#3b82f6" },
+        <section className="an-card">
+          <div className="an-card-head"><h3>Distribuição</h3></div>
+          <Rosca total={D.leads} legenda="leads" fatias={[
+            { id: "g", l: "Ganhos", v: D.ganhos, c1: "#18A35F", c2: "#3CCF7A" },
+            { id: "a", l: "Em aberto", v: D.abertos, c1: "#2563EB", c2: "#60A5FA" },
+            { id: "p", l: "Perdidos", v: D.perdidos, c1: "#D92D20", c2: "#F97066" },
           ]} />
-        </div>
+        </section>
       </div>
 
-      <div className="ana-grid">
-        {/* Atividades */}
-        <div className="card card-pad">
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Atividades</h3>
-          <Bar label="Reuniões agendadas" valor={reunioes} max={Math.max(reunioes, ligacoes, tarefas, movimentacoes, 1)} cor="#8b5cf6" sub={reunioes} />
-          <Bar label="Ligações" valor={ligacoes} max={Math.max(reunioes, ligacoes, tarefas, movimentacoes, 1)} cor="#3b82f6" sub={ligacoes} />
-          <Bar label="Tarefas" valor={tarefas} max={Math.max(reunioes, ligacoes, tarefas, movimentacoes, 1)} cor="#22c55e" sub={tarefas} />
-          <Bar label="Movimentações" valor={movimentacoes} max={Math.max(reunioes, ligacoes, tarefas, movimentacoes, 1)} cor="#f59e0b" sub={movimentacoes} />
+      {/* ORIGEM DE MÍDIA */}
+      <section className="an-card an-midia">
+        <div className="an-card-head">
+          <div>
+            <h3>Desempenho por origem</h3>
+            <span className="an-hint">
+              {D.comOrigem} de {D.leads} leads com origem identificada
+              {D.semOrigem > 0 && ` · ${D.semOrigem} sem rastreamento`}
+            </span>
+          </div>
+          <div className="an-toggle">
+            {[["campanha", "Campanha"], ["conjunto", "Conjunto"], ["anuncio", "Anúncio"]].map(([id, l]) => (
+              <button key={id} className={agrup === id ? "on" : ""} onClick={() => setAgrup(id)}>{l}</button>
+            ))}
+          </div>
         </div>
 
-        {/* Taxas de progressão */}
-        <div className="card card-pad">
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Taxas de progressão</h3>
-          {taxasProgressao.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Menos de 2 etapas.</p> : (
-            taxasProgressao.map((t, i) => (
-              <Bar key={i} label={`${t.de} → ${t.para}`} valor={parseFloat(t.taxa)} max={100} cor="var(--green)" sub={`${t.taxa}%`} />
-            ))
-          )}
-        </div>
-      </div>
-
-
-      {/* Produtividade de vendedores */}
-      <div className="card card-pad" style={{ marginTop: 16 }}>
-        <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Produtividade por vendedor</h3>
-        {(() => {
-          const pesMap = Object.fromEntries((pessoas || []).map((p) => [p.id, p]));
-          const vendedores = {};
-          leads.forEach((l) => {
-            const rid = l.responsavelId || "_sem";
-            if (!vendedores[rid]) vendedores[rid] = { nome: pesMap[rid]?.nome || "Sem responsável", total: 0, ganhos: 0, perdidos: 0, receita: 0, atividades: 0 };
-            vendedores[rid].total++;
-            if (idsGanho.has(l.etapaId)) { vendedores[rid].ganhos++; vendedores[rid].receita += l.valor || 0; }
-            if (idsPerdido.has(l.etapaId)) vendedores[rid].perdidos++;
-            vendedores[rid].atividades += atvsFunil.filter((a) => a.leadId === l.id && a.tipo !== "sistema").length;
-          });
-          const ranking = Object.values(vendedores).sort((a, b) => b.receita - a.receita);
-          const maxRec = ranking[0]?.receita || 1;
-          return ranking.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Sem dados.</p> : (
-            <div className="table-wrap"><table className="grid"><thead><tr>
-              <th>#</th><th>Vendedor</th><th>Leads</th><th>Ganhos</th><th>Perdidos</th><th>Conversão</th><th>Receita</th><th>Atividades</th>
-            </tr></thead><tbody>
-              {ranking.map((v, i) => (
-                <tr key={i}><td className="cell-num" style={{ fontWeight: 800 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}</td>
-                  <td className="cell-cliente">{v.nome}</td><td className="cell-num">{v.total}</td>
-                  <td className="cell-num" style={{ color: "var(--green)" }}>{v.ganhos}</td>
-                  <td className="cell-num" style={{ color: "var(--red)" }}>{v.perdidos}</td>
-                  <td className="cell-num">{v.total > 0 ? (v.ganhos / v.total * 100).toFixed(1) : 0}%</td>
-                  <td className="cell-num" style={{ fontWeight: 700 }}>{fmtMoeda(v.receita)}</td>
-                  <td className="cell-num">{v.atividades}</td>
+        {D.lista.length === 0 ? (
+          <p className="an-vazio">
+            Nenhum lead com origem identificada neste período.
+            Leads que chegam por anúncio Click-to-WhatsApp são marcados automaticamente.
+          </p>
+        ) : (<>
+          <div className="an-tabela-wrap">
+            <table className="an-tabela">
+              <thead>
+                <tr>
+                  <th>{rotuloAgrup}</th>
+                  {[["leads", "Leads"], ["qualificados", D.nomeQualif], ["reunioes", D.nomeReuniao], ["vendas", "Vendas"], ["receita", "Receita"]].map(([id, l]) => (
+                    <th key={id} className={`an-th-num ${ordenar === id ? "on" : ""}`} onClick={() => setOrdenar(id)} title="Ordenar por esta coluna">{l}</th>
+                  ))}
+                  <th className="an-th-num">Conversão</th>
                 </tr>
-              ))}
-            </tbody></table></div>
-          );
-        })()}
-      </div>
-
-      {/* Motivos de perda */}
-      <div className="ana-grid" style={{ marginTop: 16 }}>
-        <div className="card card-pad">
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Motivos de perda</h3>
-          {(() => {
-            const motivos = (crm.motivos || []).filter((m) => m.funilId === funil.id);
-            const motivoMap = Object.fromEntries(motivos.map((m) => [m.id, m]));
-            const contagem = {};
-            perdidos.forEach((l) => { const mid = l.motivoPerdaId || "_sem"; contagem[mid] = (contagem[mid] || 0) + 1; });
-            const items = Object.entries(contagem).map(([mid, qtd]) => ({ nome: motivoMap[mid]?.nome || "Não informado", qtd })).sort((a, b) => b.qtd - a.qtd);
-            const maxQ = items[0]?.qtd || 1;
-            const cores = ["#ef4444","#f59e0b","#8b5cf6","#3b82f6","#ec4899","#14b8a6"];
-            return items.length === 0 ? <p style={{ fontSize: 12, color: "var(--ink-faint)" }}>Sem perdidos.</p> : (
-              <>
-                <Pizza fatias={items.map((it, i) => ({ label: it.nome, valor: it.qtd, cor: cores[i % cores.length] }))} />
-                <div style={{ marginTop: 12 }}>
-                  {items.map((it, i) => <Bar key={i} label={it.nome} valor={it.qtd} max={maxQ} cor={cores[i % cores.length]} sub={it.qtd} />)}
-                </div>
-              </>
-            );
-          })()}
-        </div>
-
-        <div className="card card-pad">
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Tarefas por lead</h3>
-          {(() => {
-            const tarefasPorLead = leads.length > 0 ? (atvsFunil.filter((a) => a.tipo !== "sistema" && a.tipo !== "nota").length / leads.length).toFixed(1) : "0.0";
-            const notasPorLead = leads.length > 0 ? (atvsFunil.filter((a) => a.tipo === "nota").length / leads.length).toFixed(1) : "0.0";
-            return (
-              <div className="tiles" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                <div className="tile"><div className="label">Atividades/lead</div><div className="value">{tarefasPorLead}</div></div>
-                <div className="tile"><div className="label">Anotações/lead</div><div className="value">{notasPorLead}</div></div>
-              </div>
-            );
-          })()}
-        </div>
-      </div>
-
-      {/* Análise entre funis */}
-      {crm.funis.length > 1 && (
-        <div className="card card-pad" style={{ marginTop: 16 }}>
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Análise entre funis</h3>
-          <div className="table-wrap">
-            <table className="grid">
-              <thead><tr><th>Funil</th><th>Total leads</th><th>Ganhos</th><th>Taxa</th><th>Receita</th></tr></thead>
+              </thead>
               <tbody>
-                {todosFunis.map((f, i) => (
-                  <tr key={i}><td className="cell-cliente">{f.nome}</td><td className="cell-num">{f.total}</td><td className="cell-num">{f.ganhos}</td><td className="cell-num">{f.taxa}%</td><td className="cell-num">{fmtMoeda(f.receita)}</td></tr>
+                {D.lista.slice(0, 12).map((g, i) => (
+                  <tr key={i}>
+                    <td className="an-td-nome" title={g.nome}>
+                      <span className="an-pos">{i + 1}</span>
+                      {g.nome}
+                    </td>
+                    <td className="an-num">{g.leads}</td>
+                    <td className="an-num">{g.qualificados}<em>{fmtP(g.taxaQualif)}</em></td>
+                    <td className="an-num">{g.reunioes}<em>{fmtP(g.taxaReuniao)}</em></td>
+                    <td className="an-num an-ok">{g.vendas}</td>
+                    <td className="an-num an-ok">{fmtMoeda(g.receita)}</td>
+                    <td className="an-num">{fmtP(g.taxaVenda)}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
 
-      {/* Produtos mais vendidos */}
-      {topProdutos.length > 0 && (
-        <div className="card card-pad" style={{ marginTop: 16 }}>
-          <h3 className="dash-title" style={{ margin: "0 0 14px" }}>Produtos mais vendidos</h3>
-          {topProdutos.map((p, i) => (
-            <Bar key={i} label={p.nome} valor={p.qtd} max={topProdutos[0]?.qtd || 1} cor="#22c55e" sub={`${p.qtd}x — ${fmtMoeda(p.valor)}`} />
-          ))}
-        </div>
-      )}
-    </>
+          <div className="an-g3">
+            <div>
+              <h4 className="an-sub">Mais leads qualificados</h4>
+              {[...D.lista].sort((a, b) => b.qualificados - a.qualificados).slice(0, 4).map((g, i) => (
+                <BarraRank key={i} nome={g.nome} valor={g.qualificados} sub={` · ${fmtP(g.taxaQualif)}`}
+                  max={Math.max(...D.lista.map((x) => x.qualificados), 1)}
+                  cor="linear-gradient(90deg, #2563EB, #60A5FA)" />
+              ))}
+            </div>
+            <div>
+              <h4 className="an-sub">Mais {D.nomeReuniao.toLowerCase()}</h4>
+              {[...D.lista].sort((a, b) => b.reunioes - a.reunioes).slice(0, 4).map((g, i) => (
+                <BarraRank key={i} nome={g.nome} valor={g.reunioes} sub={` · ${fmtP(g.taxaReuniao)}`}
+                  max={Math.max(...D.lista.map((x) => x.reunioes), 1)}
+                  cor="linear-gradient(90deg, #6941C6, #9E77ED)" />
+              ))}
+            </div>
+            <div>
+              <h4 className="an-sub">Maior receita</h4>
+              {[...D.lista].sort((a, b) => b.receita - a.receita).slice(0, 4).map((g, i) => (
+                <BarraRank key={i} nome={g.nome} valor={g.vendas} sub={` · ${fmtMoeda(g.receita)}`}
+                  max={Math.max(...D.lista.map((x) => x.vendas), 1)}
+                  cor="linear-gradient(90deg, #0C5530, #3CCF7A)" />
+              ))}
+            </div>
+          </div>
+        </>)}
+      </section>
+
+      {/* Vendedores + perdas */}
+      <div className="an-g2">
+        <section className="an-card">
+          <div className="an-card-head"><h3>Produtividade por vendedor</h3></div>
+          <div className="an-tabela-wrap">
+            <table className="an-tabela">
+              <thead><tr><th>Vendedor</th><th className="an-th-num">Leads</th><th className="an-th-num">Ganhos</th><th className="an-th-num">Perdidos</th><th className="an-th-num">Conversão</th><th className="an-th-num">Receita</th></tr></thead>
+              <tbody>
+                {D.vendedores.map((v, i) => (
+                  <tr key={i}>
+                    <td className="an-td-nome"><span className="an-pos">{i + 1}</span>{v.nome}</td>
+                    <td className="an-num">{v.leads}</td>
+                    <td className="an-num an-ok">{v.ganhos}</td>
+                    <td className="an-num an-err">{v.perdidos}</td>
+                    <td className="an-num">{fmtP(v.conv)}</td>
+                    <td className="an-num an-ok">{fmtMoeda(v.receita)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="an-card">
+          <div className="an-card-head"><h3>Motivos de perda</h3></div>
+          {D.motivosLista.length === 0
+            ? <p className="an-vazio">Nenhuma perda registrada no período.</p>
+            : D.motivosLista.map((m, i) => (
+                <BarraRank key={i} nome={m.nome} valor={m.qtd}
+                  sub={` · ${fmtP(pct(m.qtd, D.perdidos))}`}
+                  max={Math.max(...D.motivosLista.map((x) => x.qtd), 1)}
+                  cor="linear-gradient(90deg, #D92D20, #F97066)" />
+              ))}
+        </section>
+      </div>
+    </div>
   );
 }
