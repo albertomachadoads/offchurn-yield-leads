@@ -222,6 +222,15 @@ export default function WhatsAppChat({ isAdmin, onToast, onVerLead, instanciasPe
   const [fileTipo, setFileTipo] = useState("document");
   const [fileAccept, setFileAccept] = useState("*/*");
 
+  // Nova conversa pedida por outro módulo (Formulários, CRM…)
+  useEffect(() => {
+    const pedido = window.__waNovaConversa;
+    if (!pedido || !instAtiva) return;
+    window.__waNovaConversa = null;
+    iniciarConversa(String(pedido.numero).replace(/\D/g, ""), pedido.nome || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instAtiva]);
+
   // Abrir conversa por número (vindo do CRM)
   useEffect(() => {
     if (window.__waAbrirNumero && conversas.length > 0) {

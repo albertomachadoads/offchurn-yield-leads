@@ -49,9 +49,11 @@ const fmtTel = (t) => {
 };
 
 /* ---------- Detalhe do lead ---------- */
-function DetalheLead({ lead, onFechar, onConverter, onSituacao, convertendo }) {
-  const campos = lead.campos || {};
-  const chaves = Object.keys(campos);
+function DetalheLead({ lead, onFechar, onConverter, onSituacao, convertendo, onConversar }) {
+  // Preferimos "respostas" (ordem e rótulo do formulário); "campos" é a reserva
+  const respostas = Array.isArray(lead.respostas) && lead.respostas.length
+    ? lead.respostas
+    : Object.entries(lead.campos || {}).map(([chave, valor]) => ({ chave, rotulo: chave.replace(/_/g, " "), valor }));
   return (
     <Modal title={lead.nome || "Lead sem nome"} onClose={onFechar} wide footer={
       <>
@@ -68,22 +70,33 @@ function DetalheLead({ lead, onFechar, onConverter, onSituacao, convertendo }) {
           <h4>Contato</h4>
           <div className="fm-linha"><span>Nome</span><strong>{lead.nome || "—"}</strong></div>
           <div className="fm-linha"><span>E-mail</span><strong>{lead.email || "—"}</strong></div>
-          <div className="fm-linha"><span>Telefone</span><strong>{fmtTel(lead.telefone)}</strong></div>
+          <div className="fm-linha">
+            <span>Telefone</span>
+            <strong className="fm-tel-linha">
+              {fmtTel(lead.telefone)}
+              {lead.telefone && (
+                <button className="fm-wa" title="Iniciar conversa no WhatsApp pelo sistema"
+                  onClick={() => onConversar(lead)}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                </button>
+              )}
+            </strong>
+          </div>
           <div className="fm-linha"><span>Recebido em</span><strong>{fmtDH(lead.criado_em_meta)}</strong></div>
           <div className="fm-linha"><span>Formulário</span><strong>{lead.form_nome || "—"}</strong></div>
         </div>
 
-        {chaves.length > 0 && (
-          <div className="fm-det-bloco">
-            <h4>Respostas do formulário</h4>
-            {chaves.map((k) => (
-              <div key={k} className="fm-linha">
-                <span>{k.replace(/_/g, " ")}</span>
-                <strong>{campos[k] || "—"}</strong>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="fm-det-bloco">
+          <h4>Respostas do formulário <span className="fm-qtd">{respostas.length}</span></h4>
+          {respostas.length === 0
+            ? <p className="fm-nota">Nenhuma resposta registrada.</p>
+            : respostas.map((r, i) => (
+                <div key={i} className="fm-resposta">
+                  <span className="fm-pergunta">{r.rotulo}</span>
+                  <span className="fm-valor">{r.valor || "—"}</span>
+                </div>
+              ))}
+        </div>
 
         <div className="fm-det-bloco">
           <h4>Trackeamento</h4>
@@ -175,7 +188,7 @@ function GerenciarForms({ cadastrados, onFechar, onSalvar, onToast }) {
 }
 
 /* ================= MÓDULO ================= */
-export default function Formularios({ onToast, pessoas, onVerLead }) {
+export default function Formularios({ onToast, pessoas, onVerLead, onConversar }) {
   const [forms, setForms] = useState([]);
   const [leads, setLeads] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -217,6 +230,7 @@ export default function Formularios({ onToast, pessoas, onVerLead }) {
       await supabase.from("meta_formularios").upsert({
         form_id: f.form_id, nome: f.nome,
         pagina_id: f.pagina_id, pagina_nome: f.pagina_nome, ativo: true,
+        perguntas: f.perguntas || [],
       }, { onConflict: "form_id" });
       onToast(`Formulário "${f.nome}" cadastrado`);
       carregar();
@@ -265,6 +279,12 @@ export default function Formularios({ onToast, pessoas, onVerLead }) {
       onToast("Negociação criada no CRM");
     } catch (e) { onToast("Erro: " + e.message); }
     finally { setConvertendo(false); }
+  }
+
+  function conversar(lead) {
+    if (!lead.telefone) { onToast("Este lead não informou telefone"); return; }
+    if (!onConversar) { onToast("Abra o módulo Conversas para iniciar"); return; }
+    onConversar(lead.telefone, lead.nome || lead.email || "");
   }
 
   const filtrados = useMemo(() => {
@@ -384,7 +404,15 @@ export default function Formularios({ onToast, pessoas, onVerLead }) {
                       <td className="fm-nome">{l.nome || <em>sem nome</em>}</td>
                       <td className="fm-contato">
                         {l.email && <span>{l.email}</span>}
-                        {l.telefone && <span className="fm-tel">{fmtTel(l.telefone)}</span>}
+                        {l.telefone && (
+                          <span className="fm-tel">
+                            {fmtTel(l.telefone)}
+                            <button className="fm-wa fm-wa-mini" title="Iniciar conversa no WhatsApp"
+                              onClick={(e) => { e.stopPropagation(); conversar(l); }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                            </button>
+                          </span>
+                        )}
                         {!l.email && !l.telefone && "—"}
                       </td>
                       <td className="fm-camp" title={l.utm_campaign || ""}>{l.utm_campaign || "—"}</td>
@@ -412,7 +440,7 @@ export default function Formularios({ onToast, pessoas, onVerLead }) {
       {detalhe && (
         <DetalheLead lead={detalhe} convertendo={convertendo}
           onFechar={() => setDetalhe(null)}
-          onConverter={converter} onSituacao={mudarSituacao} />
+          onConverter={converter} onSituacao={mudarSituacao} onConversar={conversar} />
       )}
     </div>
   );

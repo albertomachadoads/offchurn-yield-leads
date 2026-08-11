@@ -679,7 +679,8 @@ export default function App() {
 
         {view === "formularios" && (
           <Formularios onToast={showToast} pessoas={data.pessoas || []}
-            onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }} />
+            onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }}
+            onConversar={(numero, nome) => { window.__waNovaConversa = { numero, nome }; setView("whatsapp"); }} />
         )}
 
         {view === "crm-analises" && (
