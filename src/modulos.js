@@ -16,6 +16,7 @@ const TODOS = [
   // COMERCIAL
   { id: "whatsapp", nome: "Conversas", grupo: "Comercial" },
   { id: "crm", nome: "CRM", grupo: "Comercial" },
+  { id: "formularios", nome: "Formulários", grupo: "Comercial" },
   { id: "metas", nome: "Painel de Metas", grupo: "Comercial" },
   { id: "crm-analises", nome: "Análises", grupo: "Comercial" },
   { id: "crm-auto", nome: "Automações", grupo: "Comercial" },

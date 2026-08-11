@@ -18,7 +18,7 @@ export const AGENCIAS = ["Yield", "Mads"];
    Remova da lista para sumir do menu e das permissões. */
 export const MODULOS_ATIVOS = [
   "dashboard", "acompanhamento", "follow", "clientes",
-  "whatsapp", "crm", "crm-params", "crm-auto", "crm-analises", "metas",
+  "whatsapp", "crm", "formularios", "crm-params", "crm-auto", "crm-analises", "metas",
   "fluxo", "gestao", "obz",
   "registro-tarefas",
   "cadastros", "admin", "logs",
