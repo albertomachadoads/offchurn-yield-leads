@@ -49,12 +49,30 @@ function CampoNum({ label, valor, onChange, moeda }) {
   );
 }
 
+/* Custo por resultado: investimento dividido por cada etapa do funil.
+   Retorna null quando não há investimento ou o denominador é zero. */
+function custosPorResultado(d) {
+  const inv = Number(d.custo) || 0;
+  const div = (q) => (inv > 0 && Number(q) > 0 ? inv / Number(q) : null);
+  return {
+    investido: inv,
+    porLead: div(d.captados),
+    porQualificado: div(d.qualificados),
+    porVenda: div(d.vendidos),
+  };
+}
+
+const moedaTxt = (v) =>
+  v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 /* ---- coluna de uma plataforma (objetivo Lead) ---- */
 function ColunaLead({ plataforma, dados, onSet }) {
   const taxas = calcTaxas({ captados: dados.captados, qualificados: dados.qualificados, fechados: dados.vendidos });
+  const c = custosPorResultado(dados);
   return (
     <div className="funil-col">
       <div className={`funil-plat ${plataforma === "Meta" ? "plat-meta" : "plat-google"}`}>{plataforma}</div>
+      <CampoNum label="Valor investido (R$)" valor={dados.custo} onChange={(v) => onSet("custo", v)} moeda />
       <CampoNum label="Leads captados" valor={dados.captados} onChange={(v) => onSet("captados", v)} />
       <CampoNum label="Leads qualificados" valor={dados.qualificados} onChange={(v) => onSet("qualificados", v)} />
       <CampoNum label="Leads vendidos" valor={dados.vendidos} onChange={(v) => onSet("vendidos", v)} />
@@ -62,6 +80,12 @@ function ColunaLead({ plataforma, dados, onSet }) {
         <span>Qualificação: <strong style={{ color: corTaxa(taxas.qualificacao) }}>{pctTxt(taxas.qualificacao)}</strong></span>
         <span>Fechamento: <strong style={{ color: corTaxa(taxas.fechamento) }}>{pctTxt(taxas.fechamento)}</strong></span>
         <span>Conversão: <strong style={{ color: corTaxa(taxas.conversao) }}>{pctTxt(taxas.conversao)}</strong></span>
+      </div>
+      <div className="funil-custos">
+        <div className="funil-custo-titulo">Custo por resultado</div>
+        <span>Por lead<strong>{moedaTxt(c.porLead)}</strong></span>
+        <span>Por qualificado<strong>{moedaTxt(c.porQualificado)}</strong></span>
+        <span>Por venda<strong>{moedaTxt(c.porVenda)}</strong></span>
       </div>
     </div>
   );
@@ -194,7 +218,7 @@ export default function FunilCliente({ cliente, funil, onSalvar, onToast }) {
             <table className="grid">
               <thead>
                 {eLead ? (
-                  <tr><th>Mês</th><th>Captados</th><th>Qualificados</th><th>Vendidos</th><th>Qualificação</th><th>Fechamento</th><th>Conversão</th></tr>
+                  <tr><th>Mês</th><th>Investido</th><th>Captados</th><th>Custo/lead</th><th>Qualificados</th><th>Custo/qualif.</th><th>Vendidos</th><th>Custo/venda</th><th>Qualificação</th><th>Fechamento</th><th>Conversão</th></tr>
                 ) : (
                   <tr><th>Mês</th><th>Vendas</th><th>VGV</th><th>Custo anúncios</th><th>ROAS</th><th>Ticket médio</th></tr>
                 )}
@@ -206,9 +230,13 @@ export default function FunilCliente({ cliente, funil, onSalvar, onToast }) {
                     return (
                       <tr key={h.competencia}>
                         <td className="cell-num">{rotuloComp(h.competencia)}</td>
+                        <td className="cell-num">{h.custo > 0 ? moedaTxt(h.custo) : "—"}</td>
                         <td className="cell-num">{fmtNum(h.captados)}</td>
+                        <td className="cell-num cell-custo">{moedaTxt(custosPorResultado(h).porLead)}</td>
                         <td className="cell-num">{fmtNum(h.qualificados)}</td>
+                        <td className="cell-num cell-custo">{moedaTxt(custosPorResultado(h).porQualificado)}</td>
                         <td className="cell-num">{fmtNum(h.vendidos)}</td>
+                        <td className="cell-num cell-custo">{moedaTxt(custosPorResultado(h).porVenda)}</td>
                         <td className="cell-num" style={{ color: corTaxa(t.qualificacao), fontWeight: 700 }}>{pctTxt(t.qualificacao)}</td>
                         <td className="cell-num" style={{ color: corTaxa(t.fechamento), fontWeight: 700 }}>{pctTxt(t.fechamento)}</td>
                         <td className="cell-num" style={{ color: corTaxa(t.conversao), fontWeight: 700 }}>{pctTxt(t.conversao)}</td>

@@ -2046,3 +2046,10 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .mx-salvar { padding-top: 16px; border-top: 1px solid var(--line); }
 .mx-salvar-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .mx-salvar-form .input { flex: 1; min-width: 200px; height: 36px; }
+
+/* Custo por resultado no Painel de Qualificação */
+.funil-custos { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+.funil-custo-titulo { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-faint); margin-bottom: 2px; }
+.funil-custos span { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; color: var(--ink-faint); }
+.funil-custos strong { font-size: 12.5px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.cell-custo { color: var(--ink-faint); font-size: 12px; }
