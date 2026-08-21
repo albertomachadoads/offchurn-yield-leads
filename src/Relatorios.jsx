@@ -47,7 +47,7 @@ function Kpi({ rotulo, valor, variacao, menorMelhor }) {
 /* ---------- Gráfico de linhas: cliques e CTR ---------- */
 function LinhaDupla({ serie }) {
   if (!serie?.length) return <p className="rp-vazio">Sem dados diários no período.</p>;
-  const W = 720, H = 240, P = { t: 18, r: 52, b: 32, l: 56 };
+  const W = 380, H = 200, P = { t: 14, r: 34, b: 26, l: 42 };
   const iw = W - P.l - P.r, ih = H - P.t - P.b;
   const maxA = Math.max(...serie.map((d) => d.cliques), 1);
   const maxB = Math.max(...serie.map((d) => d.ctr), 0.1);
@@ -59,7 +59,7 @@ function LinhaDupla({ serie }) {
   const linhaB = serie.map((d, i) => `${x(i)},${yB(d.ctr)}`).join(" ");
   const area = `M ${x(0)},${yA(0)} L ${linhaA.replace(/ /g, " L ")} L ${x(serie.length - 1)},${yA(0)} Z`;
 
-  const passo = Math.max(1, Math.ceil(serie.length / 8));
+  const passo = Math.max(1, Math.ceil(serie.length / 5));
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} className="rp-svg">
@@ -117,6 +117,53 @@ function BarrasDuplas({ dados, rotuloA = "Impressões", rotuloB = "Alcance" }) {
       <div className="rp-legenda">
         <span><i style={{ background: "linear-gradient(90deg,#0C5530,#18A35F)" }} />{rotuloA}</span>
         <span><i style={{ background: "linear-gradient(90deg,#1E4D8C,#3B82F6)" }} />{rotuloB}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Barras verticais agrupadas ---------- */
+function BarrasVerticais({ dados, rotuloA = "Impressões", rotuloB = "Alcance" }) {
+  if (!dados?.length) return <p className="rp-vazio">Sem dados no período.</p>;
+  const W = 380, H = 200, P = { t: 14, r: 10, b: 30, l: 44 };
+  const iw = W - P.l - P.r, ih = H - P.t - P.b;
+  const max = Math.max(...dados.map((d) => Math.max(d.a, d.b)), 1);
+  const grupo = iw / dados.length;
+  const larg = Math.min(grupo * 0.32, 26);
+  const y = (v) => P.t + ih - (v / max) * ih;
+  const kNum = (v) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(v));
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="rp-svg">
+        <defs>
+          <linearGradient id="bvA" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#18A35F" /><stop offset="100%" stopColor="#0C5530" />
+          </linearGradient>
+          <linearGradient id="bvB" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3B82F6" /><stop offset="100%" stopColor="#1E4D8C" />
+          </linearGradient>
+        </defs>
+        {[0, 0.5, 1].map((f, i) => (
+          <g key={i}>
+            <line x1={P.l} y1={y(max * f)} x2={W - P.r} y2={y(max * f)} stroke="#EAECF0" strokeWidth="1" />
+            <text x={P.l - 6} y={y(max * f) + 3} textAnchor="end" className="rp-ax">{kNum(Math.round(max * f))}</text>
+          </g>
+        ))}
+        {dados.map((d, i) => {
+          const cx = P.l + grupo * i + grupo / 2;
+          return (
+            <g key={i}>
+              <rect x={cx - larg - 2} y={y(d.a)} width={larg} height={Math.max(P.t + ih - y(d.a), 1)} fill="url(#bvA)" rx="3" />
+              <rect x={cx + 2} y={y(d.b)} width={larg} height={Math.max(P.t + ih - y(d.b), 1)} fill="url(#bvB)" rx="3" />
+              <text x={cx} y={H - 10} textAnchor="middle" className="rp-ax">{d.rotulo}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <div className="rp-legenda">
+        <span><i style={{ background: "linear-gradient(180deg,#18A35F,#0C5530)" }} />{rotuloA}</span>
+        <span><i style={{ background: "linear-gradient(180deg,#3B82F6,#1E4D8C)" }} />{rotuloB}</span>
       </div>
     </div>
   );
@@ -361,8 +408,12 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
             <hr className="rp-linha" />
 
             <div className="rp-grade">
-              <Bloco titulo="Cliques e CTR ao longo do tempo" largo>
+              <Bloco titulo="Cliques e CTR ao longo do tempo">
                 <LinhaDupla serie={serie} />
+              </Bloco>
+
+              <Bloco titulo="Impressões e alcance por gênero">
+                <BarrasVerticais dados={porGenero} />
               </Bloco>
 
               <Bloco titulo="Impressões e alcance por idade">
@@ -375,30 +426,14 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
             </div>
           </Pagina>
 
-          {/* ── Página 2: público e criativos ── */}
+          {/* ── Página 2: criativos e público ── */}
           <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={2} total={totalPaginas}>
             <div className="rp-secao-cab">
-              <h2 className="rp-h2">Perfil do público e criativos</h2>
+              <h2 className="rp-h2">Rank de criativos e perfil do público</h2>
               <SeloPlataforma plataforma="meta" />
             </div>
 
-            <div className="rp-grade">
-              <Bloco titulo="Alcance por dispositivo">
-                <Pizza titulo="disp" fatias={porDispositivo} />
-              </Bloco>
-
-              <Bloco titulo="Alcance por plataforma">
-                <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
-              </Bloco>
-
-              <Bloco titulo="Impressões e alcance por gênero" largo>
-                <BarrasDuplas dados={porGenero} />
-              </Bloco>
-            </div>
-
-            <hr className="rp-linha" />
-
-            <Bloco titulo="Criativos com maior investimento" largo>
+            <Bloco titulo="Rank de criativos" largo>
               {criativos.length === 0 ? (
                 <p className="rp-vazio">Dados de criativos indisponíveis no período.</p>
               ) : (
@@ -422,6 +457,18 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
                 </div>
               )}
             </Bloco>
+
+            <hr className="rp-linha" />
+
+            <div className="rp-grade">
+              <Bloco titulo="Alcance por dispositivo">
+                <Pizza titulo="disp" fatias={porDispositivo} />
+              </Bloco>
+
+              <Bloco titulo="Alcance por plataforma">
+                <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
+              </Bloco>
+            </div>
           </Pagina>
 
           {/* ── Página 3: campanhas ── */}

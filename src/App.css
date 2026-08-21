@@ -2183,3 +2183,24 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 }
 .rp-titulo { margin: 0; font-size: 15px; font-weight: 600; }
 .rp-sub { font-size: 12.5px; color: var(--ink-faint); }
+
+/* Títulos e centralização dos gráficos no relatório */
+.rp-bloco-t {
+  text-align: left;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #EDF0EE;
+  display: flex; align-items: center; gap: 6px;
+}
+.rp-bloco-t::before {
+  content: ""; width: 3px; height: 11px; border-radius: 2px;
+  background: linear-gradient(180deg, #18A35F, #0C5530); flex-shrink: 0;
+}
+.rp-bloco-c { align-items: center; }
+.rp-bloco-c > div { width: 100%; }
+.rp-svg { margin: 0 auto; max-width: 100%; }
+.rp-pizza-wrap, .rp-rosca-wrap { justify-content: center; }
+.rp-criativos { width: 100%; }
+.rp-tabela { width: 100%; }
+
+/* Grade: quatro blocos preenchendo a página */
+.rp-grade { align-content: stretch; }
