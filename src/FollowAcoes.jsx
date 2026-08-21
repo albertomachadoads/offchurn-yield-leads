@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ETAPAS, ETAPA_KEYS } from "./store";
 import { fmtData, hoje } from "./utils";
 import { Icon, Modal } from "./components.jsx";
+import { ehAtrasada } from "./tarefasCore.js";
 
 const corEtapa = (etapa) => ETAPAS.find((e) => e.key === etapa)?.cor || "var(--ink-faint)";
 
@@ -105,7 +106,9 @@ export default function FollowAcoes({ tarefas, clientes, pessoas, onSave, onDele
   const total = filtradas.length;
   const cont = (etapa) => filtradas.filter((t) => t.etapa === etapa).length;
   const concluidas = cont("Concluída");
-  const atrasadas = cont("Atrasada");
+  /* Mesma regra da home (tarefasCore): a etapa "Atrasada" conta,
+     e também as abertas com prazo vencido que ninguém reclassificou. */
+  const atrasadas = filtradas.filter((t) => ehAtrasada(t)).length;
   const canceladas = cont("Cancelada");
   const emAberto = total - concluidas - canceladas;
 

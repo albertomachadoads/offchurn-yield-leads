@@ -6,16 +6,23 @@ import {
   pacingPeriodo, classificarPacing, scoreCriticidade,
   gerarInsights, detectarProblemas,
 } from "./trafegoEngine.js";
+import { resumirTarefas, prioridadesDoDia, calcularChurn } from "./tarefasCore.js";
 
 /* ============================================================
-   Painel de Tráfego — central de comando do gestor.
-   Cada bloco responde a uma pergunta operacional; nada aqui
-   existe apenas para preencher espaço.
+   Central de comando do gestor de tráfego.
+
+   As tarefas vêm de tarefasCore.js — a mesma fonte que o módulo
+   de Tarefas usa. Nenhuma contagem é recalculada aqui.
    ============================================================ */
 
 const fmtNum = (v) => (v == null ? "—" : Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 }));
 const fmtPct = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}%`);
-const hojeISO = () => new Date().toISOString().slice(0, 10);
+const fmtK = (v) => {
+  const n = Number(v) || 0;
+  if (n >= 1000000) return `R$ ${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `R$ ${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return fmtMoeda(n);
+};
 const saudacao = () => { const h = new Date().getHours(); return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; };
 const desde = (ts) => {
   if (!ts) return null;
@@ -26,26 +33,82 @@ const desde = (ts) => {
   return h < 24 ? `há ${h}h` : `há ${Math.floor(h / 24)}d`;
 };
 
-const PERIODOS = [
-  { id: "hoje", l: "Hoje" }, { id: "7d", l: "7 dias" }, { id: "14d", l: "14 dias" },
-  { id: "30d", l: "30 dias" }, { id: "mes", l: "Mês atual" },
-];
-
-function Ind({ rot, valor, sub, tom, onClick, ativo }) {
-  const Tag = onClick ? "button" : "div";
+/* ---------- Donut compacto ---------- */
+function Donut({ fatias, total, legenda, tamanho = 128 }) {
+  const R = tamanho * 0.36, W = tamanho * 0.15, C = tamanho / 2;
+  const circ = 2 * Math.PI * R;
+  const soma = fatias.reduce((a, f) => a + f.v, 0) || 1;
+  let off = 0;
   return (
-    <Tag className={`ct-ind ${tom ? "ct-t-" + tom : ""} ${onClick ? "ct-click" : ""} ${ativo ? "ct-ativo" : ""}`} onClick={onClick}>
-      <span className="ct-ind-l">{rot}</span>
-      <span className="ct-ind-v">{valor}</span>
-      {sub && <span className="ct-ind-s">{sub}</span>}
-    </Tag>
+    <div className="ct-donut-wrap">
+      <svg viewBox={`0 0 ${tamanho} ${tamanho}`} className="ct-donut" style={{ width: tamanho }}>
+        <defs>
+          {fatias.map((f, i) => (
+            <linearGradient key={i} id={`dn${legenda}${i}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={f.c1} /><stop offset="100%" stopColor={f.c2} />
+            </linearGradient>
+          ))}
+        </defs>
+        <circle cx={C} cy={C} r={R} fill="none" stroke="var(--line)" strokeWidth={W} opacity=".4" />
+        {fatias.map((f, i) => {
+          const dash = (f.v / soma) * circ; const o = off; off += dash;
+          return f.v > 0 && (
+            <circle key={i} cx={C} cy={C} r={R} fill="none" stroke={`url(#dn${legenda}${i})`} strokeWidth={W}
+              strokeDasharray={`${Math.max(dash - 1.5, 0)} ${circ - dash + 1.5}`} strokeDashoffset={-o}
+              strokeLinecap="round" transform={`rotate(-90 ${C} ${C})`} style={{ transition: "stroke-dasharray .5s" }} />
+          );
+        })}
+        <text x={C} y={C - 1} textAnchor="middle" className="ct-donut-n">{total}</text>
+        <text x={C} y={C + 13} textAnchor="middle" className="ct-donut-l">{legenda}</text>
+      </svg>
+      <div className="ct-donut-leg">
+        {fatias.map((f, i) => (
+          <div key={i} className="ct-dl">
+            <span className="ct-dot" style={{ background: `linear-gradient(135deg,${f.c1},${f.c2})` }} />
+            <span className="ct-dl-nome">{f.rot}</span>
+            <strong>{f.v}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function Card({ titulo, acao, children, className = "" }) {
+/* ---------- Régua de pacing ---------- */
+function Regua({ consumido, esperado, projetado, status }) {
+  const lim = (v) => Math.max(0, Math.min(v, 118));
+  return (
+    <div className="ct-regua">
+      <div className="ct-regua-trilha">
+        <div className="ct-regua-zona" style={{ left: `${lim(esperado - 10)}%`, width: `${Math.min(20, 118 - lim(esperado - 10))}%` }} />
+        <div className={`ct-regua-barra ct-s-${status.tom}`} style={{ width: `${lim(consumido)}%` }} />
+        {projetado > 0 && (
+          <div className="ct-regua-proj" style={{ left: `${lim(projetado)}%` }} title={`Projeção: ${fmtPct(projetado)}`} />
+        )}
+        <div className="ct-regua-ideal" style={{ left: `${lim(esperado)}%` }}>
+          <span>ritmo ideal</span>
+        </div>
+        {[0, 25, 50, 75, 100].map((m) => (
+          <div key={m} className="ct-regua-tick" style={{ left: `${m}%` }} />
+        ))}
+      </div>
+      <div className="ct-regua-base">
+        <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+      </div>
+    </div>
+  );
+}
+
+function Card({ titulo, sub, acao, children, className = "" }) {
   return (
     <section className={`ct-card ${className}`}>
-      <div className="ct-card-h"><h3>{titulo}</h3>{acao}</div>
+      <div className="ct-card-h">
+        <div>
+          <h3>{titulo}</h3>
+          {sub && <span className="ct-card-sub">{sub}</span>}
+        </div>
+        {acao}
+      </div>
       {children}
     </section>
   );
@@ -53,36 +116,12 @@ function Card({ titulo, acao, children, className = "" }) {
 
 const Vazio = ({ children }) => <p className="ct-vazio">{children}</p>;
 
-function BarraSeg({ segmentos }) {
-  const total = segmentos.reduce((a, s) => a + s.v, 0) || 1;
+function Ind({ rot, valor, sub, tom }) {
   return (
-    <>
-      <div className="ct-barra">
-        {segmentos.map((s, i) => s.v > 0 && (
-          <div key={i} className={`ct-seg ct-s-${s.tom}`} style={{ width: `${(s.v / total) * 100}%` }} title={`${s.rot}: ${s.v}`} />
-        ))}
-      </div>
-      <div className="ct-barra-leg">
-        {segmentos.map((s, i) => (
-          <span key={i}><i className={`ct-dot ct-s-${s.tom}`} />{s.rot} <strong>{s.v}</strong></span>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function Pacing({ consumido, esperado, status }) {
-  return (
-    <div className="ct-pacing">
-      <div className="ct-pacing-trilha">
-        <div className={`ct-pacing-barra ct-s-${status.tom}`} style={{ width: `${Math.min(consumido, 100)}%` }} />
-        <div className="ct-pacing-marca" style={{ left: `${Math.min(esperado, 100)}%` }} title="Ritmo ideal" />
-      </div>
-      <div className="ct-pacing-txt">
-        <span>Consumido <strong>{fmtPct(consumido)}</strong></span>
-        <span className="ct-pacing-ideal">Ritmo ideal {fmtPct(esperado)}</span>
-        <span className={`ct-badge tom-${status.tom}`}>{status.rot}</span>
-      </div>
+    <div className={`ct-ind ${tom ? "ct-t-" + tom : ""}`}>
+      <span className="ct-ind-l">{rot}</span>
+      <span className="ct-ind-v">{valor}</span>
+      {sub && <span className="ct-ind-s">{sub}</span>}
     </div>
   );
 }
@@ -90,19 +129,19 @@ function Pacing({ consumido, esperado, status }) {
 /* ================= COMPONENTE ================= */
 export default function PainelTrafego({
   clientes, desempenho, tarefas, pessoas, usuario, isAdmin, onToast,
-  onAbrirCliente, onAbrirTarefas, onConcluirTarefa,
+  onAbrirCliente, onAbrirTarefas, onAbrirTarefa,
 }) {
-  const [periodo, setPeriodo] = useState("mes");
   const [fResp, setFResp] = useState("todos");
   const [fCliente, setFCliente] = useState("todos");
   const [fPlataforma, setFPlataforma] = useState("todas");
   const [carregando, setCarregando] = useState(false);
   const [ultimaSync, setUltimaSync] = useState(null);
-  const [resolvidos, setResolvidos] = useState({});
+  const [ocultos, setOcultos] = useState({});   // insights resolvidos ou descartados
 
   const comp = competencia();
   const P = pacingPeriodo();
 
+  /* ---------- Carteira ---------- */
   const carteira = useMemo(() => {
     const atual = {}, anterior = {};
     (desempenho || []).filter((d) => d.competencia === comp).forEach((d) => { atual[d.clienteId] = d; });
@@ -119,11 +158,8 @@ export default function PainelTrafego({
         || (fPlataforma === "google" && c.googleAdCustomerId))
       .map((c) => {
         const d = atual[c.id], dAnt = anterior[c.id];
-        const gasto = d?.gasto || 0;
-        const verba = c.verbaMensal || 0;
-        const leads = d?.leads || 0;
+        const gasto = d?.gasto || 0, verba = c.verbaMensal || 0, leads = d?.leads || 0;
         const pctConsumido = verba > 0 ? (gasto / verba) * 100 : 0;
-        const pctEsperado = P.pctTranscorrido;
         const item = {
           ...c,
           temConta: !!(c.metaAdAccountId || c.googleAdCustomerId),
@@ -131,12 +167,12 @@ export default function PainelTrafego({
           gasto, verba, leads,
           leadsAnterior: dAnt?.leads || 0,
           cpaReal: d?.cpaReal ?? (leads > 0 ? gasto / leads : null),
-          pctConsumido, pctEsperado,
-          pacing: classificarPacing(pctConsumido, pctEsperado),
+          pctConsumido, pctEsperado: P.pctTranscorrido,
+          pacing: classificarPacing(pctConsumido, P.pctTranscorrido),
           projecao: P.diaAtual > 0 ? (gasto / P.diaAtual) * P.diasNoMes : 0,
           diasRestantes: P.diasRestantes,
           atualizadoEm: d?.atualizadoEm,
-          esperadoValor: (verba * pctEsperado) / 100,
+          esperadoValor: (verba * P.pctTranscorrido) / 100,
         };
         item.problemas = detectarProblemas(item);
         const sc = scoreCriticidade(item);
@@ -148,45 +184,21 @@ export default function PainelTrafego({
   }, [clientes, desempenho, comp, fResp, fCliente, fPlataforma,
       P.pctTranscorrido, P.diaAtual, P.diasNoMes, P.diasRestantes]);
 
+  /* ---------- Tarefas: mesma fonte do módulo ---------- */
   const T = useMemo(() => {
-    const hoje = hojeISO();
     const ids = new Set(carteira.map((c) => c.id));
     let lista = (tarefas || []).filter((t) => !t.clienteId || ids.has(t.clienteId));
     if (fResp !== "todos") lista = lista.filter((t) => t.responsavelId === fResp);
-
-    const fechada = (t) => t.etapa === "Concluída" || t.etapa === "Cancelada";
-    const abertas = lista.filter((t) => !fechada(t));
-    const atrasadas = abertas.filter((t) => t.prazo && t.prazo < hoje);
-    const paraHoje = abertas.filter((t) => t.prazo === hoje);
-    const andamento = abertas.filter((t) => t.etapa === "Em andamento");
-    const pendentes = abertas.filter((t) => t.etapa === "A executar");
-    const concluidasHoje = lista.filter((t) => fechada(t) && (t.dataConclusao || "").slice(0, 10) === hoje);
-
-    const d = new Date(); d.setDate(d.getDate() - d.getDay());
-    const ini = d.toISOString().slice(0, 10);
-    const daSemana = lista.filter((t) => (t.prazo || t.data || "") >= ini);
-    const concluidasSemana = daSemana.filter(fechada);
-
-    const porScore = Object.fromEntries(carteira.map((c) => [c.id, c.score]));
-    const prioridades = [...atrasadas, ...paraHoje]
-      .map((t) => ({
-        ...t,
-        cliente: carteira.find((c) => c.id === t.clienteId),
-        atrasada: !!(t.prazo && t.prazo < hoje),
-        prioridade: t.prazo && t.prazo < hoje ? "critica" : (porScore[t.clienteId] || 0) > 50 ? "alta" : "media",
-      }))
-      .sort((x, y) => (y.atrasada ? 1 : 0) - (x.atrasada ? 1 : 0) || (porScore[y.clienteId] || 0) - (porScore[x.clienteId] || 0))
-      .slice(0, 8);
-
+    if (fCliente !== "todos") lista = lista.filter((t) => t.clienteId === fCliente);
+    const scorePorCliente = Object.fromEntries(carteira.map((c) => [c.id, c.score]));
     return {
-      abertas: abertas.length, atrasadas: atrasadas.length, paraHoje: paraHoje.length,
-      andamento: andamento.length, pendentes: pendentes.length,
-      concluidasHoje: concluidasHoje.length, concluidasSemana: concluidasSemana.length,
-      taxaSemana: daSemana.length > 0 ? (concluidasSemana.length / daSemana.length) * 100 : null,
-      prioridades,
+      ...resumirTarefas(lista),
+      prioridades: prioridadesDoDia(lista, { scorePorCliente, limite: 7 })
+        .map((t) => ({ ...t, cliente: carteira.find((c) => c.id === t.clienteId) })),
     };
-  }, [tarefas, carteira, fResp]);
+  }, [tarefas, carteira, fResp, fCliente]);
 
+  /* ---------- Verba consolidada ---------- */
   const V = useMemo(() => {
     const ativas = carteira.filter((c) => c.temConta);
     const verba = ativas.reduce((s, c) => s + c.verba, 0);
@@ -195,13 +207,18 @@ export default function PainelTrafego({
     const pctConsumido = verba > 0 ? (gasto / verba) * 100 : 0;
     return {
       verba, gasto, projecao, pctConsumido,
+      pctProjetado: verba > 0 ? (projecao / verba) * 100 : 0,
       pctEsperado: P.pctTranscorrido,
       status: classificarPacing(pctConsumido, P.pctTranscorrido),
       diferenca: projecao - verba,
-      acima: ativas.filter((c) => c.pacing.desvio > 10).sort((x, y) => y.pacing.desvio - x.pacing.desvio).slice(0, 5),
-      abaixo: ativas.filter((c) => c.pacing.desvio < -10).sort((x, y) => x.pacing.desvio - y.pacing.desvio).slice(0, 5),
+      acima: ativas.filter((c) => c.pacing.desvio > 10).sort((x, y) => y.pacing.desvio - x.pacing.desvio).slice(0, 4),
+      abaixo: ativas.filter((c) => c.pacing.desvio < -10).sort((x, y) => x.pacing.desvio - y.pacing.desvio).slice(0, 4),
     };
   }, [carteira, P.pctTranscorrido]);
+
+  const churn = useMemo(() => calcularChurn(clientes, {
+    de: `${comp}-01`, ate: `${comp}-31`, metaAceitavel: 5,
+  }), [clientes, comp]);
 
   const saude = useMemo(() => ({
     total: carteira.length,
@@ -216,19 +233,29 @@ export default function PainelTrafego({
   const insights = useMemo(() => {
     const ordem = { critico: 0, alto: 1, medio: 2, baixo: 3 };
     return carteira
-      .flatMap((c) => c.insights.map((i) => ({ ...i, scoreCliente: c.score })))
-      .filter((i) => !resolvidos[i.clienteId + i.titulo])
+      .flatMap((c) => c.insights.map((i) => ({ ...i, chave: i.clienteId + "|" + i.titulo, scoreCliente: c.score })))
+      .filter((i) => !ocultos[i.chave])
       .sort((x, y) => ordem[x.prioridade] - ordem[y.prioridade] || y.scoreCliente - x.scoreCliente);
-  }, [carteira, resolvidos]);
+  }, [carteira, ocultos]);
 
   const acionaveis = insights.filter((i) => i.tipo !== "saudavel" && i.tipo !== "monitoramento");
-  const problemas = useMemo(
-    () => carteira.flatMap((c) => c.problemas.map((p) => ({ ...p, cliente: c })))
-      .sort((x, y) => (x.nivel === "critico" ? -1 : 1) - (y.nivel === "critico" ? -1 : 1)),
-    [carteira]
-  );
-  const dadosVelhos = carteira.filter((c) => c.temConta && c.atualizadoEm &&
-    (Date.now() - new Date(c.atualizadoEm)) / 3600000 > 24);
+
+  /* ---------- Diagnóstico executivo ---------- */
+  const diagnostico = useMemo(() => {
+    const alertas = [];
+    if (V.status.id === "critico")
+      alertas.push({ txt: V.pctConsumido < V.pctEsperado ? "Abaixo do ritmo de verba" : "Acima do ritmo de verba", tom: "err" });
+    else if (V.status.id === "atencao")
+      alertas.push({ txt: "Ritmo de verba exige atenção", tom: "avi" });
+    if (churn.acimaDaMeta)
+      alertas.push({ txt: "Churn acima do aceitável no período", tom: "err" });
+    if (saude.criticos > 0)
+      alertas.push({ txt: `${saude.criticos} cliente${saude.criticos > 1 ? "s" : ""} em situação crítica`, tom: "err" });
+    if (T.atrasadas > 0)
+      alertas.push({ txt: `${T.atrasadas} tarefa${T.atrasadas > 1 ? "s" : ""} atrasada${T.atrasadas > 1 ? "s" : ""}`, tom: "avi" });
+    if (alertas.length === 0) alertas.push({ txt: "Operação dentro do esperado", tom: "ok" });
+    return alertas.slice(0, 3);
+  }, [V, churn, saude, T.atrasadas]);
 
   async function sincronizar() {
     setCarregando(true);
@@ -241,25 +268,27 @@ export default function PainelTrafego({
     finally { setCarregando(false); }
   }
 
+  /* Some da lista na hora; a persistência entra quando houver tabela */
+  function ocultar(i, estado) {
+    setOcultos((p) => ({ ...p, [i.chave]: estado }));
+    onToast(estado === "resolvido" ? "Insight marcado como resolvido" : "Insight descartado");
+  }
+
   const nome = (usuario?.nome || "").split(" ")[0];
   const gestores = useMemo(() => {
     const ids = [...new Set((clientes || []).map((c) => c.gestorId).filter(Boolean))];
     return ids.map((id) => ({ id, nome: (pessoas || []).find((p) => p.id === id)?.nome || "—" }));
   }, [clientes, pessoas]);
 
-  const marcar = (i, estado, msg) => {
-    setResolvidos((p) => ({ ...p, [i.clienteId + i.titulo]: estado }));
-    onToast(msg);
-  };
-
   return (
     <div className="ct">
+      {/* ── Cabeçalho ── */}
       <div className="ct-topo">
         <div>
           <h1>{saudacao()}{nome ? `, ${nome}` : ""}</h1>
           <p>
             Aqui está o resumo da sua operação de tráfego hoje.
-            {ultimaSync && <span className="ct-sync"> · dados atualizados {desde(ultimaSync)}</span>}
+            {ultimaSync && <span className="ct-sync"> · atualizado {desde(ultimaSync)}</span>}
           </p>
         </div>
         <div className="ct-filtros">
@@ -278,9 +307,6 @@ export default function PainelTrafego({
             <option value="meta">Meta Ads</option>
             <option value="google">Google Ads</option>
           </select>
-          <select className="select" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
-            {PERIODOS.map((p) => <option key={p.id} value={p.id}>{p.l}</option>)}
-          </select>
           <button className="toolbar-btn" onClick={sincronizar} disabled={carregando}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
             {carregando ? "Atualizando…" : "Atualizar dados"}
@@ -288,55 +314,84 @@ export default function PainelTrafego({
         </div>
       </div>
 
-      {dadosVelhos.length > 0 && (
-        <div className="ct-aviso-topo">
-          <strong>{dadosVelhos.length} conta{dadosVelhos.length > 1 ? "s" : ""}</strong> com dados desatualizados há mais de 24 horas.
-          <button className="ct-link" onClick={sincronizar}>Sincronizar agora</button>
-        </div>
-      )}
+      {/* ══ 1. Quadro executivo ══ */}
+      <div className="ct-exec">
+        <div className="ct-exec-pilares">
+          <div className="ct-pilar">
+            <span className="ct-pilar-t">Gestão de verba</span>
+            <span className="ct-pilar-v">{fmtK(V.gasto)}</span>
+            <span className="ct-pilar-s">de {fmtK(V.verba)} · {fmtPct(V.pctConsumido)} consumido</span>
+            <div className="ct-pilar-mini">
+              <div className="ct-mini-trilha">
+                <div className="ct-mini-barra" style={{ width: `${Math.min(V.pctConsumido, 100)}%` }} />
+                <div className="ct-mini-marca" style={{ left: `${Math.min(V.pctEsperado, 100)}%` }} />
+              </div>
+              <span>ritmo ideal {fmtPct(V.pctEsperado)} · projeção {fmtK(V.projecao)}</span>
+            </div>
+          </div>
 
+          <div className="ct-pilar">
+            <span className="ct-pilar-t">Churn do período</span>
+            <span className="ct-pilar-v">{fmtPct(churn.taxa)}</span>
+            <span className="ct-pilar-s">
+              {churn.perdidos} cliente{churn.perdidos !== 1 ? "s" : ""} perdido{churn.perdidos !== 1 ? "s" : ""} · meta até {churn.metaAceitavel}%
+            </span>
+            <div className="ct-pilar-mini">
+              <div className="ct-mini-trilha">
+                <div className={`ct-mini-barra ${churn.acimaDaMeta ? "ct-mini-ruim" : ""}`}
+                  style={{ width: `${Math.min((churn.taxa / Math.max(churn.metaAceitavel * 2, 1)) * 100, 100)}%` }} />
+                <div className="ct-mini-marca" style={{ left: "50%" }} />
+              </div>
+              <span>{churn.acimaDaMeta ? "acima do aceitável" : "dentro do aceitável"}</span>
+            </div>
+          </div>
+
+          <div className="ct-pilar">
+            <span className="ct-pilar-t">Status da operação</span>
+            <span className="ct-pilar-v">{saude.total}</span>
+            <span className="ct-pilar-s">clientes ativos na carteira</span>
+            <div className="ct-pilar-chips">
+              <span className="ct-chip ct-c-ok">{saude.saudaveis} saudáveis</span>
+              <span className="ct-chip ct-c-avi">{saude.atencao} atenção</span>
+              <span className="ct-chip ct-c-lar">{saude.risco} risco</span>
+              <span className="ct-chip ct-c-err">{saude.criticos} críticos</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="ct-exec-diag">
+          {diagnostico.map((d, i) => (
+            <span key={i} className={`ct-diag ct-d-${d.tom}`}>{d.txt}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* ══ 2. Cards de overview ══ */}
       <div className="ct-inds">
-        <Ind rot="Tarefas em aberto" valor={T.abertas} sub={T.paraHoje > 0 ? `${T.paraHoje} vencem hoje` : "nenhuma vence hoje"} />
+        <Ind rot="Tarefas em aberto" valor={T.abertas} sub={T.deHoje > 0 ? `${T.deHoje} vencem hoje` : "nenhuma vence hoje"} />
         <Ind rot="Atrasadas" valor={T.atrasadas} tom={T.atrasadas > 0 ? "err" : "ok"} sub={T.atrasadas > 0 ? "exigem ação" : "tudo em dia"} />
         <Ind rot="Em andamento" valor={T.andamento} tom="info" />
         <Ind rot="Concluídas hoje" valor={T.concluidasHoje} tom={T.concluidasHoje > 0 ? "ok" : null} />
-        <Ind rot="Clientes em atenção" valor={`${criticos.length} de ${carteira.length}`}
-          tom={saude.criticos > 0 ? "err" : criticos.length > 0 ? "avi" : "ok"}
-          sub={saude.criticos > 0 ? `${saude.criticos} crítico${saude.criticos > 1 ? "s" : ""}` : null} />
-        <Ind rot="Insights" valor={insights.length} tom="info"
+        <Ind rot="Clientes críticos" valor={saude.criticos + saude.risco}
+          tom={saude.criticos > 0 ? "err" : saude.risco > 0 ? "avi" : "ok"}
+          sub={`de ${saude.total} na carteira`} />
+        <Ind rot="Insights ativos" valor={insights.length} tom="info"
           sub={acionaveis.length > 0 ? `${acionaveis.length} acionáveis` : "nada crítico"} />
       </div>
 
+      {/* ══ 3+4. Saúde da carteira + Prioridades ══ */}
       <div className="ct-l2">
-        <Card titulo="Clientes que exigem atenção" acao={<span className="ct-nota">{saude.saudaveis} sem alertas críticos</span>}>
-          {criticos.length === 0 ? (
-            <Vazio>Nenhum cliente em situação crítica. A carteira está dentro dos parâmetros.</Vazio>
-          ) : (
-            <div className="ct-criticos">
-              {criticos.map((c) => (
-                <div key={c.id} className="ct-cri" onClick={() => onAbrirCliente && onAbrirCliente(c)}>
-                  <div className="ct-cri-score">
-                    <span className={`ct-score ct-t-${c.faixa.tom}`}>{c.score}</span>
-                    <span className="ct-score-l">{c.faixa.rot}</span>
-                  </div>
-                  <div className="ct-cri-info">
-                    <div className="ct-cri-nome">{c.nome}<span className="ct-plat">{c.plataformaPrincipal || "sem conta"}</span></div>
-                    <div className="ct-cri-motivos">{c.motivos.join(" · ") || "sem apontamentos"}</div>
-                  </div>
-                  <div className="ct-cri-metricas">
-                    <span>CPL<strong className={c.cpaMeta && c.cpaReal > c.cpaMeta ? "ct-ruim" : ""}>{c.cpaReal ? fmtMoeda(c.cpaReal) : "—"}</strong></span>
-                    <span>Meta<strong>{c.cpaMeta ? fmtMoeda(c.cpaMeta) : "—"}</strong></span>
-                    <span>Leads<strong>{fmtNum(c.leads)}</strong></span>
-                    <span>Investido<strong>{fmtMoeda(c.gasto)}</strong></span>
-                  </div>
-                  <span className="ct-abrir">›</span>
-                </div>
-              ))}
-            </div>
-          )}
+        <Card titulo="Saúde da carteira" sub={`${saude.total} clientes ativos`}>
+          <Donut legenda="clientes" total={saude.total} tamanho={132} fatias={[
+            { rot: "Saudáveis", v: saude.saudaveis, c1: "#0C5530", c2: "#18A35F" },
+            { rot: "Atenção", v: saude.atencao, c1: "#B54708", c2: "#F5A524" },
+            { rot: "Risco", v: saude.risco, c1: "#C2410C", c2: "#FB923C" },
+            { rot: "Críticos", v: saude.criticos, c1: "#991B1B", c2: "#EF4444" },
+          ]} />
         </Card>
 
         <Card titulo="Prioridades de hoje"
+          sub="tarefas atrasadas e com vencimento hoje"
           acao={onAbrirTarefas && <button className="ct-link" onClick={onAbrirTarefas}>Ver todas</button>}>
           {T.prioridades.length === 0 ? (
             <Vazio>Nenhuma tarefa atrasada ou para hoje. Tudo em dia.</Vazio>
@@ -350,12 +405,11 @@ export default function PainelTrafego({
                   <div className="ct-prio-txt">
                     <div className="ct-prio-cli">{t.cliente?.nome || "Geral"}</div>
                     <div className="ct-prio-acao">{t.titulo || t.acao}</div>
-                    <div className="ct-prio-meta">
-                      {t.atrasada ? <span className="ct-atraso">atrasada</span> : "vence hoje"}
-                      {t.etapa && <span> · {t.etapa}</span>}
-                    </div>
                   </div>
-                  {onConcluirTarefa && <button className="ct-ok" title="Concluir" onClick={() => onConcluirTarefa(t)}>✓</button>}
+                  <span className={`ct-sit ${t.atrasada ? "ct-sit-err" : ""}`}>{t.situacao}</span>
+                  <button className="ct-btn-mini" onClick={() => (onAbrirTarefa ? onAbrirTarefa(t) : onAbrirTarefas && onAbrirTarefas())}>
+                    {t.atrasada ? "Abrir" : "Executar"}
+                  </button>
                 </div>
               ))}
             </div>
@@ -363,60 +417,115 @@ export default function PainelTrafego({
         </Card>
       </div>
 
-      <div className="ct-l3">
-        <Card titulo="Gestão de verba" acao={<span className="ct-nota">dia {P.diaAtual} de {P.diasNoMes}</span>}>
-          <div className="ct-verba-nums">
-            <div><span>Verba mensal</span><strong>{fmtMoeda(V.verba)}</strong></div>
-            <div><span>Investido</span><strong>{fmtMoeda(V.gasto)}</strong></div>
-            <div><span>Projeção</span><strong>{fmtMoeda(V.projecao)}</strong></div>
-            <div>
-              <span>Diferença projetada</span>
-              <strong className={V.diferenca < -V.verba * 0.05 ? "ct-ruim" : V.diferenca > V.verba * 0.05 ? "ct-atencao" : ""}>
-                {V.diferenca >= 0 ? "+" : ""}{fmtMoeda(V.diferenca)}
-              </strong>
+      {/* ══ 5. Clientes críticos ══ */}
+      <Card titulo="Clientes críticos"
+        sub="ordenados pelo score de criticidade"
+        acao={<span className="ct-nota">{saude.saudaveis} sem alertas</span>}>
+        {criticos.length === 0 ? (
+          <Vazio>Nenhum cliente em situação crítica. A carteira está dentro dos parâmetros.</Vazio>
+        ) : (
+          <div className="ct-criticos">
+            {criticos.map((c) => (
+              <div key={c.id} className="ct-cri" onClick={() => onAbrirCliente && onAbrirCliente(c)}>
+                <div className={`ct-cri-score ct-sc-${c.faixa.tom}`}>
+                  <span className="ct-score">{c.score}</span>
+                  <span className="ct-score-l">{c.faixa.rot}</span>
+                </div>
+                <div className="ct-cri-info">
+                  <div className="ct-cri-nome">
+                    {c.nome}
+                    <span className="ct-plat">{c.plataformaPrincipal || "sem conta"}</span>
+                  </div>
+                  <div className="ct-cri-motivos">
+                    {c.motivos.length === 0 ? <span className="ct-nada">sem apontamentos</span> :
+                      c.motivos.map((m, i) => <span key={i} className="ct-motivo">{m}</span>)}
+                  </div>
+                </div>
+                <div className="ct-cri-metricas">
+                  <span>CPL<strong className={c.cpaMeta && c.cpaReal > c.cpaMeta ? "ct-ruim" : ""}>{c.cpaReal ? fmtMoeda(c.cpaReal) : "—"}</strong></span>
+                  <span>Meta<strong>{c.cpaMeta ? fmtMoeda(c.cpaMeta) : "—"}</strong></span>
+                  <span>Leads<strong>{fmtNum(c.leads)}</strong></span>
+                  <span>Investido<strong>{fmtMoeda(c.gasto)}</strong></span>
+                </div>
+                <span className="ct-abrir">›</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* ══ 6. Gestão de verba, com fora do ritmo dentro ══ */}
+      <Card titulo="Gestão de verba" sub={`dia ${P.diaAtual} de ${P.diasNoMes} · restam ${P.diasRestantes} dias`}
+        acao={<span className={`ct-badge tom-${V.status.tom}`}>{V.status.rot}</span>}>
+        <div className="ct-verba-nums">
+          <div><span>Verba mensal</span><strong>{fmtMoeda(V.verba)}</strong></div>
+          <div><span>Investido</span><strong>{fmtMoeda(V.gasto)}</strong></div>
+          <div><span>Projeção final</span><strong>{fmtMoeda(V.projecao)}</strong></div>
+          <div>
+            <span>Diferença projetada</span>
+            <strong className={V.diferenca < -V.verba * 0.05 ? "ct-ruim" : V.diferenca > V.verba * 0.05 ? "ct-atencao" : ""}>
+              {V.diferenca >= 0 ? "+" : ""}{fmtMoeda(V.diferenca)}
+            </strong>
+          </div>
+        </div>
+
+        <Regua consumido={V.pctConsumido} esperado={V.pctEsperado} projetado={V.pctProjetado} status={V.status} />
+
+        {(V.acima.length > 0 || V.abaixo.length > 0) && (
+          <div className="ct-fora">
+            <div className="ct-fora-col">
+              <h4 className="ct-sub ct-sub-avi">Acima do previsto</h4>
+              {V.acima.length === 0 ? <span className="ct-nada">nenhuma conta</span> : (
+                <div className="ct-fora-cards">
+                  {V.acima.map((c) => (
+                    <div key={c.id} className="ct-fc ct-fc-avi" onClick={() => onAbrirCliente && onAbrirCliente(c)}>
+                      <div className="ct-fc-h">
+                        <span className="ct-fc-nome">{c.nome}</span>
+                        <span className="ct-fc-desv ct-ruim">+{c.pacing.desvio.toFixed(0)}%</span>
+                      </div>
+                      <span className="ct-plat">{c.plataformaPrincipal}</span>
+                      <div className="ct-fc-vals">
+                        <span>Investido<strong>{fmtMoeda(c.gasto)}</strong></span>
+                        <span>Esperado<strong>{fmtMoeda(c.esperadoValor)}</strong></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="ct-fora-col">
+              <h4 className="ct-sub ct-sub-info">Abaixo do previsto</h4>
+              {V.abaixo.length === 0 ? <span className="ct-nada">nenhuma conta</span> : (
+                <div className="ct-fora-cards">
+                  {V.abaixo.map((c) => (
+                    <div key={c.id} className="ct-fc ct-fc-info" onClick={() => onAbrirCliente && onAbrirCliente(c)}>
+                      <div className="ct-fc-h">
+                        <span className="ct-fc-nome">{c.nome}</span>
+                        <span className="ct-fc-desv ct-atencao">{c.pacing.desvio.toFixed(0)}%</span>
+                      </div>
+                      <span className="ct-plat">{c.plataformaPrincipal}</span>
+                      <div className="ct-fc-vals">
+                        <span>Investido<strong>{fmtMoeda(c.gasto)}</strong></span>
+                        <span>Esperado<strong>{fmtMoeda(c.esperadoValor)}</strong></span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-          <Pacing consumido={V.pctConsumido} esperado={V.pctEsperado} status={V.status} />
-        </Card>
+        )}
+      </Card>
 
-        <Card titulo="Fora do ritmo de verba">
-          {V.acima.length === 0 && V.abaixo.length === 0 ? (
-            <Vazio>Todas as contas dentro do ritmo esperado.</Vazio>
-          ) : (
-            <div className="ct-pacing-listas">
-              <div>
-                <h4 className="ct-sub ct-sub-avi">Acima do previsto</h4>
-                {V.acima.length === 0 ? <span className="ct-nada">nenhuma</span> : V.acima.map((c) => (
-                  <div key={c.id} className="ct-pac-item" onClick={() => onAbrirCliente && onAbrirCliente(c)}>
-                    <span className="ct-pac-nome">{c.nome}</span>
-                    <span className="ct-pac-val">{fmtMoeda(c.gasto)} <em>de {fmtMoeda(c.esperadoValor)}</em></span>
-                    <span className="ct-pac-desv ct-ruim">+{c.pacing.desvio.toFixed(0)}%</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <h4 className="ct-sub ct-sub-info">Abaixo do previsto</h4>
-                {V.abaixo.length === 0 ? <span className="ct-nada">nenhuma</span> : V.abaixo.map((c) => (
-                  <div key={c.id} className="ct-pac-item" onClick={() => onAbrirCliente && onAbrirCliente(c)}>
-                    <span className="ct-pac-nome">{c.nome}</span>
-                    <span className="ct-pac-val">{fmtMoeda(c.gasto)} <em>de {fmtMoeda(c.esperadoValor)}</em></span>
-                    <span className="ct-pac-desv ct-atencao">{c.pacing.desvio.toFixed(0)}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </Card>
-      </div>
-
+      {/* ══ 7. Insights ══ */}
       <Card titulo="Insights de otimização"
-        acao={<span className="ct-nota">{acionaveis.length} acionáveis · {insights.length - acionaveis.length} em monitoramento</span>}>
+        sub={`${acionaveis.length} acionáveis · ${insights.length - acionaveis.length} em monitoramento`}>
         {insights.length === 0 ? (
-          <Vazio>Nenhum insight disponível. Sincronize as contas para gerar a análise do dia.</Vazio>
+          <Vazio>Nenhum insight ativo. Sincronize as contas para gerar a análise do dia.</Vazio>
         ) : (
           <div className="ct-insights">
-            {insights.slice(0, 6).map((i, k) => (
-              <div key={k} className={`ct-ins ct-ins-${i.prioridade}`}>
+            {insights.slice(0, 6).map((i) => (
+              <div key={i.chave} className={`ct-ins ct-ins-${i.prioridade}`}>
                 <div className="ct-ins-h">
                   <span className={`ct-pri-tag ct-p-${i.prioridade}`}>
                     {i.prioridade === "critico" ? "CRÍTICO" : i.prioridade === "alto" ? "ALTA" : i.prioridade === "medio" ? "MÉDIA" : "MONITORAR"}
@@ -434,8 +543,8 @@ export default function PainelTrafego({
                     const c = carteira.find((x) => x.id === i.clienteId);
                     if (c && onAbrirCliente) onAbrirCliente(c);
                   }}>Ver relatório</button>
-                  <button className="ct-btn-mini" onClick={() => marcar(i, "resolvido", "Insight marcado como resolvido")}>Resolvido</button>
-                  <button className="ct-btn-mini ct-btn-fraco" onClick={() => marcar(i, "descartado", "Insight descartado")}>Descartar</button>
+                  <button className="ct-btn-mini" onClick={() => ocultar(i, "resolvido")}>Resolvido</button>
+                  <button className="ct-btn-mini ct-btn-fraco" onClick={() => ocultar(i, "descartado")}>Descartar</button>
                 </div>
               </div>
             ))}
@@ -443,46 +552,15 @@ export default function PainelTrafego({
         )}
       </Card>
 
-      <div className="ct-l5">
-        <Card titulo="Status das tarefas"
-          acao={T.taxaSemana != null && <span className="ct-nota">{fmtPct(T.taxaSemana)} concluídas na semana</span>}>
-          <BarraSeg segmentos={[
-            { rot: "Atrasadas", v: T.atrasadas, tom: "err" },
-            { rot: "Pendentes", v: T.pendentes, tom: "avi" },
-            { rot: "Em andamento", v: T.andamento, tom: "info" },
-            { rot: "Concluídas", v: T.concluidasSemana, tom: "ok" },
-          ]} />
-        </Card>
-
-        <Card titulo="Saúde da carteira" acao={<span className="ct-nota">{saude.total} clientes ativos</span>}>
-          <BarraSeg segmentos={[
-            { rot: "Saudáveis", v: saude.saudaveis, tom: "ok" },
-            { rot: "Atenção", v: saude.atencao, tom: "avi" },
-            { rot: "Risco", v: saude.risco, tom: "laranja" },
-            { rot: "Críticos", v: saude.criticos, tom: "err" },
-          ]} />
-        </Card>
-      </div>
-
-      <Card titulo="Problemas detectados">
-        {problemas.length === 0 ? (
-          <Vazio>Todas as integrações funcionando normalmente.</Vazio>
-        ) : (
-          <div className="ct-probs">
-            {problemas.slice(0, 8).map((p, i) => (
-              <div key={i} className="ct-prob" onClick={() => onAbrirCliente && onAbrirCliente(p.cliente)}>
-                <span className={`ct-badge tom-${p.nivel === "critico" ? "err" : "avi"}`}>
-                  {p.nivel === "critico" ? "CRÍTICO" : "AVISO"}
-                </span>
-                <div className="ct-prob-txt">
-                  <div className="ct-prob-cli">{p.cliente.nome} — {p.titulo}</div>
-                  <div className="ct-prob-det">{p.detalhe}</div>
-                </div>
-                <span className="ct-abrir">›</span>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* ══ 8. Status das tarefas ══ */}
+      <Card titulo="Status das tarefas"
+        sub={T.taxaSemana != null ? `${fmtPct(T.taxaSemana)} das tarefas da semana concluídas` : "sem tarefas na semana"}>
+        <Donut legenda="tarefas" total={T.atrasadas + T.pendentes + T.andamento + T.concluidasSemana} tamanho={128} fatias={[
+          { rot: "Atrasadas", v: T.atrasadas, c1: "#991B1B", c2: "#EF4444" },
+          { rot: "Pendentes", v: T.pendentes, c1: "#B54708", c2: "#F5A524" },
+          { rot: "Em andamento", v: T.andamento, c1: "#1E4D8C", c2: "#3B82F6" },
+          { rot: "Concluídas", v: T.concluidasSemana, c1: "#0C5530", c2: "#18A35F" },
+        ]} />
       </Card>
     </div>
   );
