@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { CATALOGO, POR_CAMPO, PADRAO, calcularDerivadas } from "./metricasCatalogo.js";
 import { fmtMoeda } from "./utils";
 
 /* ============================================================
@@ -40,6 +41,14 @@ const METRICAS = [
   { chave: "conversas", rotulo: "Conversas iniciadas", fmt: fmtNum, menorMelhor: false },
   { chave: "custoConversa", rotulo: "Custo por conversa", fmt: fmtMoeda, menorMelhor: true },
 ];
+
+/* Converte o tipo do catálogo na função de formatação */
+function formatador(tipo) {
+  if (tipo === "moeda") return fmtMoeda;
+  if (tipo === "percentual") return fmtPct;
+  if (tipo === "decimal") return (v) => fmtDec(v);
+  return fmtNum;
+}
 
 /** Variação % entre atual e anterior; null quando não dá para comparar. */
 export function variacaoPct(atual, anterior) {
@@ -142,7 +151,13 @@ const PRESETS = [
   { id: "mes", rotulo: "Este mês", calc: () => ({ since: inicioMes(), until: hojeISO() }) },
 ];
 
-export default function MetricasMeta({ cliente, onBuscar, onToast }) {
+export default function MetricasMeta({ cliente, onBuscar, onToast, tituloExtra = "", onConfigurar }) {
+  // Métricas que este cliente acompanha; sem escolha, usa o padrão
+  const selecionadas = useMemo(() => {
+    const lista = cliente.metricasMeta?.length ? cliente.metricasMeta : PADRAO;
+    return lista.map((c) => POR_CAMPO[c]).filter(Boolean);
+  }, [cliente.metricasMeta]);
+
   const [preset, setPreset] = useState("7d");
   const [de, setDe] = useState(diasAtras(6));
   const [ate, setAte] = useState(hojeISO());
@@ -187,7 +202,7 @@ export default function MetricasMeta({ cliente, onBuscar, onToast }) {
   if (!cliente.metaAdAccountId) {
     return (
       <div className="card card-pad" style={{ marginBottom: 20 }}>
-        <h3 className="dash-title" style={{ margin: 0 }}>Métricas da Meta</h3>
+        <h3 className="dash-title" style={{ margin: 0 }}>{"Métricas da Meta" + tituloExtra}</h3>
         <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--ink-soft)" }}>
           Vincule uma conta de anúncio (no card acima) para ver as métricas das campanhas aqui.
         </p>
@@ -224,16 +239,32 @@ export default function MetricasMeta({ cliente, onBuscar, onToast }) {
         </p>
       )}
 
+      {onConfigurar && (
+        <button className="mm-config" onClick={onConfigurar} title="Escolher quais métricas acompanhar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          Configurar métricas
+        </button>
+      )}
+
       {erro && <div className="login-erro" style={{ marginTop: 10 }}>{erro}</div>}
       {carregando && <div className="mm-carregando">Buscando métricas na Meta…</div>}
 
       {!carregando && dados && (
         <>
           <div className="mm-grid">
-            {METRICAS.map((def) => (
-              <CardMetrica key={def.chave} def={def} atual={dados.atual} anterior={dados.anterior} />
+            {selecionadas.map((m) => (
+              <CardMetrica key={m.campo}
+                def={{ chave: m.campo, rotulo: m.rotulo, fmt: formatador(m.formato), menorMelhor: m.menorMelhor, ajuda: m.ajuda }}
+                atual={calcularDerivadas(dados.atual || {})}
+                anterior={calcularDerivadas(dados.anterior || {})} />
             ))}
           </div>
+          {selecionadas.some((m) => (dados.atual || {})[m.campo] == null && !["roas","ticketMedio","taxaConversao","connectRate","taxaRetencaoVideo"].includes(m.campo)) && (
+            <p className="mm-aviso">
+              Métricas sem dados aparecem como travessão. Isso acontece quando a conta
+              não registra aquele evento no período — verifique o pixel ou o objetivo da campanha.
+            </p>
+          )}
 
           <InsightsBloco atual={dados.atual} anterior={dados.anterior} onToast={onToast} />
 

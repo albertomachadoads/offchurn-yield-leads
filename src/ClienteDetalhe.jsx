@@ -3,6 +3,8 @@ import { fmtMoeda, fmtData } from "./utils";
 import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
 import MetricasMeta from "./MetricasMeta.jsx";
+import SelecionarMetricas from "./SelecionarMetricas.jsx";
+import { supabase } from "./supabaseClient.js";
 import { logAcao, logErro } from "./logger.js";
 import FunilCliente from "./FunilCliente.jsx";
 import {
@@ -24,8 +26,9 @@ export default function ClienteDetalhe({
   cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin,
   onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights,
   onListarContasGoogle, onVincularContaGoogle, onSincronizarGoogle, onBuscarInsightsGoogle,
-  funil, onSalvarFunil, onToast,
+  funil, onSalvarFunil, onToast, onRecarregar,
 }) {
+  const [modalMetricas, setModalMetricas] = useState(false);
   const comp = competencia();
   const [contasMeta, setContasMeta] = useState(null);
   const [contasGoogle, setContasGoogle] = useState(null);
@@ -299,7 +302,7 @@ export default function ClienteDetalhe({
         </div>
       </div>
 
-            <MetricasMeta cliente={cliente} onBuscar={onBuscarInsights} onToast={onToast} />
+            <MetricasMeta cliente={cliente} onBuscar={onBuscarInsights} onToast={onToast} onConfigurar={() => setModalMetricas(true)} />
 
       {cliente.googleAdCustomerId && (
         <MetricasMeta cliente={{...cliente, metaAdAccountId: cliente.googleAdCustomerId, _plataforma: "Google"}}
@@ -437,6 +440,7 @@ function DashboardsFunil({ cliente, funil }) {
   const google = daComp("Google");
 
   return (
+    <>
     <div className="card card-pad" style={{ marginBottom: 20 }}>
       <div className="mm-head">
         <h3 className="dash-title" style={{ margin: 0 }}>Dashboards</h3>
@@ -449,5 +453,18 @@ function DashboardsFunil({ cliente, funil }) {
           captados={google.captados} qualificados={google.qualificados} vendidos={google.vendidos} />
       </div>
     </div>
+      {modalMetricas && (
+        <SelecionarMetricas cliente={cliente} onToast={onToast}
+          onFechar={() => setModalMetricas(false)}
+          onSalvar={async (metricas) => {
+            try {
+              await supabase.from("clientes").update({ metricas_meta: metricas }).eq("id", cliente.id);
+              onToast("Métricas atualizadas");
+              setModalMetricas(false);
+              if (onRecarregar) onRecarregar();
+            } catch (e) { onToast("Erro: " + e.message); }
+          }} />
+      )}
+    </>
   );
 }

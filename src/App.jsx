@@ -18,7 +18,6 @@ import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import WhatsAppChat from "./WhatsAppChat.jsx";
 import Dashboard from "./Dashboard.jsx";
 import PainelMetas from "./PainelMetas.jsx";
-import Formularios from "./Formularios.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
 import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
@@ -448,23 +447,21 @@ export default function App() {
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
-          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
+          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
             {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
             {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
             {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
-            {temPerm("clientes") && <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}><Icon.Grid /> <span>Clientes</span></button>}
           </div>
           )}
 
           {/* COMERCIAL */}
-          {(temPerm("whatsapp") || temPerm("crm") || temPerm("formularios") || temPerm("metas") || temPerm("crm-analises") || temPerm("crm-auto") || temPerm("crm-params")) && (
+          {(temPerm("whatsapp") || temPerm("crm") || temPerm("metas") || temPerm("crm-analises") || temPerm("crm-auto") || temPerm("crm-params")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Comercial</div>
             {temPerm("whatsapp") && <button className={view === "whatsapp" ? "active" : ""} onClick={() => setView("whatsapp")}><Icon.Chat /> <span>Conversas</span></button>}
             {temPerm("crm") && <button className={view === "crm" ? "active" : ""} onClick={() => setView("crm")}><Icon.Users /> <span>CRM</span></button>}
-            {temPerm("formularios") && <button className={view === "formularios" ? "active" : ""} onClick={() => setView("formularios")}><Icon.Clipboard /> <span>Formulários</span></button>}
             {temPerm("metas") && <button className={view === "metas" ? "active" : ""} onClick={() => setView("metas")}><Icon.Target /> <span>Painel de Metas</span></button>}
             {temPerm("crm-analises") && <button className={view === "crm-analises" ? "active" : ""} onClick={() => setView("crm-analises")}><Icon.Chart /> <span>Análises</span></button>}
             {temPerm("crm-auto") && <button className={view === "crm-auto" ? "active" : ""} onClick={() => setView("crm-auto")}><Icon.Target /> <span>Automações</span></button>}
@@ -556,8 +553,7 @@ export default function App() {
         )}
         {view === "clientes" && !clienteAberto && (
           <Clientes
-            clientes={data.clientes || []}
-            agenciaGlobal={agFiltro}
+            clientes={clientesFiltrados}
             desempenho={data.desempenho || []}
             onAbrir={(c) => setClienteAberto(c)}
             onLancar={lancarDesempenho}
@@ -582,6 +578,7 @@ export default function App() {
         )}
         {view === "clientes" && clienteAberto && (
           <ClienteDetalhe
+            onRecarregar={recarregar}
             cliente={data.clientes.find((c) => c.id === clienteAberto.id) || clienteAberto}
             gestById={gestById}
             desempenho={data.desempenho || []}
@@ -675,12 +672,6 @@ export default function App() {
 
         {view === "metas" && (
           <PainelMetas userName={user?.nome} onIrParaCRM={() => setView("crm")} clientes={data.clientes || []} onToast={showToast} />
-        )}
-
-        {view === "formularios" && (
-          <Formularios onToast={showToast} pessoas={data.pessoas || []}
-            onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }}
-            onConversar={(numero, nome) => { window.__waNovaConversa = { numero, nome }; setView("whatsapp"); }} />
         )}
 
         {view === "crm-analises" && (

@@ -10,7 +10,7 @@ const mapCliente = (r) => ({
   linkDrive: r.link_drive,
   nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
   cpaMeta: r.cpa_meta,
-  metaAdAccountId: r.meta_ad_account_id,
+  metaAdAccountId: r.meta_ad_account_id, metricasMeta: r.metricas_meta || null,
   googleAdCustomerId: r.google_ad_customer_id,
   googleMccId: r.google_mcc_id,
   objetivo: r.objetivo || "Lead",
