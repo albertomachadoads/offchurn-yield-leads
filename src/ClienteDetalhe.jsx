@@ -378,6 +378,19 @@ export default function ClienteDetalhe({
         </div>
       )}
       </>)}
+
+      {modalMetricas && (
+        <SelecionarMetricas cliente={cliente} onToast={onToast}
+          onFechar={() => setModalMetricas(false)}
+          onSalvar={async (metricas) => {
+            try {
+              await supabase.from("clientes").update({ metricas_meta: metricas }).eq("id", cliente.id);
+              onToast("Métricas atualizadas");
+              setModalMetricas(false);
+              if (onRecarregar) onRecarregar();
+            } catch (e) { onToast("Erro: " + e.message); }
+          }} />
+      )}
     </>
   );
 }
@@ -440,7 +453,6 @@ function DashboardsFunil({ cliente, funil }) {
   const google = daComp("Google");
 
   return (
-    <>
     <div className="card card-pad" style={{ marginBottom: 20 }}>
       <div className="mm-head">
         <h3 className="dash-title" style={{ margin: 0 }}>Dashboards</h3>
@@ -453,18 +465,5 @@ function DashboardsFunil({ cliente, funil }) {
           captados={google.captados} qualificados={google.qualificados} vendidos={google.vendidos} />
       </div>
     </div>
-      {modalMetricas && (
-        <SelecionarMetricas cliente={cliente} onToast={onToast}
-          onFechar={() => setModalMetricas(false)}
-          onSalvar={async (metricas) => {
-            try {
-              await supabase.from("clientes").update({ metricas_meta: metricas }).eq("id", cliente.id);
-              onToast("Métricas atualizadas");
-              setModalMetricas(false);
-              if (onRecarregar) onRecarregar();
-            } catch (e) { onToast("Erro: " + e.message); }
-          }} />
-      )}
-    </>
   );
 }

@@ -447,12 +447,13 @@ export default function App() {
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
-          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow")) && (
+          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
             {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
             {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
             {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
+            {temPerm("clientes") && <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}><Icon.Grid /> <span>Clientes</span></button>}
           </div>
           )}
 
