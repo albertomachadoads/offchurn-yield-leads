@@ -213,6 +213,9 @@ export default function ClienteDetalhe({
       {/* abas da página do cliente */}
       <div className="det-abas">
         <button className={aba === "dashboard" ? "on" : ""} onClick={() => setAba("dashboard")}>Dashboard</button>
+        {(cliente.metaAdAccountId || cliente.googleAdCustomerId) && (
+          <button className={aba === "relatorio" ? "on" : ""} onClick={() => setAba("relatorio")}>Relatório</button>
+        )}
         <button className={aba === "tarefas" ? "on" : ""} onClick={() => setAba("tarefas")}>
           Tarefas {atrasadas.length > 0 && <span className="aba-alerta">{atrasadas.length}</span>}
         </button>
@@ -310,11 +313,6 @@ export default function ClienteDetalhe({
           onBuscar={onBuscarInsightsGoogle} onToast={onToast} tituloExtra=" (Google Ads)" />
       )}
 
-      {(cliente.metaAdAccountId || cliente.googleAdCustomerId) && (
-        <Relatorios cliente={cliente} onBuscar={onBuscarInsights}
-          onBuscarGoogle={onBuscarInsightsGoogle} onToast={onToast} />
-      )}
-
       <FunilCliente cliente={cliente} funil={funil} onSalvar={onSalvarFunil} onToast={onToast} />
 
       {/* Dashboards: funis por plataforma, visão mensal */}
@@ -356,6 +354,11 @@ export default function ClienteDetalhe({
             <Info label="Conta Meta vinculada" valor={cliente.metaAdAccountId} />
           </div>
         </div>
+      )}
+
+      {aba === "relatorio" && (
+        <Relatorios cliente={cliente} onBuscar={onBuscarInsights}
+          onBuscarGoogle={onBuscarInsightsGoogle} onToast={onToast} />
       )}
 
       {aba === "tarefas" && (<>
