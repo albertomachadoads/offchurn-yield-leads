@@ -235,7 +235,7 @@ function Pizza({ fatias, titulo, horizontal }) {
 }
 
 /* ---------- Rosca ---------- */
-function Rosca({ fatias }) {
+function Rosca({ fatias, titulo = "r" }) {
   if (!fatias?.length) return <p className="rp-vazio">Sem dados por dispositivo no período.</p>;
   const S = 150, R = 56, W = 20, C = S / 2;
   const circ = 2 * Math.PI * R;
@@ -247,7 +247,7 @@ function Rosca({ fatias }) {
       <svg viewBox={`0 0 ${S} ${S}`} className="rp-rosca">
         <defs>
           {fatias.map((f, i) => (
-            <linearGradient key={i} id={`rgd${i}`} x1="0" y1="0" x2="1" y2="1">
+            <linearGradient key={i} id={`rgd${titulo}${i}`} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor={cores[i % 4][0]} />
               <stop offset="100%" stopColor={cores[i % 4][1]} />
             </linearGradient>
@@ -256,7 +256,7 @@ function Rosca({ fatias }) {
         {fatias.map((f, i) => {
           const dash = (f.v / soma) * circ; const o = off; off += dash;
           return f.v > 0 && (
-            <circle key={i} cx={C} cy={C} r={R} fill="none" stroke={`url(#rgd${i})`} strokeWidth={W}
+            <circle key={i} cx={C} cy={C} r={R} fill="none" stroke={`url(#rgd${titulo}${i})`} strokeWidth={W}
               strokeDasharray={`${Math.max(dash - 2, 0)} ${circ - dash + 2}`} strokeDashoffset={-o}
               strokeLinecap="round" transform={`rotate(-90 ${C} ${C})`} />
           );
@@ -342,11 +342,13 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
     if (p.calc) { const r = p.calc(); setDe(r.de); setAte(r.ate); }
   }
 
-  async function buscar() {
+  // Recebe as datas por parâmetro: o estado ainda não atualizou
+  // quando a busca é disparada pela troca de período.
+  async function buscar(dDe = de, dAte = ate) {
     if (!cliente) return;
     setCarregando(true); setErro("");
     try {
-      const r = await onBuscar(cliente.id, de, ate);
+      const r = await onBuscar(cliente.id, dDe, dAte);
       setDados(r);
     } catch (e) {
       setErro(e.message || "Falha ao buscar dados da plataforma");
@@ -354,7 +356,14 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
     } finally { setCarregando(false); }
   }
 
-  useEffect(() => { if (cliente && !dados) buscar(); /* eslint-disable-next-line */ }, [cliente?.id]);
+  /* Busca sempre que o cliente ou o intervalo mudar.
+     Em "Personalizado" só busca com as duas datas preenchidas. */
+  useEffect(() => {
+    if (!cliente || !de || !ate) return;
+    if (de > ate) return;              // intervalo inválido: aguarda o ajuste
+    buscar(de, ate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliente?.id, de, ate]);
 
   const metricas = useMemo(() => {
     const lista = cliente?.metricasMeta?.length ? cliente.metricasMeta : PADRAO;
@@ -540,7 +549,7 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
 
             <div className="rp-linha2">
               <Bloco titulo="Alcance por plataforma" altura={215}>
-                <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
+                <Rosca titulo="plat" fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
               </Bloco>
               <Bloco titulo="Distribuição por gênero" altura={215}>
                 <Pizza titulo="gen" fatias={porGenero.map((g) => ({ rotulo: g.rotulo, v: g.b }))} />
