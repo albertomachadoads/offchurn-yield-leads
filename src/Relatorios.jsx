@@ -413,8 +413,8 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
                       <td className="rp-td-nome" title={c.nome}>{c.nome}</td>
                       <td>{fmtMoeda(c.gasto)}</td>
                       <td>{fmtNum(c.impressoes)}</td>
-                      <td>{fmtNum(c.cliquesLink ?? c.cliques)}</td>
-                      <td>{fmtPct(c.ctrLink ?? c.ctr)}</td>
+                      <td>{fmtNum(c.cliquesLink)}</td>
+                      <td>{fmtPct(c.ctrLink)}</td>
                       <td>{fmtMoeda(c.cpc)}</td>
                       <td>{fmtNum(c.resultados)}</td>
                     </tr>
@@ -423,6 +423,12 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
               </table>
             )}
           </Pagina>
+
+          {dados?.avisos?.length > 0 && (
+            <div className="rp-aviso rp-nota">
+              Algumas seções não puderam ser carregadas: {dados.avisos.join(" · ")}
+            </div>
+          )}
 
           {!temSegmentacao && (
             <div className="rp-aviso rp-nota">
