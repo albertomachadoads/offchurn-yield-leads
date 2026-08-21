@@ -573,7 +573,9 @@ export default function App() {
             usuario={user} isAdmin={isAdmin} onToast={showToast}
             onAbrirCliente={(c) => { setClienteAberto(c); setView("clientes"); }}
             onAbrirTarefas={() => setView("follow")}
-            onAbrirTarefa={() => setView("follow")} />
+            onAbrirTarefa={() => setView("follow")}
+            onSalvarTarefa={salvarTarefa}
+            onExcluirTarefa={excluirTarefa} />
         )}
 
         {view === "acompanhamento" && (

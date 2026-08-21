@@ -2441,8 +2441,10 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .ct-link:hover { text-decoration: underline; }
 .ct-vazio { font-size: 12.5px; color: var(--ink-faint); margin: 0; padding: 12px 0; line-height: 1.5; }
 .ct-nada { font-size: 11.5px; color: var(--ink-faint); font-style: italic; }
-.ct-l2 { display: grid; grid-template-columns: 340px 1fr; gap: 14px; }
-@media (max-width: 1000px) { .ct-l2 { grid-template-columns: 1fr; } }
+.ct-donuts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ct-l2b { display: grid; grid-template-columns: 1fr 1.35fr; gap: 14px; }
+@media (max-width: 1000px) { .ct-donuts, .ct-l2b { grid-template-columns: 1fr; } }
+
 
 /* ── Donut ── */
 .ct-donut-wrap { display: flex; align-items: center; gap: 18px; }
@@ -2567,3 +2569,69 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .ct-btn-fraco { color: var(--ink-faint); }
 .ct-btn-fraco:hover { border-color: var(--err); color: var(--err); }
 .ct-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; letter-spacing: .3px; }
+
+/* Donut compacto: gráfico e legenda formam um bloco só */
+.ct-donut-wrap { display: flex; align-items: center; gap: 16px; justify-content: flex-start; }
+.ct-donut-leg { flex: 0 1 auto; min-width: 130px; }
+
+/* ══════════════ CENTRAL DE TAREFAS ══════════════ */
+.tf-nova { height: 32px; padding: 0 14px; border: none; border-radius: 8px; background: var(--green); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.tf-nova:hover { opacity: .9; }
+
+.tf-abas { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tf-aba { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); font-size: 12.5px; font-weight: 500; color: var(--ink-faint); cursor: pointer; font-family: inherit; transition: .12s; }
+.tf-aba:hover { border-color: var(--ink-faint); color: var(--ink); }
+.tf-aba-n { font-size: 10.5px; font-weight: 700; background: var(--gray-soft); padding: 1px 7px; border-radius: 9px; }
+.tema-escuro .tf-aba-n { background: rgba(255,255,255,.08); }
+.tf-aba.on { color: #fff; border-color: transparent; }
+.tf-aba.on .tf-aba-n { background: rgba(255,255,255,.24); }
+.tf-on-err { background: #D92D20; }
+.tf-on-avi { background: #D97706; }
+.tf-on-inf { background: #2563EB; }
+
+.tf-lista { display: flex; flex-direction: column; gap: 5px; }
+.tf-linha { display: flex; align-items: center; gap: 11px; padding: 9px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; transition: .12s; }
+.tema-escuro .tf-linha { background: rgba(255,255,255,.02); }
+.tf-linha:hover { border-color: var(--green); }
+.tf-atrasada { border-left: 3px solid #D92D20; }
+
+.tf-pri { font-size: 8.5px; font-weight: 700; letter-spacing: .4px; padding: 3px 7px; border-radius: 4px; flex-shrink: 0; }
+.tf-p-critica { background: #FEE4E2; color: #B42318; }
+.tf-p-alta { background: #FEF0C7; color: #B54708; }
+.tf-p-media { background: #E0EAFF; color: #1B4DB1; }
+.tema-escuro .tf-p-critica { background: #3A1614; color: #F97066; }
+.tema-escuro .tf-p-alta { background: #2A1F0A; color: #F5A524; }
+.tema-escuro .tf-p-media { background: #16223A; color: #60A5FA; }
+
+.tf-corpo { flex: 1; min-width: 0; }
+.tf-titulo { font-size: 13px; font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tf-meta { display: flex; gap: 10px; margin-top: 2px; font-size: 10.5px; color: var(--ink-faint); flex-wrap: wrap; }
+.tf-cli { font-weight: 500; color: var(--ink-soft); }
+.tf-prazo-err { color: #D92D20; font-weight: 600; }
+
+.tf-sit { font-size: 10.5px; padding: 3px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.tf-s-err { background: rgba(217,45,32,.10); color: #D92D20; }
+.tf-s-inf { background: rgba(37,99,235,.10); color: #2563EB; }
+.tf-s-neu { background: var(--gray-soft); color: var(--ink-faint); }
+.tema-escuro .tf-s-neu { background: rgba(255,255,255,.06); }
+
+.tf-acoes { display: flex; gap: 4px; flex-shrink: 0; }
+.tf-btn { width: 26px; height: 26px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.tf-btn:hover { border-color: var(--green); color: var(--green); }
+.tf-btn-ok:hover { background: #18A35F; border-color: #18A35F; color: #fff; }
+
+.tf-menu-wrap { position: relative; }
+.tf-menu-fundo { position: fixed; inset: 0; z-index: 40; }
+.tf-menu { position: absolute; right: 0; top: 30px; z-index: 41; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 6px 20px rgba(16,24,40,.14); padding: 4px; min-width: 160px; display: flex; flex-direction: column; }
+.tf-menu button { text-align: left; padding: 8px 11px; border: none; background: none; font-size: 12.5px; color: var(--ink); cursor: pointer; border-radius: 6px; font-family: inherit; }
+.tf-menu button:hover { background: var(--bg); }
+.tema-escuro .tf-menu button:hover { background: rgba(255,255,255,.05); }
+.tf-menu-err { color: #D92D20 !important; }
+
+.tf-semana { display: flex; flex-direction: column; gap: 14px; }
+.tf-dia { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 6px; margin-bottom: 7px; border-bottom: 1px solid var(--line); }
+.tf-dia span { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-soft); }
+.tf-dia em { font-style: normal; font-size: 11px; color: var(--ink-faint); }
+
+.form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .form-grid2 { grid-template-columns: 1fr; } .tf-linha { flex-wrap: wrap; } .tf-corpo { flex: 1 0 60%; } }

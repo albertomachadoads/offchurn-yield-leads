@@ -3,10 +3,10 @@ import * as api from "./api.js";
 import { fmtMoeda } from "./utils";
 import { competencia } from "./projecao";
 import {
-  pacingPeriodo, classificarPacing, scoreCriticidade,
-  gerarInsights, detectarProblemas,
+  pacingPeriodo, classificarPacing, scoreCriticidade, detectarProblemas,
 } from "./trafegoEngine.js";
 import { resumirTarefas, prioridadesDoDia, calcularChurn } from "./tarefasCore.js";
+import CentralTarefas from "./CentralTarefas.jsx";
 
 /* ============================================================
    Central de comando do gestor de tráfego.
@@ -129,14 +129,13 @@ function Ind({ rot, valor, sub, tom }) {
 /* ================= COMPONENTE ================= */
 export default function PainelTrafego({
   clientes, desempenho, tarefas, pessoas, usuario, isAdmin, onToast,
-  onAbrirCliente, onAbrirTarefas, onAbrirTarefa,
+  onAbrirCliente, onAbrirTarefas, onAbrirTarefa, onSalvarTarefa, onExcluirTarefa,
 }) {
   const [fResp, setFResp] = useState("todos");
   const [fCliente, setFCliente] = useState("todos");
   const [fPlataforma, setFPlataforma] = useState("todas");
   const [carregando, setCarregando] = useState(false);
   const [ultimaSync, setUltimaSync] = useState(null);
-  const [ocultos, setOcultos] = useState({});   // insights resolvidos ou descartados
 
   const comp = competencia();
   const P = pacingPeriodo();
@@ -177,7 +176,6 @@ export default function PainelTrafego({
         item.problemas = detectarProblemas(item);
         const sc = scoreCriticidade(item);
         item.score = sc.score; item.faixa = sc.faixa; item.motivos = sc.motivos;
-        item.insights = gerarInsights(item);
         return item;
       })
       .sort((x, y) => y.score - x.score);
@@ -185,15 +183,26 @@ export default function PainelTrafego({
       P.pctTranscorrido, P.diaAtual, P.diasNoMes, P.diasRestantes]);
 
   /* ---------- Tarefas: mesma fonte do módulo ---------- */
-  const T = useMemo(() => {
+
+  /* Tarefas da carteira, com os mesmos filtros — a Central recebe
+     esta lista e nunca uma cópia separada. */
+  const tarefasDaCarteira = useMemo(() => {
     const ids = new Set(carteira.map((c) => c.id));
-    let lista = (tarefas || []).filter((t) => !t.clienteId || ids.has(t.clienteId));
-    if (fResp !== "todos") lista = lista.filter((t) => t.responsavelId === fResp);
-    if (fCliente !== "todos") lista = lista.filter((t) => t.clienteId === fCliente);
-    const scorePorCliente = Object.fromEntries(carteira.map((c) => [c.id, c.score]));
+    let l = (tarefas || []).filter((t) => !t.clienteId || ids.has(t.clienteId));
+    if (fResp !== "todos") l = l.filter((t) => t.responsavelId === fResp);
+    if (fCliente !== "todos") l = l.filter((t) => t.clienteId === fCliente);
+    return l;
+  }, [tarefas, carteira, fResp, fCliente]);
+
+  const scorePorCliente = useMemo(
+    () => Object.fromEntries(carteira.map((c) => [c.id, c.score])),
+    [carteira]
+  );
+
+  const T = useMemo(() => {
     return {
-      ...resumirTarefas(lista),
-      prioridades: prioridadesDoDia(lista, { scorePorCliente, limite: 7 })
+      ...resumirTarefas(tarefasDaCarteira),
+      prioridades: prioridadesDoDia(tarefasDaCarteira, { scorePorCliente, limite: 7 })
         .map((t) => ({ ...t, cliente: carteira.find((c) => c.id === t.clienteId) })),
     };
   }, [tarefas, carteira, fResp, fCliente]);
@@ -230,15 +239,6 @@ export default function PainelTrafego({
 
   const criticos = useMemo(() => carteira.filter((c) => c.score > 30).slice(0, 5), [carteira]);
 
-  const insights = useMemo(() => {
-    const ordem = { critico: 0, alto: 1, medio: 2, baixo: 3 };
-    return carteira
-      .flatMap((c) => c.insights.map((i) => ({ ...i, chave: i.clienteId + "|" + i.titulo, scoreCliente: c.score })))
-      .filter((i) => !ocultos[i.chave])
-      .sort((x, y) => ordem[x.prioridade] - ordem[y.prioridade] || y.scoreCliente - x.scoreCliente);
-  }, [carteira, ocultos]);
-
-  const acionaveis = insights.filter((i) => i.tipo !== "saudavel" && i.tipo !== "monitoramento");
 
   /* ---------- Diagnóstico executivo ---------- */
   const diagnostico = useMemo(() => {
@@ -268,11 +268,6 @@ export default function PainelTrafego({
     finally { setCarregando(false); }
   }
 
-  /* Some da lista na hora; a persistência entra quando houver tabela */
-  function ocultar(i, estado) {
-    setOcultos((p) => ({ ...p, [i.chave]: estado }));
-    onToast(estado === "resolvido" ? "Insight marcado como resolvido" : "Insight descartado");
-  }
 
   const nome = (usuario?.nome || "").split(" ")[0];
   const gestores = useMemo(() => {
@@ -375,14 +370,14 @@ export default function PainelTrafego({
         <Ind rot="Clientes críticos" valor={saude.criticos + saude.risco}
           tom={saude.criticos > 0 ? "err" : saude.risco > 0 ? "avi" : "ok"}
           sub={`de ${saude.total} na carteira`} />
-        <Ind rot="Insights ativos" valor={insights.length} tom="info"
-          sub={acionaveis.length > 0 ? `${acionaveis.length} acionáveis` : "nada crítico"} />
+        <Ind rot="Tarefas na semana" valor={T.daSemana} tom="info"
+          sub={T.taxaSemana != null ? `${fmtPct(T.taxaSemana)} concluídas` : "sem planejamento"} />
       </div>
 
-      {/* ══ 3+4. Saúde da carteira + Prioridades ══ */}
-      <div className="ct-l2">
+      {/* ══ 3. Saúde da carteira + Status das tarefas ══ */}
+      <div className="ct-donuts">
         <Card titulo="Saúde da carteira" sub={`${saude.total} clientes ativos`}>
-          <Donut legenda="clientes" total={saude.total} tamanho={132} fatias={[
+          <Donut legenda="clientes" total={saude.total} tamanho={124} fatias={[
             { rot: "Saudáveis", v: saude.saudaveis, c1: "#0C5530", c2: "#18A35F" },
             { rot: "Atenção", v: saude.atencao, c1: "#B54708", c2: "#F5A524" },
             { rot: "Risco", v: saude.risco, c1: "#C2410C", c2: "#FB923C" },
@@ -390,35 +385,43 @@ export default function PainelTrafego({
           ]} />
         </Card>
 
+        <Card titulo="Status das tarefas"
+          sub={T.taxaSemana != null ? `${fmtPct(T.taxaSemana)} das tarefas da semana concluídas` : "sem tarefas na semana"}>
+          <Donut legenda="tarefas" total={T.atrasadas + T.pendentes + T.andamento + T.concluidasSemana} tamanho={124} fatias={[
+            { rot: "Atrasadas", v: T.atrasadas, c1: "#991B1B", c2: "#EF4444" },
+            { rot: "Pendentes", v: T.pendentes, c1: "#B54708", c2: "#F5A524" },
+            { rot: "Em andamento", v: T.andamento, c1: "#1E4D8C", c2: "#3B82F6" },
+            { rot: "Concluídas", v: T.concluidasSemana, c1: "#0C5530", c2: "#18A35F" },
+          ]} />
+        </Card>
+      </div>
+
+      {/* ══ 4. Prioridades + Clientes críticos ══ */}
+      <div className="ct-l2b">
         <Card titulo="Prioridades de hoje"
-          sub="tarefas atrasadas e com vencimento hoje"
+          sub="atrasadas e com vencimento hoje"
           acao={onAbrirTarefas && <button className="ct-link" onClick={onAbrirTarefas}>Ver todas</button>}>
           {T.prioridades.length === 0 ? (
             <Vazio>Nenhuma tarefa atrasada ou para hoje. Tudo em dia.</Vazio>
           ) : (
             <div className="ct-prios">
-              {T.prioridades.map((t) => (
+              {T.prioridades.slice(0, 6).map((t) => (
                 <div key={t.id} className="ct-prio">
                   <span className={`ct-pri-tag ct-p-${t.prioridade}`}>
                     {t.prioridade === "critica" ? "CRÍTICA" : t.prioridade === "alta" ? "ALTA" : "MÉDIA"}
                   </span>
                   <div className="ct-prio-txt">
-                    <div className="ct-prio-cli">{t.cliente?.nome || "Geral"}</div>
                     <div className="ct-prio-acao">{t.titulo || t.acao}</div>
+                    <div className="ct-prio-cli">{t.cliente?.nome || "Geral"}</div>
                   </div>
                   <span className={`ct-sit ${t.atrasada ? "ct-sit-err" : ""}`}>{t.situacao}</span>
-                  <button className="ct-btn-mini" onClick={() => (onAbrirTarefa ? onAbrirTarefa(t) : onAbrirTarefas && onAbrirTarefas())}>
-                    {t.atrasada ? "Abrir" : "Executar"}
-                  </button>
                 </div>
               ))}
             </div>
           )}
         </Card>
-      </div>
 
-      {/* ══ 5. Clientes críticos ══ */}
-      <Card titulo="Clientes críticos"
+        <Card titulo="Clientes críticos"
         sub="ordenados pelo score de criticidade"
         acao={<span className="ct-nota">{saude.saudaveis} sem alertas</span>}>
         {criticos.length === 0 ? (
@@ -452,9 +455,10 @@ export default function PainelTrafego({
             ))}
           </div>
         )}
-      </Card>
+        </Card>
+      </div>
 
-      {/* ══ 6. Gestão de verba, com fora do ritmo dentro ══ */}
+      {/* ══ 5. Gestão de verba, com fora do ritmo dentro ══ */}
       <Card titulo="Gestão de verba" sub={`dia ${P.diaAtual} de ${P.diasNoMes} · restam ${P.diasRestantes} dias`}
         acao={<span className={`ct-badge tom-${V.status.tom}`}>{V.status.rot}</span>}>
         <div className="ct-verba-nums">
@@ -517,51 +521,18 @@ export default function PainelTrafego({
         )}
       </Card>
 
-      {/* ══ 7. Insights ══ */}
-      <Card titulo="Insights de otimização"
-        sub={`${acionaveis.length} acionáveis · ${insights.length - acionaveis.length} em monitoramento`}>
-        {insights.length === 0 ? (
-          <Vazio>Nenhum insight ativo. Sincronize as contas para gerar a análise do dia.</Vazio>
-        ) : (
-          <div className="ct-insights">
-            {insights.slice(0, 6).map((i) => (
-              <div key={i.chave} className={`ct-ins ct-ins-${i.prioridade}`}>
-                <div className="ct-ins-h">
-                  <span className={`ct-pri-tag ct-p-${i.prioridade}`}>
-                    {i.prioridade === "critico" ? "CRÍTICO" : i.prioridade === "alto" ? "ALTA" : i.prioridade === "medio" ? "MÉDIA" : "MONITORAR"}
-                  </span>
-                  <span className="ct-ins-cli">{i.cliente}</span>
-                  <span className="ct-plat">{i.plataforma}</span>
-                  <span className={`ct-conf ct-conf-${i.confianca.id}`}>{i.confianca.rot}</span>
-                </div>
-                <div className="ct-ins-tit">{i.titulo}</div>
-                <p className="ct-ins-ev">{i.evidencia}</p>
-                {i.recomendacao && <p className="ct-ins-rec"><strong>Recomendação:</strong> {i.recomendacao}</p>}
-                {i.impacto && <p className="ct-ins-imp">Impacto esperado: {i.impacto}</p>}
-                <div className="ct-ins-acoes">
-                  <button className="ct-btn-mini" onClick={() => {
-                    const c = carteira.find((x) => x.id === i.clienteId);
-                    if (c && onAbrirCliente) onAbrirCliente(c);
-                  }}>Ver relatório</button>
-                  <button className="ct-btn-mini" onClick={() => ocultar(i, "resolvido")}>Resolvido</button>
-                  <button className="ct-btn-mini ct-btn-fraco" onClick={() => ocultar(i, "descartado")}>Descartar</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* ══ 8. Status das tarefas ══ */}
-      <Card titulo="Status das tarefas"
-        sub={T.taxaSemana != null ? `${fmtPct(T.taxaSemana)} das tarefas da semana concluídas` : "sem tarefas na semana"}>
-        <Donut legenda="tarefas" total={T.atrasadas + T.pendentes + T.andamento + T.concluidasSemana} tamanho={128} fatias={[
-          { rot: "Atrasadas", v: T.atrasadas, c1: "#991B1B", c2: "#EF4444" },
-          { rot: "Pendentes", v: T.pendentes, c1: "#B54708", c2: "#F5A524" },
-          { rot: "Em andamento", v: T.andamento, c1: "#1E4D8C", c2: "#3B82F6" },
-          { rot: "Concluídas", v: T.concluidasSemana, c1: "#0C5530", c2: "#18A35F" },
-        ]} />
-      </Card>
+      {/* ══ 6. Central de Tarefas ══ */}
+      <CentralTarefas
+        tarefas={tarefasDaCarteira}
+        clientes={clientes}
+        pessoas={pessoas}
+        usuario={usuario}
+        scorePorCliente={scorePorCliente}
+        onSalvar={onSalvarTarefa}
+        onExcluir={onExcluirTarefa}
+        onAbrirModulo={() => onAbrirTarefas && onAbrirTarefas()}
+        onToast={onToast}
+      />
     </div>
   );
 }

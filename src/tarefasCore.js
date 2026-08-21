@@ -122,3 +122,57 @@ export function calcularChurn(clientes, { de, ate, metaAceitavel = 5 } = {}) {
     clientes: noPeriodo,
   };
 }
+
+
+/* ---------- Prioridade derivada ----------
+   Não há campo de prioridade no banco. Ela vem do atraso e da
+   criticidade do cliente — dado real, não inventado. */
+export function prioridadeDe(t, scorePorCliente = {}, hoje = hojeISO()) {
+  if (ehAtrasada(t, hoje)) return "critica";
+  const score = scorePorCliente[t.clienteId] || 0;
+  if (score > 70) return "critica";
+  if (score > 40) return "alta";
+  if (ehDeHoje(t, hoje)) return "alta";
+  return "media";
+}
+
+const ORDEM_PRIO = { critica: 0, alta: 1, media: 2, baixa: 3 };
+
+/* ---------- Recortes da Central de Tarefas ---------- */
+export function recortesTarefas(tarefas, { scorePorCliente = {}, hoje = hojeISO() } = {}) {
+  const lista = (tarefas || []).filter(ehAberta);
+
+  const decorar = (t) => ({
+    ...t,
+    atrasada: ehAtrasada(t, hoje),
+    prioridade: prioridadeDe(t, scorePorCliente, hoje),
+    situacao: ehAtrasada(t, hoje) ? "Atrasada"
+      : t.etapa === "Em andamento" ? "Em andamento" : "Pendente",
+    quando: t.prazo || t.data || null,
+  });
+
+  const ordenar = (a, b) =>
+    ORDEM_PRIO[a.prioridade] - ORDEM_PRIO[b.prioridade] ||
+    String(a.quando || "9999").localeCompare(String(b.quando || "9999"));
+
+  const atrasadas = lista.filter((t) => ehAtrasada(t, hoje)).map(decorar)
+    .sort((a, b) => ORDEM_PRIO[a.prioridade] - ORDEM_PRIO[b.prioridade]
+      || String(a.quando || "").localeCompare(String(b.quando || "")));  // mais atrasada primeiro
+
+  const deHoje = lista.filter((t) => ehDeHoje(t, hoje) && !ehAtrasada(t, hoje)).map(decorar).sort(ordenar);
+
+  // próxima semana: do dia seguinte até +7 dias
+  const d1 = new Date(hoje); d1.setDate(d1.getDate() + 1);
+  const d7 = new Date(hoje); d7.setDate(d7.getDate() + 7);
+  const ini = d1.toISOString().slice(0, 10), fim = d7.toISOString().slice(0, 10);
+  const futuras = lista
+    .filter((t) => { const q = t.prazo || t.data; return q && q >= ini && q <= fim; })
+    .map(decorar).sort(ordenar);
+
+  // agrupadas por dia, para a leitura da semana
+  const porDia = {};
+  futuras.forEach((t) => { (porDia[t.quando] = porDia[t.quando] || []).push(t); });
+  const dias = Object.keys(porDia).sort().map((d) => ({ data: d, tarefas: porDia[d] }));
+
+  return { atrasadas, deHoje, futuras, dias };
+}
