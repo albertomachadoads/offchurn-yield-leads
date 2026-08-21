@@ -60,6 +60,11 @@ export default function App() {
     const path = window.location.pathname.replace("/", "");
     return path || "dashboard";
   });
+  /* Quando o usuário entra pela raiz, a tela inicial é escolhida
+     conforme o perfil — mas só depois de as permissões carregarem. */
+  const [telaInicialDefinida, setTelaInicialDefinida] = useState(
+    () => !!window.location.pathname.replace("/", "")
+  );
 
   // Sync URL com view
   useEffect(() => {
@@ -148,6 +153,21 @@ export default function App() {
       return lista.includes(mod);
     } catch { return false; }
   };
+
+  /* Tela inicial por perfil: quem não acessa o Dashboard comercial
+     cai no primeiro módulo que tiver permissão, na ordem de prioridade. */
+  useEffect(() => {
+    if (telaInicialDefinida || !user) return;
+    // aguarda a resposta das permissões antes de decidir
+    if (userPerms?._configured === undefined) return;
+
+    const preferencia = ["dashboard", "trafego", "crm", "whatsapp", "clientes", "acompanhamento", "follow"];
+    const inicial = preferencia.find((m) => temPerm(m));
+    if (inicial && inicial !== view) setView(inicial);
+    setTelaInicialDefinida(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userPerms, telaInicialDefinida]);
+
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 

@@ -61,6 +61,7 @@ function PermissoesTab({ pessoa, instancias, onToast }) {
       <div className="perm-section" style={{ marginTop: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <h4 style={{ fontSize: 13, fontWeight: 800, margin: 0 }}>Módulos</h4>
+          <p className="perm-dica">O primeiro módulo liberado nesta ordem — Dashboard, Painel de Tráfego, CRM, Conversas, Clientes — será a tela inicial deste usuário.</p>
           <div style={{ display: "flex", gap: 6 }}>
             <button className="btn btn-sm btn-ghost" onClick={() => setPerm((p) => ({ ...p, modulos: [...TODOS_MODS] }))}>Todos</button>
             <button className="btn btn-sm btn-ghost" onClick={() => setPerm((p) => ({ ...p, modulos: [] }))}>Nenhum</button>
