@@ -190,9 +190,9 @@ function BarrasVerticais({ dados, rotuloA = "Impressões", rotuloB = "Alcance" }
 }
 
 /* ---------- Pizza ---------- */
-function Pizza({ fatias, titulo }) {
+function Pizza({ fatias, titulo, horizontal }) {
   if (!fatias?.length) return <p className="rp-vazio">Sem dados no período.</p>;
-  const S = 150, R = 68, C = S / 2;
+  const S = 150, R = 62, C = S / 2;
   const soma = fatias.reduce((a, f) => a + f.v, 0) || 1;
   const cores = [["#0C5530", "#18A35F"], ["#1E4D8C", "#3B82F6"], ["#6941C6", "#9E77ED"],
                  ["#B54708", "#F5A524"], ["#B42318", "#F97066"], ["#026AA2", "#36BFFA"]];
@@ -206,7 +206,7 @@ function Pizza({ fatias, titulo }) {
     return { d: `M ${C},${C} L ${x1},${y1} A ${R},${R} 0 ${grande} 1 ${x2},${y2} Z`, i, f };
   });
   return (
-    <div className="rp-pizza-wrap">
+    <div className={`rp-pizza-wrap ${horizontal ? "rp-horizontal" : ""}`}>
       <svg viewBox={`0 0 ${S} ${S}`} className="rp-pizza">
         <defs>
           {fatias.map((_, i) => (
@@ -318,9 +318,10 @@ function SeloPlataforma({ plataforma = "meta" }) {
 }
 
 /* Cartão que envolve cada gráfico */
-function Bloco({ titulo, children, largo }) {
+function Bloco({ titulo, children, altura, cresce }) {
+  const estilo = altura ? { height: `${altura}px`, flex: "0 0 auto" } : undefined;
   return (
-    <div className={`rp-bloco ${largo ? "rp-bloco-largo" : ""}`}>
+    <div className={`rp-bloco ${cresce ? "rp-bloco-cresce" : ""}`} style={estilo}>
       <h3 className="rp-bloco-t">{titulo}</h3>
       <div className="rp-bloco-c">{children}</div>
     </div>
@@ -392,6 +393,9 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
   const porDispositivo = dados?.porDispositivo || [];
   const porPlataforma = dados?.porPlataforma || [];
   const criativos = dados?.criativos || [];
+  // Altura do rank medida no navegador: linha 54px, gap 7px, moldura 53px
+  const nCriativos = Math.max(Math.min(criativos.length, 8), 1);
+  const alturaRank = 54 * nCriativos + 7 * (nCriativos - 1) + 53;
   const campanhas = dados?.campanhas || [];
 
   const temSegmentacao = porIdade.length || porGenero.length || porDispositivo.length || serie.length;
@@ -433,16 +437,14 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
         <div className="rp-aviso">Clique em Atualizar para carregar os dados.</div>
       ) : (
         <div className="rp-folhas">
-          {/* ── Página 1: visão geral ── */}
-          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={1} total={totalPaginas}>
+          {/* ══ Página 1 — visão geral ══ */}
+          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={1} total={3}>
             <div className="rp-secao-cab">
               <h2 className="rp-h2">Visão geral do período</h2>
               <SeloPlataforma plataforma="meta" />
             </div>
 
             {resumoFunil.temDados && <QuadroFunil dados={resumoFunil} />}
-
-            <hr className="rp-linha" />
 
             <div className="rp-kpis">
               {metricas.slice(0, 12).map((m) => (
@@ -451,14 +453,12 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
               ))}
             </div>
 
-            <hr className="rp-linha" />
-
-            <Bloco titulo="Rank de criativos" largo>
+            <Bloco titulo="Rank de criativos" altura={alturaRank}>
               {criativos.length === 0 ? (
                 <p className="rp-vazio">Dados de criativos indisponíveis no período.</p>
               ) : (
                 <div className="rp-criativos">
-                  {criativos.slice(0, 4).map((c, i) => (
+                  {criativos.slice(0, 8).map((c, i) => (
                     <div key={i} className="rp-criativo">
                       <div className="rp-cri-pos">{i + 1}</div>
                       {c.thumb && <img src={c.thumb} alt="" className="rp-cri-img" />}
@@ -477,64 +477,92 @@ export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, o
                 </div>
               )}
             </Bloco>
+
+            <Bloco titulo="Principais campanhas" cresce>
+              {campanhas.length === 0 ? (
+                <p className="rp-vazio">Nenhuma campanha com dados no período.</p>
+              ) : (
+                <table className="rp-tabela">
+                  <colgroup><col style={{ width: "44%" }} /><col span="4" /></colgroup>
+                  <thead>
+                    <tr><th>Campanha</th><th>Investido</th><th>Cliques</th><th>Result.</th><th>Custo/res.</th></tr>
+                  </thead>
+                  <tbody>
+                    {[...campanhas].sort((a, b) => b.gasto - a.gasto).slice(0, 6).map((c, i) => (
+                      <tr key={i}>
+                        <td className="rp-td-nome">{c.nome}</td>
+                        <td>{fmtMoeda(c.gasto)}</td>
+                        <td>{fmtNum(c.cliquesLink)}</td>
+                        <td>{fmtNum(c.resultados)}</td>
+                        <td>{fmtMoeda(c.custoResultado)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Bloco>
           </Pagina>
 
-          {/* ── Página 2: público ── */}
-          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={2} total={totalPaginas}>
+          {/* ══ Página 2 — perfil do público ══ */}
+          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={2} total={3}>
             <div className="rp-secao-cab">
               <h2 className="rp-h2">Perfil do público alcançado</h2>
               <SeloPlataforma plataforma="meta" />
             </div>
 
-            <div className="rp-grade">
-              <Bloco titulo="Cliques e CTR ao longo do tempo">
-                <LinhaDupla serie={serie} />
-              </Bloco>
+            {/* Linha 1: série temporal em largura total */}
+            <Bloco titulo="Cliques e CTR ao longo do tempo" altura={288}>
+              <LinhaDupla serie={serie} />
+            </Bloco>
 
-              <Bloco titulo="Impressões e alcance por gênero">
+            {/* Linha 2: gênero e idade lado a lado */}
+            <div className="rp-linha2">
+              <Bloco titulo="Impressões e alcance por gênero" altura={300}>
                 <BarrasVerticais dados={porGenero} />
               </Bloco>
-
-              <Bloco titulo="Impressões e alcance por idade">
+              <Bloco titulo="Impressões e alcance por idade" altura={300}>
                 <BarrasDuplas dados={porIdade} />
               </Bloco>
-
-              <Bloco titulo="Alcance por dispositivo">
-                <Pizza titulo="disp" fatias={porDispositivo} />
-              </Bloco>
             </div>
+
+            {/* Linha 3: dispositivo, área menor por ter menos informação */}
+            <Bloco titulo="Alcance por dispositivo" altura={250}>
+              <Pizza titulo="disp" fatias={porDispositivo} horizontal />
+            </Bloco>
           </Pagina>
 
-          {/* ── Página 3: campanhas ── */}
-          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={3} total={totalPaginas}>
+          {/* ══ Página 3 — campanhas ══ */}
+          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={3} total={3}>
             <div className="rp-secao-cab">
               <h2 className="rp-h2">Desempenho por campanha</h2>
               <SeloPlataforma plataforma="meta" />
             </div>
 
-            <div className="rp-grade rp-grade-topo">
-              <Bloco titulo="Alcance por plataforma">
+            <div className="rp-linha2">
+              <Bloco titulo="Alcance por plataforma" altura={215}>
                 <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
               </Bloco>
-              <Bloco titulo="Distribuição por gênero">
+              <Bloco titulo="Distribuição por gênero" altura={215}>
                 <Pizza titulo="gen" fatias={porGenero.map((g) => ({ rotulo: g.rotulo, v: g.b }))} />
               </Bloco>
             </div>
 
-            <hr className="rp-linha" />
-
-            <Bloco titulo="Campanhas no período" largo>
+            <Bloco titulo="Campanhas no período" cresce>
               {campanhas.length === 0 ? (
                 <p className="rp-vazio">Nenhuma campanha com dados no período.</p>
               ) : (
                 <table className="rp-tabela">
+                  <colgroup>
+                    <col style={{ width: "34%" }} />
+                    <col span="7" />
+                  </colgroup>
                   <thead>
-                    <tr><th>Campanha</th><th>Investido</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Resultados</th><th>Custo/result.</th></tr>
+                    <tr><th>Campanha</th><th>Investido</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Result.</th><th>Custo/res.</th></tr>
                   </thead>
                   <tbody>
-                    {campanhas.slice(0, 14).map((c, i) => (
+                    {campanhas.slice(0, 22).map((c, i) => (
                       <tr key={i}>
-                        <td className="rp-td-nome" title={c.nome}>{c.nome}</td>
+                        <td className="rp-td-nome">{c.nome}</td>
                         <td>{fmtMoeda(c.gasto)}</td>
                         <td>{fmtNum(c.impressoes)}</td>
                         <td>{fmtNum(c.cliquesLink)}</td>

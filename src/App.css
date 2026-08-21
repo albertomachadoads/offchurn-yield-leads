@@ -2055,195 +2055,254 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .cell-custo { color: var(--ink-faint); font-size: 12px; }
 
 
-/* ══════════════ RELATÓRIO DO CLIENTE (A4) ══════════════ */
 
-/* Controles — não saem na impressão */
+/* ══════════════ RELATÓRIO DO CLIENTE (A4) ══════════════
+   Sistema de medidas:
+     Folha .......... 210 × 297mm
+     Faixa .......... 66px   (cabeçalho verde)
+     Rodapé ......... 33px
+     Padding corpo .. 10mm topo + 6mm base
+     Área útil ...... ~955px
+
+   Cada .rp-a4 é exatamente uma folha física. As alturas dos
+   blocos são explícitas para o conteúdo nunca transbordar —
+   transbordo é o que gerava folha extra e gráfico cortado.
+   ────────────────────────────────────────────────────────── */
+
+.rp {
+  --gap-secao: 14px;   /* entre grandes seções */
+  --gap-card: 10px;    /* entre cards */
+  --pad-card: 12px;    /* padding interno */
+  --gap-titulo: 8px;   /* título → conteúdo */
+}
+
+/* Controles (não vão para o PDF) */
 .rp-controles { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
-.rp-toggle { display: flex; align-items: center; gap: 11px; border: none; background: none; cursor: pointer; text-align: left; font-family: inherit; padding: 0; color: var(--ink); }
-.rp-toggle h3 { margin: 0; font-size: 14px; font-weight: 600; }
-.rp-toggle span { font-size: 12px; color: var(--ink-faint); }
+.rp-titulo { margin: 0; font-size: 15px; font-weight: 600; }
+.rp-sub { font-size: 12.5px; color: var(--ink-faint); }
 .rp-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .rp-aviso { padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 13.5px; color: var(--ink-faint); text-align: center; line-height: 1.6; }
 .rp-erro { color: #D92D20; }
 .rp-nota { margin-top: 14px; text-align: left; font-size: 12px; }
 
-/* Folha A4 */
+/* ── Folha ── */
 .rp-folhas { display: flex; flex-direction: column; gap: 20px; align-items: center; }
 .rp-a4 {
-  width: 210mm; height: 297mm; background: #fff; color: #101828;
+  width: 210mm; height: 297mm; box-sizing: border-box;
+  background: #fff; color: #101828;
   box-shadow: 0 2px 14px rgba(16,24,40,.12);
-  display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
+  display: flex; flex-direction: column; overflow: hidden;
 }
 
-/* Faixa verde de largura total */
 .rp-faixa {
   display: flex; justify-content: space-between; align-items: center;
   background: linear-gradient(90deg, #0C5530 0%, #148A50 100%);
-  color: #fff; padding: 13px 14mm; flex-shrink: 0;
+  color: #fff; padding: 12px 14mm; flex-shrink: 0;
 }
-.rp-faixa-cliente { font-size: 17px; font-weight: 700; letter-spacing: -0.2px; }
-.rp-faixa-periodo { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; opacity: .95; }
+.rp-faixa-esq { display: flex; flex-direction: column; gap: 1px; }
+.rp-faixa-cliente { font-size: 16.5px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.2; }
+.rp-faixa-agencia { font-size: 9.5px; font-weight: 500; opacity: .82; letter-spacing: .3px; }
+.rp-faixa-periodo { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 500; opacity: .95; }
 
-.rp-corpo { flex: 1; padding: 12mm 14mm 6mm; display: flex; flex-direction: column; min-height: 0; }
-.rp-rodape { display: flex; justify-content: space-between; align-items: center; font-size: 9.5px; color: #98A2B3; padding: 8px 14mm 10px; border-top: 1px solid #EAECF0; margin: 0 14mm; flex-shrink: 0; }
-.rp-rodape span:first-child { font-weight: 700; color: #0C5530; font-size: 11px; letter-spacing: .4px; }
+/* Corpo: coluna com espaçamento uniforme; nada transborda */
+.rp-corpo {
+  flex: 1; min-height: 0; overflow: hidden;
+  padding: 10mm 14mm 6mm;
+  display: flex; flex-direction: column; gap: var(--gap-secao);
+}
+.rp-rodape {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 9px; color: #98A2B3; padding: 7px 0 9px;
+  border-top: 1px solid #EAECF0; margin: 0 14mm; flex-shrink: 0;
+}
+.rp-rodape span:first-child { font-weight: 700; color: #0C5530; font-size: 10.5px; letter-spacing: .3px; }
 
-/* Cabeçalho de seção com selo da plataforma */
-.rp-secao-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.rp-h2 { font-size: 15px; font-weight: 700; margin: 0; color: #101828; }
-.rp-selo { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+/* ── Cabeçalho de seção ── */
+.rp-secao-cab { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.rp-h2 { font-size: 15px; font-weight: 700; margin: 0; color: #101828; letter-spacing: -0.2px; }
+.rp-selo { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
 .rp-selo-meta { background: #E0EAFF; color: #1B4DB1; }
 .rp-selo-google { background: #FEF0C7; color: #B54708; }
 
-.rp-linha { border: none; border-top: 1px solid #E3E8E5; margin: 14px 0; flex-shrink: 0; }
+/* ── Quadro do funil ── */
+.rp-funil { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap-card); flex-shrink: 0; }
+.rp-funil-q { padding: 11px 10px; border-radius: 10px; text-align: center; border: 1px solid; }
+.rp-funil-v { display: block; font-size: 21px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.05; }
+.rp-funil-r { display: block; font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; margin-top: 3px; opacity: .78; }
+.rp-fq-info { background: #EFF4FF; border-color: #D1E0FF; color: #1B4DB1; }
+.rp-fq-roxo { background: #F4F3FF; border-color: #E4E1FC; color: #5925DC; }
+.rp-fq-ok   { background: #ECFDF3; border-color: #C7E9D3; color: #027A48; }
+.rp-fq-verde{ background: linear-gradient(135deg, #0C5530, #148A50); border-color: transparent; color: #fff; }
 
-/* KPIs */
-.rp-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; flex-shrink: 0; }
-.rp-kpi { padding: 7px 9px; background: #F7F9F8; border: 1px solid #EDF0EE; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
-.rp-kpi-l { display: block; font-size: 7.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .2px; color: #667085; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.rp-kpi-v { display: block; font-size: 13.5px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.1; }
-.rp-kpi-var { font-size: 9px; font-weight: 600; }
+/* ── KPIs ── */
+.rp-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 7px; flex-shrink: 0; }
+.rp-kpi {
+  padding: 8px 9px; background: #F7F9F8; border: 1px solid #EDF0EE; border-radius: 8px;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 52px;
+}
+.rp-kpi-l {
+  font-size: 7.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .2px;
+  color: #667085; line-height: 1.2; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.rp-kpi-v { font-size: 13.5px; font-weight: 700; letter-spacing: -0.2px; line-height: 1.1; }
+.rp-kpi-var { font-size: 8.5px; font-weight: 600; }
 .rp-kpi-var.sobe { color: #18A35F; }
 .rp-kpi-var.desce { color: #D92D20; }
 
-/* Grade de blocos — preenche a altura sem deixar vazios */
-.rp-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
-.rp-bloco { background: #FAFBFA; border: 1px solid #E9EDEB; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-.rp-bloco-largo { grid-column: 1 / -1; }
-.rp-bloco-t { font-size: 11px; font-weight: 600; color: #344054; margin: 0 0 8px; flex-shrink: 0; }
-.rp-bloco-c { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+/* ── Cards de gráfico ──
+   A altura vem do atributo, não de min-height genérico. */
+.rp-bloco {
+  background: #FAFBFA; border: 1px solid #E9EDEB; border-radius: 12px;
+  padding: var(--pad-card); box-sizing: border-box;
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+.rp-bloco-cresce { flex: 1 1 auto; }
+.rp-bloco-t {
+  font-size: 10.5px; font-weight: 600; color: #344054;
+  margin: 0 0 var(--gap-titulo); flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+  padding-bottom: 6px; border-bottom: 1px solid #EDF0EE;
+}
+.rp-bloco-t::before {
+  content: ""; width: 3px; height: 10px; border-radius: 2px;
+  background: linear-gradient(180deg, #18A35F, #0C5530); flex-shrink: 0;
+}
+.rp-bloco-c {
+  flex: 1; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.rp-linha2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-card); flex-shrink: 0; }
 
-.rp-vazio { font-size: 11px; color: #98A2B3; margin: 0; text-align: center; padding: 12px 0; }
-
-/* Gráfico de linhas */
-.rp-svg { width: 100%; height: auto; display: block; max-height: 100%; }
+/* ── SVG nunca ultrapassa o pai ── */
+.rp-svg {
+  display: block; width: 100%; height: 100%;
+  max-height: 100%; max-width: 100%; margin: 0 auto;
+  min-height: 0; flex: 1;
+}
 .rp-ax { font-size: 8px; fill: #667085; }
 .rp-ax-b { fill: #2563EB; }
-.rp-legenda { display: flex; gap: 14px; justify-content: center; margin-top: 6px; font-size: 9.5px; color: #667085; flex-shrink: 0; }
+.rp-legenda {
+  display: flex; gap: 14px; justify-content: center; margin-top: 5px;
+  font-size: 9px; color: #667085; flex-shrink: 0;
+}
 .rp-legenda span { display: inline-flex; align-items: center; gap: 5px; }
 .rp-legenda i { width: 12px; height: 2.5px; border-radius: 2px; display: block; }
 .rp-legenda i.tracejado { height: 0; border-top: 2px dashed #2563EB; }
 
-/* Barras */
-.rp-barras { display: flex; flex-direction: column; gap: 7px; }
+/* Wrapper interno dos gráficos ocupa a altura toda */
+.rp-bloco-c > div { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+/* Tabelas e listas alinham ao topo em vez de esticar */
+.rp-bloco-c > table { flex: 0 0 auto; align-self: flex-start; width: 100%; }
+
+/* ── Barras horizontais ── */
+.rp-barras { display: flex; flex-direction: column; gap: 6px; justify-content: center; flex: 1; min-height: 0; }
 .rp-barra-grupo { display: flex; align-items: center; gap: 8px; }
-.rp-barra-rot { width: 62px; font-size: 9.5px; color: #344054; text-align: right; flex-shrink: 0; }
+.rp-barra-rot { width: 56px; font-size: 9px; color: #344054; text-align: right; flex-shrink: 0; }
 .rp-barra-par { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.rp-barra-trilha { position: relative; height: 11px; background: #EDF0EE; border-radius: 3px; }
+.rp-barra-trilha { position: relative; height: 10px; background: #EDF0EE; border-radius: 3px; }
 .rp-barra { height: 100%; border-radius: 3px; }
 .rp-barra-a { background: linear-gradient(90deg, #0C5530, #18A35F); }
 .rp-barra-b { background: linear-gradient(90deg, #1E4D8C, #3B82F6); }
-.rp-barra-v { position: absolute; right: 5px; top: 0; line-height: 11px; font-size: 8px; font-weight: 600; color: #344054; }
+.rp-barra-v { position: absolute; right: 5px; top: 0; line-height: 10px; font-size: 7.5px; font-weight: 600; color: #344054; }
 
-/* Pizza e rosca */
-.rp-pizza-wrap, .rp-rosca-wrap { display: flex; align-items: center; gap: 12px; }
-.rp-pizza, .rp-rosca { width: 108px; flex-shrink: 0; }
-.rp-rosca-n { font-size: 15px; font-weight: 700; fill: #101828; }
-.rp-pizza-leg, .rp-rosca-leg { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.rp-pizza-leg > div, .rp-rosca-leg > div { display: flex; align-items: center; gap: 6px; font-size: 9.5px; }
+/* ── Pizza e rosca ── */
+.rp-pizza-wrap, .rp-rosca-wrap {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  flex: 1; min-height: 0; flex-direction: row !important;
+}
+.rp-pizza, .rp-rosca { height: 100%; max-height: 100%; width: auto; max-width: 46%; flex-shrink: 0; }
+.rp-horizontal { gap: 22px; }
+.rp-horizontal .rp-pizza { max-width: 34%; height: 100%; }
+.rp-horizontal .rp-pizza-leg { flex-direction: row; flex-wrap: wrap; gap: 8px 20px; }
+.rp-horizontal .rp-pizza-leg > div { flex: 0 0 auto; }
+.rp-rosca-n { font-size: 14px; font-weight: 700; fill: #101828; }
+.rp-pizza-leg, .rp-rosca-leg { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; justify-content: center; }
+.rp-pizza-leg > div, .rp-rosca-leg > div { display: flex; align-items: center; gap: 6px; font-size: 9px; }
 .rp-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
 .rp-leg-nome { flex: 1; color: #667085; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rp-leg-abs { color: #98A2B3; font-size: 8.5px; }
+.rp-leg-abs { color: #98A2B3; font-size: 8px; }
 
-/* Criativos */
-.rp-criativos { display: flex; flex-direction: column; gap: 6px; }
-.rp-criativo { display: flex; align-items: center; gap: 9px; padding: 7px 9px; background: #fff; border: 1px solid #EDF0EE; border-radius: 8px; }
+/* ── Criativos ── */
+.rp-criativos { display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; justify-content: flex-start; }
+.rp-criativo { display: flex; align-items: center; gap: 10px; padding: 9px 12px; flex: 0 0 auto; background: #fff; border: 1px solid #EDF0EE; border-radius: 8px; }
 .rp-cri-pos { width: 18px; height: 18px; border-radius: 5px; background: #0C5530; color: #fff; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.rp-cri-img { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+.rp-cri-img { width: 34px; height: 34px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
 .rp-cri-info { flex: 1; min-width: 0; }
 .rp-cri-nome { font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.rp-cri-metricas { display: flex; gap: 12px; flex-wrap: wrap; }
-.rp-cri-metricas span { font-size: 8px; color: #667085; }
+.rp-cri-metricas { display: flex; gap: 16px; flex-wrap: wrap; }
+.rp-cri-metricas span { font-size: 7.5px; color: #667085; }
 .rp-cri-metricas strong { display: block; font-size: 10px; color: #101828; font-weight: 700; }
 
-/* Tabela */
-.rp-tabela { width: 100%; border-collapse: collapse; font-size: 9.5px; }
-.rp-tabela th { text-align: right; font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .2px; color: #667085; padding: 6px 5px; border-bottom: 1.5px solid #E3E8E5; }
+/* ── Tabela: nome da campanha com espaço e quebra controlada ── */
+.rp-tabela { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }
+.rp-tabela th {
+  text-align: right; font-size: 7.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .2px; color: #667085; padding: 5px 4px; border-bottom: 1.5px solid #E3E8E5;
+}
 .rp-tabela th:first-child { text-align: left; }
-.rp-tabela td { text-align: right; padding: 6px 5px; border-bottom: 1px solid #F2F4F7; font-variant-numeric: tabular-nums; }
-.rp-td-nome { text-align: left; max-width: 165px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
-
-/* Impressão */
-@media (max-width: 900px) {
-  .rp-a4 { width: 100%; height: auto; }
-  .rp-kpis { grid-template-columns: repeat(3, 1fr); }
-  .rp-grade { grid-template-columns: 1fr; }
+.rp-tabela td { text-align: right; padding: 5px 4px; border-bottom: 1px solid #F2F4F7; font-variant-numeric: tabular-nums; }
+.rp-td-nome {
+  text-align: left; font-weight: 500; white-space: normal;
+  word-break: break-word; line-height: 1.25; padding-right: 10px;
 }
-.rp-titulo { margin: 0; font-size: 15px; font-weight: 600; }
-.rp-sub { font-size: 12.5px; color: var(--ink-faint); }
+.rp-vazio { font-size: 10px; color: #98A2B3; margin: 0; text-align: center; }
 
-/* Títulos e centralização dos gráficos no relatório */
-.rp-bloco-t {
-  text-align: left;
-  padding-bottom: 7px;
-  border-bottom: 1px solid #EDF0EE;
-  display: flex; align-items: center; gap: 6px;
-}
-.rp-bloco-t::before {
-  content: ""; width: 3px; height: 11px; border-radius: 2px;
-  background: linear-gradient(180deg, #18A35F, #0C5530); flex-shrink: 0;
-}
-.rp-bloco-c { align-items: center; }
-.rp-bloco-c > div { width: 100%; }
-.rp-svg { margin: 0 auto; max-width: 100%; }
-.rp-pizza-wrap, .rp-rosca-wrap { justify-content: center; }
-.rp-criativos { width: 100%; }
-.rp-tabela { width: 100%; }
-
-/* Grade: quatro blocos preenchendo a página */
-.rp-grade { align-content: stretch; }
-
-/* Nome da agência no cabeçalho do relatório */
-.rp-faixa-esq { display: flex; flex-direction: column; gap: 1px; }
-.rp-faixa-agencia { font-size: 10px; font-weight: 500; opacity: .82; letter-spacing: .3px; }
-
-/* ══════════════ IMPRESSÃO ══════════════
-   Em vez de listar o que esconder (frágil: qualquer bloco novo
-   vazaria no PDF), escondemos tudo e reexibimos apenas a árvore
-   que leva às folhas do relatório. */
+/* ══════════════ IMPRESSÃO ══════════════ */
 @media print {
-  @page { size: A4; margin: 0; }
+  @page { size: A4 portrait; margin: 0; }
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
 
-  /* 1. Nada é exibido por padrão */
+  /* Esconde tudo e reexibe só a árvore do relatório */
   body * { visibility: hidden !important; }
-
-  /* 2. O relatório e seu conteúdo voltam a aparecer */
   .rp-folhas, .rp-folhas * { visibility: visible !important; }
 
-  /* 3. As folhas ocupam a página, fora do fluxo do app */
   .rp-folhas {
-    position: absolute !important;
-    left: 0 !important; top: 0 !important;
-    width: 100% !important; gap: 0 !important;
+    position: absolute !important; left: 0 !important; top: 0 !important;
+    width: 210mm !important; gap: 0 !important; display: block !important;
   }
-  .rp-a4 {
-    box-shadow: none !important; margin: 0 !important;
-    page-break-after: always; break-after: page;
-  }
-  .rp-a4:last-child { page-break-after: auto; break-after: auto; }
-  .rp-bloco, .rp-criativo, .rp-kpi, .rp-barra-grupo { break-inside: avoid; }
 
-  /* 4. Cores de fundo e degradês precisam sair no PDF */
+  /* Uma folha física por página lógica */
+  .rp-a4 {
+    width: 210mm !important; height: 297mm !important;
+    box-shadow: none !important; margin: 0 !important;
+    overflow: hidden !important;
+    break-inside: avoid !important; page-break-inside: avoid !important;
+    break-after: page !important; page-break-after: always !important;
+  }
+  .rp-a4:last-child { break-after: auto !important; page-break-after: auto !important; }
+
+  /* Nada se parte no meio */
+  .rp-bloco, .rp-criativo, .rp-kpi, .rp-funil-q,
+  .rp-barra-grupo, .rp-secao-cab, .rp-faixa, .rp-rodape,
+  .rp-tabela tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+
+  /* O layout do A4 prevalece sobre qualquer regra responsiva */
+  .rp-linha2 { grid-template-columns: 1fr 1fr !important; }
+  .rp-kpis { grid-template-columns: repeat(6, 1fr) !important; }
+  .rp-bloco { min-height: 0 !important; }
+
+  /* Fundos e degradês saem coloridos */
   * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
 
-/* Quadro do funil de qualificação */
-.rp-funil { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; flex-shrink: 0; }
-.rp-funil-q { padding: 12px 10px; border-radius: 10px; text-align: center; border: 1px solid; }
-.rp-funil-v { display: block; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.05; }
-.rp-funil-r { display: block; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; margin-top: 3px; opacity: .78; }
-.rp-fq-info { background: #EFF4FF; border-color: #D1E0FF; color: #1B4DB1; }
-.rp-fq-roxo { background: #F4F3FF; border-color: #E4E1FC; color: #5925DC; }
-.rp-fq-ok { background: #ECFDF3; border-color: #C7E9D3; color: #027A48; }
-.rp-fq-verde { background: linear-gradient(135deg, #0C5530, #148A50); border-color: transparent; color: #fff; }
+/* Tela estreita: o relatório vira rolagem vertical.
+   Duas proteções: 'screen and' isola da impressão, e o limite
+   fica abaixo de 794px (largura da folha A4 em pixels) para o
+   PDF nunca herdar o layout mobile. */
+@media screen and (max-width: 780px) {
+  .rp-a4 { width: 100%; height: auto; }
+  .rp-kpis { grid-template-columns: repeat(3, 1fr); }
+  .rp-linha2 { grid-template-columns: 1fr; }
+  .rp-bloco { height: auto !important; min-height: 200px; }
+}
 
-/* Gráficos preenchem o bloco */
-.rp-bloco-c { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; overflow: hidden; }
-.rp-bloco-c > div { width: 100%; display: flex; flex-direction: column; justify-content: center; flex: 1; min-height: 0; }
-.rp-svg { width: 100%; height: auto; max-height: 100%; display: block; margin: 0 auto; flex-shrink: 1; }
-.rp-grade-topo { flex: 0 0 auto; height: 165px; }
+/* Tabela: alinha ao topo do card, sem centralizar verticalmente */
+.rp-bloco-c:has(.rp-tabela) { justify-content: flex-start; }
+.rp-bloco-c:has(.rp-criativos) { justify-content: flex-start; }
+.rp-bloco-c > div:has(> .rp-tabela) { flex: 0 0 auto; }
+.rp-tabela { flex: 0 0 auto; }
 
-/* Barras e listas ocupam o espaço disponível */
-.rp-barras { justify-content: center; flex: 1; }
-.rp-criativos { justify-content: flex-start; }
+/* Nome da campanha à esquerda, com quebra controlada */
+.rp-tabela td.rp-td-nome, .rp-tabela th:first-child { text-align: left !important; }
+.rp-td-nome { hyphens: auto; }
