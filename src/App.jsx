@@ -17,6 +17,7 @@ import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import WhatsAppChat from "./WhatsAppChat.jsx";
 import Dashboard from "./Dashboard.jsx";
+import PainelTrafego from "./PainelTrafego.jsx";
 import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
@@ -106,6 +107,11 @@ export default function App() {
   const [pesModal, setPesModal] = useState(null);
   const [clienteAberto, setClienteAberto] = useState(null);
 
+  /* Módulos que só o master acessa, mesmo para quem é admin. */
+  const MODULOS_MASTER = ["admin", "logs"];
+  /* O que um usuário recém-criado vê antes de o master configurar. */
+  const MODULOS_PADRAO = ["dashboard"];
+
   const isMaster = !!user?.email && user.email.toLowerCase() === EMAIL_MASTER.toLowerCase();
   const isAdmin = isMaster || user?.papel === "admin";
   const addNotif = (msg, tipo) => {
@@ -116,15 +122,31 @@ export default function App() {
 
   const reloadGlobal = () => { recarregar(); window.location.reload(); };
 
+  /* Hierarquia de acesso:
+       master → acesso irrestrito, sempre (só o e-mail do config.js)
+       admin  → tudo, exceto o módulo Administradores e os Logs
+       demais → apenas o que estiver liberado nas permissões
+
+     Sem permissões configuradas o usuário NÃO vê nada além do
+     básico: liberar por omissão daria acesso total a quem acabou
+     de ser cadastrado. */
   const temPerm = (mod) => {
     try {
       if (!moduloAtivo(mod)) return false;
-      if (isMaster || isAdmin) return true;
-      // Sem registro de permissões = acesso total (padrão)
-      if (!userPerms?._configured) return true;
-      // Com registro: verificar se módulo está na lista
-      return (userPerms.modulos || []).includes(mod);
-    } catch { return true; }
+      if (isMaster) return true;
+
+      // Gestão de usuários e auditoria: exclusivo do master
+      if (MODULOS_MASTER.includes(mod)) return false;
+
+      if (isAdmin) return true;
+
+      const lista = userPerms?.modulos || [];
+      if (!userPerms?._configured || lista.length === 0) {
+        // Ainda sem configuração: só o mínimo, até o master liberar
+        return MODULOS_PADRAO.includes(mod);
+      }
+      return lista.includes(mod);
+    } catch { return false; }
   };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -447,10 +469,11 @@ export default function App() {
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
-          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
+          {(temPerm("dashboard") || temPerm("trafego") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
             {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
+            {temPerm("trafego") && <button className={view === "trafego" ? "active" : ""} onClick={() => setView("trafego")}><Icon.Chart /> <span>Painel de Tráfego</span></button>}
             {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
             {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
             {temPerm("clientes") && <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}><Icon.Grid /> <span>Clientes</span></button>}
@@ -522,6 +545,14 @@ export default function App() {
 
         {view === "dashboard" && (
           <Dashboard userName={user?.nome} clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} onReload={recarregar} onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }} />
+        )}
+
+        {view === "trafego" && (
+          <PainelTrafego clientes={data.clientes || []} desempenho={data.desempenho || []}
+            tarefas={data.tarefas || []} pessoas={data.pessoas || []}
+            usuario={user} isAdmin={isAdmin} onToast={showToast}
+            onAbrirCliente={(c) => { setClienteAberto(c); setView("clientes"); }}
+            onAbrirTarefas={() => setView("follow")} />
         )}
 
         {view === "acompanhamento" && (

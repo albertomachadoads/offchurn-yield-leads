@@ -108,6 +108,11 @@ export default function Admin({ perfis, meuId, onToast, onReload, isMaster }) {
   useEffect(() => { supabase.from("wa_instancias").select("*").eq("ativo", true).then(({ data }) => setInstancias(data || [])); }, []);
 
   async function mudarPapel(p, novoPapel) {
+    // Conceder acesso de administrador é exclusivo do master
+    if (!isMaster) { onToast("Apenas o administrador principal pode alterar papéis"); return; }
+    if (novoPapel === "admin" && !confirm(
+      `Tornar ${p.nome} administrador?\n\nEle passará a ver todos os módulos do sistema, ` +
+      `exceto a gestão de usuários e os logs.`)) return;
     try { await atualizarPerfil(p.id, { papel: novoPapel }); onToast(`${p.nome} agora é ${novoPapel}`); onReload(); } catch (e) { onToast("Erro: " + e.message); }
   }
   async function alternarBloqueio(p) {
@@ -154,7 +159,8 @@ export default function Admin({ perfis, meuId, onToast, onReload, isMaster }) {
                   </button>
                   {!master && (
                     <>
-                      <button className="btn btn-sm" onClick={() => mudarPapel(p, p.papel === "admin" ? "gestor" : "admin")} disabled={euMesmo}>
+                      <button className="btn btn-sm" onClick={() => mudarPapel(p, p.papel === "admin" ? "gestor" : "admin")}
+                        disabled={euMesmo || !isMaster} title={isMaster ? "" : "Apenas o administrador principal pode alterar papéis"}>
                         {p.papel === "admin" ? "→ Gestor" : "→ Admin"}
                       </button>
                       <button className="btn btn-sm" onClick={() => alternarBloqueio(p)} disabled={euMesmo}>
@@ -177,14 +183,14 @@ export default function Admin({ perfis, meuId, onToast, onReload, isMaster }) {
 
       {modal && (
         <Modal title="Novo usuário" onClose={() => setModal(null)} footer={null}>
-          <FormNovoUsuario onSubmit={criarUsuario} onClose={() => setModal(null)} />
+          <FormNovoUsuario onSubmit={criarUsuario} onClose={() => setModal(null)} isMaster={isMaster} />
         </Modal>
       )}
     </>
   );
 }
 
-function FormNovoUsuario({ onSubmit, onClose }) {
+function FormNovoUsuario({ onSubmit, onClose, isMaster }) {
   const [f, setF] = useState({ nome: "", email: "", senha: "", papel: "gestor" });
   const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
   return (
@@ -192,7 +198,8 @@ function FormNovoUsuario({ onSubmit, onClose }) {
       <div className="form-row"><label>Nome</label><input className="input" value={f.nome} onChange={(e) => s("nome", e.target.value)} autoFocus /></div>
       <div className="form-row"><label>Email</label><input className="input" type="email" value={f.email} onChange={(e) => s("email", e.target.value)} /></div>
       <div className="form-row"><label>Senha</label><input className="input" type="password" value={f.senha} onChange={(e) => s("senha", e.target.value)} /></div>
-      <div className="form-row"><label>Papel</label><select className="select" value={f.papel} onChange={(e) => s("papel", e.target.value)}><option value="gestor">Gestor</option><option value="admin">Administrador</option></select></div>
+      <div className="form-row"><label>Papel</label><select className="select" value={f.papel} onChange={(e) => s("papel", e.target.value)}><option value="gestor">Gestor</option>{isMaster && <option value="admin">Administrador</option>}</select>
+        <span className="form-dica">Gestores só enxergam os módulos que você liberar nas permissões.</span></div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
         <button className="btn btn-primary" disabled={!f.nome || !f.email || !f.senha} onClick={() => onSubmit(f)}>Criar</button>

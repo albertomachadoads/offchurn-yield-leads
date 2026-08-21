@@ -11,6 +11,7 @@ const TODOS = [
   { id: "dashboard", nome: "Dashboard", grupo: "Principais" },
   { id: "acompanhamento", nome: "Acompanhamento", grupo: "Principais" },
   { id: "follow", nome: "Tarefas", grupo: "Principais" },
+  { id: "trafego", nome: "Painel de Tráfego", grupo: "Principais" },
   { id: "clientes", nome: "Clientes", grupo: "Principais" },
 
   // COMERCIAL
