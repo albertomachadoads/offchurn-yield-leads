@@ -44,6 +44,26 @@ function Kpi({ rotulo, valor, variacao, menorMelhor }) {
   );
 }
 
+/* ---------- Quadro do funil de qualificação ---------- */
+function QuadroFunil({ dados }) {
+  const itens = [
+    { rot: "Leads", v: fmtNum(dados.captados), tom: "info" },
+    { rot: "Qualificados", v: fmtNum(dados.qualificados), tom: "roxo" },
+    { rot: "Fechados", v: fmtNum(dados.vendidos), tom: "ok" },
+    { rot: "Taxa de conversão", v: dados.conversao == null ? "—" : `${dados.conversao.toFixed(1)}%`, tom: "verde" },
+  ];
+  return (
+    <div className="rp-funil">
+      {itens.map((i, k) => (
+        <div key={k} className={`rp-funil-q rp-fq-${i.tom}`}>
+          <span className="rp-funil-v">{i.v}</span>
+          <span className="rp-funil-r">{i.rot}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- Gráfico de linhas: cliques e CTR ---------- */
 function LinhaDupla({ serie }) {
   if (!serie?.length) return <p className="rp-vazio">Sem dados diários no período.</p>;
@@ -261,7 +281,10 @@ function Pagina({ children, cliente, periodo, num, total }) {
   return (
     <div className="rp-a4">
       <div className="rp-faixa">
-        <span className="rp-faixa-cliente">{cliente}</span>
+        <div className="rp-faixa-esq">
+          <span className="rp-faixa-cliente">{cliente}</span>
+          <span className="rp-faixa-agencia">Mads Growth Marketing</span>
+        </div>
         <span className="rp-faixa-periodo">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" />
@@ -272,7 +295,7 @@ function Pagina({ children, cliente, periodo, num, total }) {
       </div>
       <div className="rp-corpo">{children}</div>
       <div className="rp-rodape">
-        <span>Mads</span>
+        <span>Mads Growth Marketing</span>
         <span>Página {num} de {total}</span>
       </div>
     </div>
@@ -305,7 +328,7 @@ function Bloco({ titulo, children, largo }) {
 }
 
 /* ================= MÓDULO ================= */
-export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast }) {
+export default function Relatorios({ cliente, funil, onBuscar, onBuscarGoogle, onToast }) {
   const [periodo, setPeriodo] = useState("30d");
   const [de, setDe] = useState(diasAtras(29));
   const [ate, setAte] = useState(hojeISO());
@@ -344,6 +367,24 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
     if (a == null || b == null || Number(b) === 0) return null;
     return ((Number(a) - Number(b)) / Number(b)) * 100;
   };
+
+  // Funil de qualificação no período (soma das plataformas e competências)
+  const resumoFunil = useMemo(() => {
+    const compDe = de.slice(0, 7), compAte = ate.slice(0, 7);
+    const linhas = (funil || []).filter(
+      (f) => f.clienteId === cliente?.id && f.competencia >= compDe && f.competencia <= compAte
+    );
+    const t = linhas.reduce((a, f) => ({
+      captados: a.captados + (Number(f.captados) || 0),
+      qualificados: a.qualificados + (Number(f.qualificados) || 0),
+      vendidos: a.vendidos + (Number(f.vendidos) || 0),
+    }), { captados: 0, qualificados: 0, vendidos: 0 });
+    return {
+      ...t,
+      temDados: linhas.length > 0,
+      conversao: t.captados > 0 ? (t.vendidos / t.captados) * 100 : null,
+    };
+  }, [funil, cliente?.id, de, ate]);
 
   const serie = dados?.serieDiaria || [];
   const porIdade = dados?.porIdade || [];
@@ -398,6 +439,11 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
               <h2 className="rp-h2">Visão geral do período</h2>
               <SeloPlataforma plataforma="meta" />
             </div>
+
+            {resumoFunil.temDados && <QuadroFunil dados={resumoFunil} />}
+
+            <hr className="rp-linha" />
+
             <div className="rp-kpis">
               {metricas.slice(0, 12).map((m) => (
                 <Kpi key={m.campo} rotulo={m.rotulo} valor={formatar(m.formato, atual[m.campo])}
@@ -407,38 +453,12 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
 
             <hr className="rp-linha" />
 
-            <div className="rp-grade">
-              <Bloco titulo="Cliques e CTR ao longo do tempo">
-                <LinhaDupla serie={serie} />
-              </Bloco>
-
-              <Bloco titulo="Impressões e alcance por gênero">
-                <BarrasVerticais dados={porGenero} />
-              </Bloco>
-
-              <Bloco titulo="Impressões e alcance por idade">
-                <BarrasDuplas dados={porIdade} />
-              </Bloco>
-
-              <Bloco titulo="Distribuição por gênero">
-                <Pizza titulo="gen" fatias={porGenero.map((g) => ({ rotulo: g.rotulo, v: g.b }))} />
-              </Bloco>
-            </div>
-          </Pagina>
-
-          {/* ── Página 2: criativos e público ── */}
-          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={2} total={totalPaginas}>
-            <div className="rp-secao-cab">
-              <h2 className="rp-h2">Rank de criativos e perfil do público</h2>
-              <SeloPlataforma plataforma="meta" />
-            </div>
-
             <Bloco titulo="Rank de criativos" largo>
               {criativos.length === 0 ? (
                 <p className="rp-vazio">Dados de criativos indisponíveis no período.</p>
               ) : (
                 <div className="rp-criativos">
-                  {criativos.slice(0, 5).map((c, i) => (
+                  {criativos.slice(0, 4).map((c, i) => (
                     <div key={i} className="rp-criativo">
                       <div className="rp-cri-pos">{i + 1}</div>
                       {c.thumb && <img src={c.thumb} alt="" className="rp-cri-img" />}
@@ -457,16 +477,30 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
                 </div>
               )}
             </Bloco>
+          </Pagina>
 
-            <hr className="rp-linha" />
+          {/* ── Página 2: público ── */}
+          <Pagina cliente={cliente.nome} periodo={rotuloPeriodo} num={2} total={totalPaginas}>
+            <div className="rp-secao-cab">
+              <h2 className="rp-h2">Perfil do público alcançado</h2>
+              <SeloPlataforma plataforma="meta" />
+            </div>
 
             <div className="rp-grade">
-              <Bloco titulo="Alcance por dispositivo">
-                <Pizza titulo="disp" fatias={porDispositivo} />
+              <Bloco titulo="Cliques e CTR ao longo do tempo">
+                <LinhaDupla serie={serie} />
               </Bloco>
 
-              <Bloco titulo="Alcance por plataforma">
-                <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
+              <Bloco titulo="Impressões e alcance por gênero">
+                <BarrasVerticais dados={porGenero} />
+              </Bloco>
+
+              <Bloco titulo="Impressões e alcance por idade">
+                <BarrasDuplas dados={porIdade} />
+              </Bloco>
+
+              <Bloco titulo="Alcance por dispositivo">
+                <Pizza titulo="disp" fatias={porDispositivo} />
               </Bloco>
             </div>
           </Pagina>
@@ -478,6 +512,17 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
               <SeloPlataforma plataforma="meta" />
             </div>
 
+            <div className="rp-grade rp-grade-topo">
+              <Bloco titulo="Alcance por plataforma">
+                <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
+              </Bloco>
+              <Bloco titulo="Distribuição por gênero">
+                <Pizza titulo="gen" fatias={porGenero.map((g) => ({ rotulo: g.rotulo, v: g.b }))} />
+              </Bloco>
+            </div>
+
+            <hr className="rp-linha" />
+
             <Bloco titulo="Campanhas no período" largo>
               {campanhas.length === 0 ? (
                 <p className="rp-vazio">Nenhuma campanha com dados no período.</p>
@@ -487,7 +532,7 @@ export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast 
                     <tr><th>Campanha</th><th>Investido</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Resultados</th><th>Custo/result.</th></tr>
                   </thead>
                   <tbody>
-                    {campanhas.slice(0, 16).map((c, i) => (
+                    {campanhas.slice(0, 14).map((c, i) => (
                       <tr key={i}>
                         <td className="rp-td-nome" title={c.nome}>{c.nome}</td>
                         <td>{fmtMoeda(c.gasto)}</td>

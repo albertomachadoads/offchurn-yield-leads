@@ -182,8 +182,8 @@ export default function ClienteDetalhe({
         </div>
       )}
 
-      {/* indicadores do mês */}
-      <div className="tiles">
+      {/* indicadores do mês — não saem no PDF do relatório */}
+      <div className="tiles nao-imprimir">
         <div className="tile">
           <div className="label">Verba do mês</div>
           <div className="value" style={{ fontSize: 20, color: pv ? corVerba(pv.status) : "inherit" }}>
@@ -357,7 +357,7 @@ export default function ClienteDetalhe({
       )}
 
       {aba === "relatorio" && (
-        <Relatorios cliente={cliente} onBuscar={onBuscarInsights}
+        <Relatorios cliente={cliente} funil={funil} onBuscar={onBuscarInsights}
           onBuscarGoogle={onBuscarInsightsGoogle} onToast={onToast} />
       )}
 
