@@ -122,6 +122,51 @@ function BarrasDuplas({ dados, rotuloA = "Impressões", rotuloB = "Alcance" }) {
   );
 }
 
+/* ---------- Pizza ---------- */
+function Pizza({ fatias, titulo }) {
+  if (!fatias?.length) return <p className="rp-vazio">Sem dados no período.</p>;
+  const S = 150, R = 68, C = S / 2;
+  const soma = fatias.reduce((a, f) => a + f.v, 0) || 1;
+  const cores = [["#0C5530", "#18A35F"], ["#1E4D8C", "#3B82F6"], ["#6941C6", "#9E77ED"],
+                 ["#B54708", "#F5A524"], ["#B42318", "#F97066"], ["#026AA2", "#36BFFA"]];
+  let ang = -Math.PI / 2;
+  const setores = fatias.map((f, i) => {
+    const fatia = (f.v / soma) * Math.PI * 2;
+    const x1 = C + R * Math.cos(ang), y1 = C + R * Math.sin(ang);
+    ang += fatia;
+    const x2 = C + R * Math.cos(ang), y2 = C + R * Math.sin(ang);
+    const grande = fatia > Math.PI ? 1 : 0;
+    return { d: `M ${C},${C} L ${x1},${y1} A ${R},${R} 0 ${grande} 1 ${x2},${y2} Z`, i, f };
+  });
+  return (
+    <div className="rp-pizza-wrap">
+      <svg viewBox={`0 0 ${S} ${S}`} className="rp-pizza">
+        <defs>
+          {fatias.map((_, i) => (
+            <linearGradient key={i} id={`pz${titulo}${i}`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor={cores[i % 6][0]} />
+              <stop offset="100%" stopColor={cores[i % 6][1]} />
+            </linearGradient>
+          ))}
+        </defs>
+        {setores.map((s2) => (
+          <path key={s2.i} d={s2.d} fill={`url(#pz${titulo}${s2.i})`} stroke="#fff" strokeWidth="1.5" />
+        ))}
+      </svg>
+      <div className="rp-pizza-leg">
+        {fatias.map((f, i) => (
+          <div key={i}>
+            <span className="rp-dot" style={{ background: `linear-gradient(135deg,${cores[i % 6][0]},${cores[i % 6][1]})` }} />
+            <span className="rp-leg-nome">{f.rotulo}</span>
+            <strong>{((f.v / soma) * 100).toFixed(1)}%</strong>
+            <span className="rp-leg-abs">{fmtNum(f.v)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Rosca ---------- */
 function Rosca({ fatias }) {
   if (!fatias?.length) return <p className="rp-vazio">Sem dados por dispositivo no período.</p>;
@@ -185,24 +230,14 @@ function Pagina({ children, cliente, periodo, num, total }) {
 }
 
 /* ================= MÓDULO ================= */
-export default function Relatorios({ clientes, onToast }) {
-  const [clienteId, setClienteId] = useState("");
+export default function Relatorios({ cliente, onBuscar, onBuscarGoogle, onToast }) {
+  const [aberto, setAberto] = useState(false);
   const [periodo, setPeriodo] = useState("30d");
   const [de, setDe] = useState(diasAtras(29));
   const [ate, setAte] = useState(hojeISO());
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
-
-  const comConta = useMemo(
-    () => (clientes || []).filter((c) => c.ativo && (c.metaAdAccountId || c.googleAdCustomerId)),
-    [clientes]
-  );
-  const cliente = comConta.find((c) => c.id === clienteId);
-
-  useEffect(() => {
-    if (!clienteId && comConta.length) setClienteId(comConta[0].id);
-  }, [comConta, clienteId]);
 
   function aplicarPeriodo(p) {
     setPeriodo(p.id);
@@ -213,7 +248,7 @@ export default function Relatorios({ clientes, onToast }) {
     if (!cliente) return;
     setCarregando(true); setErro("");
     try {
-      const r = await api.metaInsights(cliente.id, de, ate);
+      const r = await onBuscar(cliente.id, de, ate);
       setDados(r);
     } catch (e) {
       setErro(e.message || "Falha ao buscar dados da plataforma");
@@ -221,7 +256,7 @@ export default function Relatorios({ clientes, onToast }) {
     } finally { setCarregando(false); }
   }
 
-  useEffect(() => { if (cliente) buscar(); /* eslint-disable-next-line */ }, [clienteId]);
+  useEffect(() => { if (aberto && cliente && !dados) buscar(); /* eslint-disable-next-line */ }, [aberto]);
 
   const metricas = useMemo(() => {
     const lista = cliente?.metricasMeta?.length ? cliente.metricasMeta : PADRAO;
@@ -240,6 +275,7 @@ export default function Relatorios({ clientes, onToast }) {
   const porIdade = dados?.porIdade || [];
   const porGenero = dados?.porGenero || [];
   const porDispositivo = dados?.porDispositivo || [];
+  const porPlataforma = dados?.porPlataforma || [];
   const criativos = dados?.criativos || [];
   const campanhas = dados?.campanhas || [];
 
@@ -250,35 +286,38 @@ export default function Relatorios({ clientes, onToast }) {
   return (
     <div className="rp">
       {/* Barra de controle — não sai na impressão */}
-      <div className="page-head rp-controles">
-        <div>
-          <h1>Relatórios</h1>
-          <p>Visão consolidada da conta, pronta para enviar ao cliente</p>
-        </div>
-        <div className="head-actions">
-          <select className="select" style={{ width: "auto" }} value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
-            {comConta.length === 0 && <option value="">Nenhum cliente com conta vinculada</option>}
-            {comConta.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </select>
-          <select className="select" style={{ width: "auto" }} value={periodo}
-            onChange={(e) => aplicarPeriodo(PERIODOS.find((p) => p.id === e.target.value))}>
-            {PERIODOS.map((p) => <option key={p.id} value={p.id}>{p.l}</option>)}
-          </select>
-          {periodo === "custom" && (<>
-            <input type="date" className="select" style={{ width: "auto" }} value={de} onChange={(e) => setDe(e.target.value)} />
-            <input type="date" className="select" style={{ width: "auto" }} value={ate} onChange={(e) => setAte(e.target.value)} />
-          </>)}
-          <button className="toolbar-btn" onClick={buscar} disabled={carregando || !cliente}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-            {carregando ? "Buscando…" : "Atualizar"}
-          </button>
-          <button className="btn btn-sm btn-primary" onClick={() => window.print()} disabled={!dados}>
-            Gerar PDF
-          </button>
-        </div>
+      <div className="rp-controles">
+        <button className="rp-toggle" onClick={() => setAberto((v) => !v)}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: aberto ? "rotate(90deg)" : "none", transition: "transform .15s" }}>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <div>
+            <h3>Relatório do cliente</h3>
+            <span>Visão consolidada em A4, pronta para enviar</span>
+          </div>
+        </button>
+
+        {aberto && (
+          <div className="rp-acoes">
+            <select className="select" style={{ width: "auto" }} value={periodo}
+              onChange={(e) => aplicarPeriodo(PERIODOS.find((p) => p.id === e.target.value))}>
+              {PERIODOS.map((p) => <option key={p.id} value={p.id}>{p.l}</option>)}
+            </select>
+            {periodo === "custom" && (<>
+              <input type="date" className="select" style={{ width: "auto" }} value={de} onChange={(e) => setDe(e.target.value)} />
+              <input type="date" className="select" style={{ width: "auto" }} value={ate} onChange={(e) => setAte(e.target.value)} />
+            </>)}
+            <button className="toolbar-btn" onClick={buscar} disabled={carregando}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              {carregando ? "Buscando…" : "Atualizar"}
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={() => window.print()} disabled={!dados}>Gerar PDF</button>
+          </div>
+        )}
       </div>
 
-      {!cliente ? (
+      {!aberto ? null : !cliente ? (
         <div className="rp-aviso">Vincule uma conta de anúncios a um cliente para gerar relatórios.</div>
       ) : erro ? (
         <div className="rp-aviso rp-erro">{erro}</div>
@@ -312,12 +351,23 @@ export default function Relatorios({ clientes, onToast }) {
 
               <div className="rp-duas">
                 <div>
-                  <h3 className="rp-h3">Por gênero</h3>
+                  <h3 className="rp-h3">Impressões e alcance por gênero</h3>
                   <BarrasDuplas dados={porGenero} />
                 </div>
                 <div>
+                  <h3 className="rp-h3">Distribuição por gênero</h3>
+                  <Pizza titulo="gen" fatias={porGenero.map((g) => ({ rotulo: g.rotulo, v: g.b }))} />
+                </div>
+              </div>
+
+              <div className="rp-duas">
+                <div>
                   <h3 className="rp-h3">Alcance por dispositivo</h3>
-                  <Rosca fatias={porDispositivo} />
+                  <Pizza titulo="disp" fatias={porDispositivo} />
+                </div>
+                <div>
+                  <h3 className="rp-h3">Alcance por plataforma</h3>
+                  <Rosca fatias={porPlataforma.length ? porPlataforma : porDispositivo} />
                 </div>
               </div>
             </Pagina>

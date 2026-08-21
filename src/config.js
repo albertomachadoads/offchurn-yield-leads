@@ -30,7 +30,7 @@ export const AGENCIAS = ["Principal"];
      registro-tarefas,
      cadastros, admin, logs                                    */
 export const MODULOS_ATIVOS = [
-  "dashboard", "relatorios", "acompanhamento", "follow", "clientes",
+  "dashboard", "acompanhamento", "follow", "clientes",
   "whatsapp", "crm", "crm-params", "crm-auto", "crm-analises", "metas",
   "registro-tarefas",
   "cadastros", "admin", "logs",

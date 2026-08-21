@@ -4,6 +4,7 @@ import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
 import MetricasMeta from "./MetricasMeta.jsx";
 import SelecionarMetricas from "./SelecionarMetricas.jsx";
+import Relatorios from "./Relatorios.jsx";
 import { supabase } from "./supabaseClient.js";
 import { logAcao, logErro } from "./logger.js";
 import FunilCliente from "./FunilCliente.jsx";
@@ -307,6 +308,11 @@ export default function ClienteDetalhe({
       {cliente.googleAdCustomerId && (
         <MetricasMeta cliente={{...cliente, metaAdAccountId: cliente.googleAdCustomerId, _plataforma: "Google"}}
           onBuscar={onBuscarInsightsGoogle} onToast={onToast} tituloExtra=" (Google Ads)" />
+      )}
+
+      {(cliente.metaAdAccountId || cliente.googleAdCustomerId) && (
+        <Relatorios cliente={cliente} onBuscar={onBuscarInsights}
+          onBuscarGoogle={onBuscarInsightsGoogle} onToast={onToast} />
       )}
 
       <FunilCliente cliente={cliente} funil={funil} onSalvar={onSalvarFunil} onToast={onToast} />

@@ -17,7 +17,6 @@ import CRM from "./CRM.jsx";
 import CRMAutomacoes from "./CRMAutomacoes.jsx";
 import WhatsAppChat from "./WhatsAppChat.jsx";
 import Dashboard from "./Dashboard.jsx";
-import Relatorios from "./Relatorios.jsx";
 import PainelMetas from "./PainelMetas.jsx";
 import CRMAnalises from "./CRMAnalises.jsx";
 import { setLogUser, logAcao, logErro, instalarCaptura } from "./logger.js";
@@ -448,11 +447,10 @@ export default function App() {
         </div>
         <nav className="nav">
           {/* PRINCIPAIS */}
-          {(temPerm("dashboard") || temPerm("relatorios") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
+          {(temPerm("dashboard") || temPerm("acompanhamento") || temPerm("follow") || temPerm("clientes")) && (
           <div className="nav-grupo">
             <div className="nav-grupo-titulo">Principais</div>
             {temPerm("dashboard") && <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><Icon.Chart /> <span>Dashboard</span></button>}
-            {temPerm("relatorios") && <button className={view === "relatorios" ? "active" : ""} onClick={() => setView("relatorios")}><Icon.Chart /> <span>Relatórios</span></button>}
             {temPerm("acompanhamento") && <button className={view === "acompanhamento" ? "active" : ""} onClick={() => setView("acompanhamento")}><Icon.ListCheck /> <span>Acompanhamento</span></button>}
             {temPerm("follow") && <button className={view === "follow" ? "active" : ""} onClick={() => setView("follow")}><Icon.Clipboard /> <span>Tarefas</span></button>}
             {temPerm("clientes") && <button className={view === "clientes" ? "active" : ""} onClick={() => { setClienteAberto(null); setView("clientes"); }}><Icon.Grid /> <span>Clientes</span></button>}
@@ -524,10 +522,6 @@ export default function App() {
 
         {view === "dashboard" && (
           <Dashboard userName={user?.nome} clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} onReload={recarregar} onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }} />
-        )}
-
-        {view === "relatorios" && (
-          <Relatorios clientes={data.clientes || []} onToast={showToast} />
         )}
 
         {view === "acompanhamento" && (

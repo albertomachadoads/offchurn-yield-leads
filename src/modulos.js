@@ -9,7 +9,6 @@ import { MODULOS_ATIVOS } from "./config.js";
 const TODOS = [
   // PRINCIPAIS
   { id: "dashboard", nome: "Dashboard", grupo: "Principais" },
-  { id: "relatorios", nome: "Relatórios", grupo: "Principais" },
   { id: "acompanhamento", nome: "Acompanhamento", grupo: "Principais" },
   { id: "follow", nome: "Tarefas", grupo: "Principais" },
   { id: "clientes", nome: "Clientes", grupo: "Principais" },
