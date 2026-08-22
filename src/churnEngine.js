@@ -147,6 +147,8 @@ export function churnHistorico(clientes, { meses = 6 } = {}) {
 
     serie.push({
       competencia: comp,
+      mes: ref.getMonth(),
+      ano: ref.getFullYear(),
       ativosInicio,
       perdidos,
       taxa: ativosInicio > 0 ? (perdidos / ativosInicio) * 100 : 0,
@@ -158,11 +160,27 @@ export function churnHistorico(clientes, { meses = 6 } = {}) {
     ? comBase.reduce((a, s) => a + s.taxa, 0) / comBase.length
     : 0;
 
+  /* Mês corrente. A média dos 6 meses dilui o churn com períodos
+     em que a operação ainda não existia ou tinha poucos clientes,
+     o que devolve uma taxa artificialmente baixa. Para leitura
+     gerencial, o mês atual é o número que importa. */
+  const atual = serie[serie.length - 1] || { taxa: 0, perdidos: 0, ativosInicio: 0 };
+
+  /* Só os meses que de fato tiveram operação — ignora o começo vazio */
+  const comOperacao = serie.filter((s) => s.ativosInicio >= 3);
+  const taxaMediaOperacao = comOperacao.length > 0
+    ? comOperacao.reduce((a, s) => a + s.taxa, 0) / comOperacao.length
+    : 0;
+
   return {
     serie,
+    taxaAtual: atual.taxa,
+    perdidosAtual: atual.perdidos,
+    ativosInicioAtual: atual.ativosInicio,
     taxaMedia,
+    taxaMediaOperacao,
+    mesesComOperacao: comOperacao.length,
     perdidosTotal: serie.reduce((a, s) => a + s.perdidos, 0),
-    // Sem histórico suficiente, não inventamos taxa: usamos um piso conservador
     confiavel: comBase.length >= 3 && serie.some((s) => s.perdidos > 0),
   };
 }
@@ -295,9 +313,17 @@ export function churnReceita(clientes, { meses = 6 } = {}) {
   }
 
   const comBase = serie.filter((s) => s.baseInicio > 0);
+  const atual = serie[serie.length - 1] || { taxa: 0, perdida: 0 };
+  const taxaMedia = comBase.length > 0 ? comBase.reduce((a, s) => a + s.taxa, 0) / comBase.length : 0;
+
   return {
     serie,
-    taxaMedia: comBase.length > 0 ? comBase.reduce((a, s) => a + s.taxa, 0) / comBase.length : 0,
+    taxaAtual: atual.taxa,
+    perdidaAtual: atual.perdida,
+    taxaMedia,
+    /* Para a projeção usamos a maior entre o mês atual e a média:
+       ignorar um churn recente alto subestimaria a perda futura. */
+    taxaProjecao: Math.max(atual.taxa, taxaMedia),
     perdidaTotal: serie.reduce((a, s) => a + s.perdida, 0),
     confiavel: comBase.length >= 3,
   };

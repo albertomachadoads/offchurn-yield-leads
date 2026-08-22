@@ -97,7 +97,7 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
   const churnCli = useMemo(() => churnHistorico(clientes || []), [clientes]);
   const churnRec = useMemo(() => churnReceita(clientes || []), [clientes]);
   const ltv = useMemo(
-    () => calcularLTV(M.ticketMedio, churnRec.taxaMedia, { confiavel: churnRec.confiavel && churnRec.taxaMedia > 0 }),
+    () => calcularLTV(M.ticketMedio, churnRec.taxaProjecao, { confiavel: churnRec.taxaProjecao > 0 }),
     [M.ticketMedio, churnRec]
   );
 
@@ -105,10 +105,10 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
     const dp = {};
     (desempenho || []).forEach((d) => { if (d.competencia === compDe(hoje)) dp[d.clienteId] = d; });
     return projecaoAnual(clientes || [], recebiveis || [], {
-      modo: modoProj, taxaChurn: churnRec.taxaMedia, desempPorCliente: dp,
+      modo: modoProj, taxaChurn: churnRec.taxaProjecao, desempPorCliente: dp,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, recebiveis, desempenho, modoProj, churnRec.taxaMedia]);
+  }, [clientes, recebiveis, desempenho, modoProj, churnRec.taxaProjecao]);
 
   /* Risco por cliente, com participação e impacto */
   const risco = useMemo(() => {
@@ -228,12 +228,16 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
         <Kpi rot="Receita recorrente ativa" valor={fmtMoeda(M.receita)}
           sub={`${M.comTicket} cliente${M.comTicket !== 1 ? "s" : ""} com ticket`} tom="ok" />
         <Kpi rot="Ticket médio" valor={fmtMoeda(M.ticketMedio)} />
-        <Kpi rot="Churn de clientes" valor={churnCli.confiavel ? fmtPct(churnCli.taxaMedia) : "—"}
-          sub={churnCli.confiavel ? "média dos 6 meses" : "sem histórico"}
-          tom={churnCli.taxaMedia > 5 ? "err" : "ok"} />
-        <Kpi rot="Churn de receita" valor={churnRec.confiavel ? fmtPct(churnRec.taxaMedia) : "—"}
-          sub={churnRec.perdidaTotal > 0 ? `${fmtMoeda(churnRec.perdidaTotal)} perdidos` : "nenhuma perda"}
-          tom={churnRec.taxaMedia > 5 ? "err" : "ok"} />
+        <Kpi rot="Churn de clientes" valor={fmtPct(churnCli.taxaAtual)}
+          sub={churnCli.perdidosAtual > 0
+            ? `${churnCli.perdidosAtual} de ${churnCli.ativosInicioAtual} no mês${churnCli.mesesComOperacao > 1 ? ` · média ${fmtPct(churnCli.taxaMediaOperacao)}` : ""}`
+            : "nenhuma saída no mês"}
+          tom={churnCli.taxaAtual > 5 ? "err" : churnCli.taxaAtual > 0 ? "avi" : "ok"} />
+        <Kpi rot="Churn de receita" valor={fmtPct(churnRec.taxaAtual)}
+          sub={churnRec.perdidaAtual > 0
+            ? `${fmtMoeda(churnRec.perdidaAtual)} no mês`
+            : churnRec.perdidaTotal > 0 ? `${fmtMoeda(churnRec.perdidaTotal)} em 6 meses` : "nenhuma perda"}
+          tom={churnRec.taxaAtual > 5 ? "err" : churnRec.taxaAtual > 0 ? "avi" : "ok"} />
         <Kpi rot="LTV" valor={ltv.valor ? fmtMoeda(ltv.valor) : "—"}
           sub={ltv.valor ? `vida média de ${ltv.meses.toFixed(0)} meses` : ltv.motivo} />
         <Kpi rot="Projeção do mês" valor={fmtMoeda(proj.mes)} sub={`semana: ${fmtK(proj.semana)}`} />
@@ -387,6 +391,41 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
           </div>
         )}
       </Card>
+
+      {/* ══ Evolução do churn ══ */}
+      {churnCli.serie.some((x) => x.perdidos > 0) && (
+        <Card titulo="Evolução do churn"
+          sub="taxa mensal de saída — meses sem operação aparecem sem barra">
+          <div className="pf-churn-serie">
+            {churnCli.serie.map((x, i) => {
+              const maxTaxa = Math.max(...churnCli.serie.map((y) => y.taxa), 1);
+              const atual = i === churnCli.serie.length - 1;
+              const semBase = x.ativosInicio < 3;
+              return (
+                <div key={x.competencia} className={`pf-cs-col ${atual ? "atual" : ""}`}>
+                  <div className="pf-cs-trilha">
+                    {!semBase && (
+                      <div className={`pf-cs-barra ${x.taxa > 5 ? "alta" : ""}`}
+                        style={{ height: `${(x.taxa / maxTaxa) * 100}%` }} />
+                    )}
+                  </div>
+                  <span className="pf-cs-taxa">{semBase ? "—" : `${x.taxa.toFixed(1)}%`}</span>
+                  <span className="pf-cs-mes">{NOMES_MES[x.mes].slice(0, 3)}</span>
+                  <span className="pf-cs-base">
+                    {semBase ? "sem base" : `${x.perdidos}/${x.ativosInicio}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {churnCli.mesesComOperacao < churnCli.serie.length && (
+            <p className="pf-nota">
+              Os meses marcados como “sem base” tinham menos de 3 clientes ativos e ficam fora da média,
+              para não diluir a taxa com períodos em que a operação ainda estava começando.
+            </p>
+          )}
+        </Card>
+      )}
 
       {/* ══ Causas de churn ══ */}
       {causas.total > 0 && (
