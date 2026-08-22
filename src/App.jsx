@@ -25,6 +25,7 @@ import { setProtecaoUser, instalarProtecaoDevTools } from "./protecao.js";
 import Login from "./Login.jsx";
 import Admin from "./Admin.jsx";
 import { supabaseConfigured, supabase } from "./supabaseClient";
+import { MOTIVOS_CANCELAMENTO } from "./motivosCancelamento.js";
 import { EMAIL_MASTER, AGENCIAS, NOME_SISTEMA, NOME_COMPLETO, moduloAtivo } from "./config.js";
 import { getSessionUser, onAuthChange, signOut } from "./auth";
 import * as api from "./api";
@@ -1220,6 +1221,8 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     objetivo: base.objetivo || "Lead",
     dataEntrada: base.dataEntrada || "",
     dataSaidaPrevista: base.dataSaidaPrevista || "",
+    inativadoEm: (base.inativadoEm || "").slice(0, 10),
+    motivoSaida: base.motivoSaida || "",
     ticket: base.ticket ?? "",
     recorrencia: base.recorrencia || "Mensal",
     diaPagamento: base.diaPagamento ?? "",
@@ -1233,13 +1236,19 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
     googleMccId: base.googleMccId || null,
   }));
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  /* Cancelamento sem motivo e sem data deixaria o churn sem causa
+     e sem mês de referência — os dois são obrigatórios. */
+  const podeSalvar = f.nome.trim() && (f.ativo || (f.motivoSaida && f.inativadoEm));
   return (
     <Modal
       title={base.novo ? "Novo cliente" : "Editar cliente"}
       onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => f.nome.trim() && onSave(f)} disabled={!f.nome.trim()}>Salvar</button>
+        <button className="btn btn-primary"
+          onClick={() => podeSalvar && onSave(f)}
+          disabled={!podeSalvar}
+          title={!f.ativo && !f.motivoSaida ? "Informe o motivo do cancelamento" : ""}>Salvar</button>
       </>}
     >
       <div className="form-grid">
@@ -1358,10 +1367,58 @@ function ClienteModal({ base, gestores, onClose, onSave }) {
           placeholder="https://drive.google.com/..." />
       </div>
 
-      <div className="form-row" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <input type="checkbox" id="ativo" checked={f.ativo} onChange={(e) => set("ativo", e.target.checked)} />
-        <label htmlFor="ativo" style={{ margin: 0 }}>Cliente ativo (aparece no seletor da semana)</label>
+      {/* Situação do contrato — cancelar aqui alimenta o churn */}
+      <div className="form-row">
+        <label>Situação do contrato</label>
+        <div className="sit-opcoes">
+          <button type="button" className={`sit-btn ${f.ativo ? "sit-on-ok" : ""}`}
+            onClick={() => set("ativo", true)}>
+            <span className="sit-dot sit-d-ok" />
+            Cliente ativo
+          </button>
+          <button type="button" className={`sit-btn ${!f.ativo ? "sit-on-err" : ""}`}
+            onClick={() => {
+              set("ativo", false);
+              if (!f.inativadoEm) set("inativadoEm", new Date().toISOString().slice(0, 10));
+            }}>
+            <span className="sit-dot sit-d-err" />
+            Cliente cancelado
+          </button>
+        </div>
       </div>
+
+      {!f.ativo && (
+        <div className="sit-cancelamento">
+          <p className="sit-aviso">
+            Este cancelamento entra no cálculo de churn da agência e nas projeções financeiras.
+          </p>
+
+          <div className="form-grid2">
+            <div className="form-row">
+              <label>Data de saída *</label>
+              <input type="date" className="input" value={f.inativadoEm || ""}
+                onChange={(e) => set("inativadoEm", e.target.value)} />
+              <span className="sit-dica">Mês em que o cliente será contabilizado no churn.</span>
+            </div>
+            <div className="form-row">
+              <label>Motivo do cancelamento *</label>
+              <select className="select" value={f.motivoSaida || ""}
+                onChange={(e) => set("motivoSaida", e.target.value)}>
+                <option value="">— selecione o motivo —</option>
+                {MOTIVOS_CANCELAMENTO.map((g) => (
+                  <optgroup key={g.grupo} label={g.grupo}>
+                    {g.itens.map((i) => <option key={i.id} value={i.id}>{i.nome}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {!f.motivoSaida && (
+            <span className="sit-alerta">Informe o motivo para acompanhar as causas de churn.</span>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }

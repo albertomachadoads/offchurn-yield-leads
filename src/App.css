@@ -2800,3 +2800,39 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .pf-conc-val { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; width: 92px; text-align: right; flex-shrink: 0; }
 .pf-conc-pct { font-size: 11.5px; color: var(--ink-faint); width: 48px; text-align: right; flex-shrink: 0; }
 @media (max-width: 700px) { .pf-conc-nome { width: 110px; } .pf-conc-val { width: 78px; } }
+
+/* ══════════ Situação do contrato no cadastro ══════════ */
+.sit-opcoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 13px; font-weight: 500; color: var(--ink-faint); cursor: pointer; font-family: inherit; transition: .12s; }
+.sit-btn:hover { border-color: var(--ink-faint); color: var(--ink); }
+.sit-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex-shrink: 0; }
+.sit-on-ok { border-color: #18A35F; background: rgba(24,163,95,.07); color: #0C5530; font-weight: 600; }
+.sit-on-ok .sit-dot { background: #18A35F; box-shadow: 0 0 0 3px rgba(24,163,95,.18); }
+.tema-escuro .sit-on-ok { color: #3CCF7A; }
+.sit-on-err { border-color: #D92D20; background: rgba(217,45,32,.06); color: #B42318; font-weight: 600; }
+.sit-on-err .sit-dot { background: #D92D20; box-shadow: 0 0 0 3px rgba(217,45,32,.16); }
+.tema-escuro .sit-on-err { color: #F97066; }
+
+.sit-cancelamento { margin-top: 14px; padding: 14px 16px; background: #FFFBFA; border: 1px solid #FDD8D3; border-radius: 11px; }
+.tema-escuro .sit-cancelamento { background: rgba(217,45,32,.05); border-color: #4A1F1B; }
+.sit-aviso { font-size: 12px; color: #B42318; margin: 0 0 12px; line-height: 1.45; }
+.tema-escuro .sit-aviso { color: #F97066; }
+.sit-dica { display: block; font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+.sit-alerta { display: block; font-size: 11.5px; color: #B54708; margin-top: 8px; }
+.tema-escuro .sit-alerta { color: #F5A524; }
+
+/* Causas de churn */
+.pf-causas { display: flex; flex-direction: column; gap: 9px; }
+.pf-causa { display: flex; align-items: center; gap: 11px; }
+.pf-causa-trilha { width: 90px; height: 8px; background: var(--gray-soft); border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+.tema-escuro .pf-causa-trilha { background: rgba(255,255,255,.06); }
+.pf-causa-barra { height: 100%; border-radius: 4px; }
+.pf-c-err { background: linear-gradient(90deg, #991B1B, #EF4444); }
+.pf-c-avi { background: linear-gradient(90deg, #B54708, #F5A524); }
+.pf-c-laranja { background: linear-gradient(90deg, #C2410C, #FB923C); }
+.pf-c-info { background: linear-gradient(90deg, #1E4D8C, #3B82F6); }
+.pf-c-neutro { background: var(--ink-faint); }
+.pf-causa-nome { flex: 1; font-size: 12.5px; min-width: 0; }
+.pf-causa-tag { font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(217,45,32,.10); color: #D92D20; white-space: nowrap; }
+.pf-causa-qtd { font-size: 13px; font-weight: 600; width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+.pf-causa-val { font-size: 11.5px; color: var(--ink-faint); width: 88px; text-align: right; font-variant-numeric: tabular-nums; }

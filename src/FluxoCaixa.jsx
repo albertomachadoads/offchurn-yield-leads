@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { fmtMoeda, fmtData } from "./utils";
 import { gerarRecebiveis, projecoes, porCompetencia, rotuloComp, NOMES_MES, compDe } from "./fluxo";
+import { MOTIVO_POR_ID, ehEvitavel } from "./motivosCancelamento.js";
 import {
   projecaoAnual, churnHistorico, churnReceita,
   metricasCarteira, calcularLTV, scoreRisco,
@@ -128,6 +129,26 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
       emAberto: lista.reduce((a, x) => a + (x.historico?.valorEmAberto || 0), 0),
     };
   }, [clientes, recebiveis, PA.riscos, M.receita]);
+
+  /* Causas de churn: só aparece quando há saídas registradas */
+  const causas = useMemo(() => {
+    const saidos = (clientes || []).filter((c) => !c.ativo && c.motivoSaida);
+    const m = {};
+    saidos.forEach((c) => {
+      const info = MOTIVO_POR_ID[c.motivoSaida] || { nome: c.motivoSaida, tom: "neutro" };
+      const k = c.motivoSaida;
+      if (!m[k]) m[k] = { id: k, nome: info.nome, tom: info.tom, qtd: 0, receita: 0, evitavel: ehEvitavel(k) };
+      m[k].qtd++; m[k].receita += Number(c.ticket) || 0;
+    });
+    const lista = Object.values(m).sort((a, b) => b.qtd - a.qtd);
+    const evitaveis = lista.filter((x) => x.evitavel);
+    return {
+      lista, total: saidos.length,
+      semMotivo: (clientes || []).filter((c) => !c.ativo && !c.motivoSaida).length,
+      qtdEvitavel: evitaveis.reduce((a, x) => a + x.qtd, 0),
+      receitaEvitavel: evitaveis.reduce((a, x) => a + x.receita, 0),
+    };
+  }, [clientes]);
 
   /* ---------- Operacional ---------- */
   const ocorrenciasAno = useMemo(
@@ -319,7 +340,35 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
         )}
       </Card>
 
-      {/* ══ 5. Concentração da receita ══ */}
+      {/* ══ 5. Causas de churn ══ */}
+      {causas.total > 0 && (
+        <Card titulo="Causas de churn"
+          sub={`${causas.total} cliente${causas.total > 1 ? "s" : ""} cancelado${causas.total > 1 ? "s" : ""}` +
+            (causas.qtdEvitavel > 0 ? ` · ${causas.qtdEvitavel} por causas evitáveis (${fmtMoeda(causas.receitaEvitavel)})` : "")}>
+          <div className="pf-causas">
+            {causas.lista.map((c) => (
+              <div key={c.id} className="pf-causa">
+                <div className="pf-causa-trilha">
+                  <div className={`pf-causa-barra pf-c-${c.tom}`}
+                    style={{ width: `${(c.qtd / causas.lista[0].qtd) * 100}%` }} />
+                </div>
+                <span className="pf-causa-nome">{c.nome}</span>
+                {c.evitavel && <span className="pf-causa-tag">evitável</span>}
+                <span className="pf-causa-qtd">{c.qtd}</span>
+                <span className="pf-causa-val">{fmtMoeda(c.receita)}</span>
+              </div>
+            ))}
+          </div>
+          {causas.semMotivo > 0 && (
+            <p className="pf-nota">
+              {causas.semMotivo} cliente{causas.semMotivo > 1 ? "s inativos não têm" : " inativo não tem"} motivo
+              registrado. Edite o cadastro para incluir a causa e melhorar a análise.
+            </p>
+          )}
+        </Card>
+      )}
+
+      {/* ══ 6. Concentração da receita ══ */}
       <Card titulo="Participação no faturamento"
         sub={M.concentracaoAlta
           ? `atenção: os 5 maiores concentram ${fmtPct(M.concentracaoTop5)} da receita`

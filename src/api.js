@@ -101,6 +101,10 @@ export async function upsertCliente(c) {
     nicho: txt(c.nicho),
     data_entrada: txt(c.dataEntrada),
     data_saida_prevista: txt(c.dataSaidaPrevista),
+    // Churn: data e motivo vêm do formulário. Cliente reativado
+    // tem os dois limpos, para não continuar contando como perda.
+    inativado_em: c.ativo ? null : txt(c.inativadoEm),
+    motivo_saida: c.ativo ? null : txt(c.motivoSaida),
     ticket: num(c.ticket),
     recorrencia: c.recorrencia || "Mensal",
     dia_pagamento: num(c.diaPagamento),
