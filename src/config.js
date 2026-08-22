@@ -5,7 +5,7 @@
 
 /* ---------- Identidade ---------- */
 export const NOME_SISTEMA = "OffChurn";
-export const NOME_COMPLETO = "OffChurn Yield Leads";
+export const NOME_COMPLETO = "OffChurn";
 
 /* ---------- Administrador principal ----------
    Acesso irrestrito. Não pode ser bloqueado nem excluído.
@@ -13,7 +13,7 @@ export const NOME_COMPLETO = "OffChurn Yield Leads";
 export const EMAIL_MASTER = "albertomachadoads@gmail.com";
 
 /* ---------- Unidades de negócio ---------- */
-export const AGENCIAS = ["Yield", "Mads"];
+export const AGENCIAS = ["Mads"];
 
 /* ---------- Módulos ativos ----------
    Remover daqui tira o módulo do menu E bloqueia o acesso
