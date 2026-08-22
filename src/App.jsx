@@ -149,8 +149,9 @@ export default function App() {
      de ser cadastrado. */
   const temPerm = (mod) => {
     try {
-      if (!moduloAtivo(mod)) return false;
+      // O master vem antes de qualquer checagem, inclusive do config
       if (isMaster) return true;
+      if (!moduloAtivo(mod)) return false;
 
       // Gestão de usuários e auditoria: exclusivo do master
       if (MODULOS_MASTER.includes(mod)) return false;
@@ -172,6 +173,10 @@ export default function App() {
      contra a permissão real, em um ponto único — views novas
      ficam protegidas automaticamente. */
   const viewPermitida = (v) => {
+    /* O master nunca é bloqueado. Se o config.js estiver com a
+       lista de módulos errada, ele ainda entra e consegue
+       corrigir — do contrário o sistema se trancaria sozinho. */
+    if (isMaster) return true;
     const mod = MODULO_DA_VIEW[v];
     if (!mod) return true;          // view sem módulo associado
     return temPerm(mod);
@@ -183,7 +188,8 @@ export default function App() {
     // Sem permissão: manda para a primeira tela que o usuário pode ver
     const destino = ["dashboard", "trafego", "crm", "whatsapp", "clientes", "acompanhamento", "follow"]
       .find((m) => temPerm(m));
-    setView(destino || "sem-acesso");
+    if (!destino) return;   // nada liberado: mostra a tela de aviso onde está
+    setView(destino);
     showToast("Você não tem permissão para acessar essa página");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, user, userPerms]);
