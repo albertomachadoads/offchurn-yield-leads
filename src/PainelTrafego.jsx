@@ -430,7 +430,7 @@ export default function PainelTrafego({
         </Card>
 
         <Card titulo="Clientes críticos"
-        sub="ordenados pelo score de criticidade"
+        sub="score calculado pelo desempenho da conta — independente da criticidade do cadastro"
         acao={<span className="ct-nota">{saude.saudaveis} sem alertas</span>}>
         {criticos.length === 0 ? (
           <Vazio>Nenhum cliente em situação crítica. A carteira está dentro dos parâmetros.</Vazio>

@@ -15,6 +15,16 @@ import {
    status). O filtro de churn atravessa as duas.
    ============================================================ */
 
+/* A criticidade vem do cadastro do cliente, não de cálculo.
+   O sistema apenas replica o que foi definido na ficha. */
+const FAIXA_CADASTRO = {
+  "Normal":  { rot: "Normal",  tom: "ok" },
+  "Baixo":   { rot: "Baixo",   tom: "info" },
+  "Alto":    { rot: "Alto",    tom: "avi" },
+  "Crítico": { rot: "Crítico", tom: "err" },
+};
+const faixaDoCadastro = (c) => FAIXA_CADASTRO[c?.criticidade] || FAIXA_CADASTRO["Normal"];
+
 const fmtPct = (v) => (v == null ? "—" : `${Number(v).toFixed(1)}%`);
 const fmtK = (v) => {
   const n = Number(v) || 0;
@@ -120,12 +130,19 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
       const r = PA.riscos[c.id] || scoreRisco(c, recebiveis || []);
       const ticket = Number(c.ticket) || 0;
       return {
-        cliente: c, ...r, ticket,
+        cliente: c, ...r,
+        /* sobrescreve a faixa calculada: aqui vale o cadastro */
+        faixa: faixaDoCadastro(c),
+        ticket,
         participacao: M.receita > 0 ? (ticket / M.receita) * 100 : 0,
         impacto: ticket,
       };
-    }).sort((a, b) => b.score - a.score);
-    const emRisco = lista.filter((x) => x.score > 45);
+    }).sort((a, b) => {
+      const ordem = { "Crítico": 0, "Alto": 1, "Normal": 2, "Baixo": 3 };
+      const oa = ordem[a.cliente.criticidade] ?? 2, ob = ordem[b.cliente.criticidade] ?? 2;
+      return oa - ob || b.ticket - a.ticket;
+    });
+    const emRisco = lista.filter((x) => ["Alto", "Crítico"].includes(x.cliente.criticidade));
     return {
       lista, emRisco,
       receitaEmRisco: emRisco.reduce((a, x) => a + x.ticket, 0),
@@ -361,7 +378,7 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
           Espelho do cadastro: informativo, não entra no cálculo
           do caixa. A projeção usa exclusivamente o churn. */}
       <Card titulo="Situação dos clientes"
-        sub="reflete a criticidade cadastrada na ficha de cada cliente"
+        sub="criticidade conforme cadastrada na ficha do cliente"
         acao={<span className="pf-nota-inline">não influencia a projeção</span>}>
         {risco.lista.length === 0 ? (
           <p className="pf-vazio">Nenhum cliente ativo.</p>
