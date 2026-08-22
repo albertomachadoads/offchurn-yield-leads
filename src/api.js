@@ -6,6 +6,7 @@ const mapCliente = (r) => ({
   id: r.id, nome: r.nome, responsavelId: r.responsavel_id, ativo: r.ativo,
   cpa: r.cpa, verbaMensal: r.verba_mensal,
   nicho: r.nicho, dataEntrada: r.data_entrada, dataSaidaPrevista: r.data_saida_prevista,
+  inativadoEm: r.inativado_em, motivoSaida: r.motivo_saida,
   ticket: r.ticket, recorrencia: r.recorrencia || "Mensal", diaPagamento: r.dia_pagamento,
   linkDrive: r.link_drive,
   nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
