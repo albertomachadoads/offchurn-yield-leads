@@ -113,6 +113,18 @@ export default function App() {
   const [clienteAberto, setClienteAberto] = useState(null);
 
   /* Módulos que só o master acessa, mesmo para quem é admin. */
+  /* Cada view exige o módulo correspondente. Views ausentes deste
+     mapa são livres (ex.: telas de apoio sem dado sensível). */
+  const MODULO_DA_VIEW = {
+    dashboard: "dashboard", trafego: "trafego", acompanhamento: "acompanhamento",
+    follow: "follow", clientes: "clientes", whatsapp: "whatsapp", crm: "crm",
+    formularios: "formularios", "crm-params": "crm-params", "crm-auto": "crm-auto",
+    "crm-analises": "crm-analises", metas: "metas",
+    fluxo: "fluxo", gestao: "gestao", obz: "obz",
+    "registro-tarefas": "registro-tarefas", cadastros: "cadastros",
+    admin: "admin", logs: "logs",
+  };
+
   const MODULOS_MASTER = ["admin", "logs"];
   /* O que um usuário recém-criado vê antes de o master configurar. */
   const MODULOS_PADRAO = ["dashboard"];
@@ -153,6 +165,28 @@ export default function App() {
       return lista.includes(mod);
     } catch { return false; }
   };
+
+  /* PORTÃO DE ACESSO
+     A barra lateral esconde os botões, mas isso é só cosmético:
+     digitar a URL levava direto à tela. Aqui a view é validada
+     contra a permissão real, em um ponto único — views novas
+     ficam protegidas automaticamente. */
+  const viewPermitida = (v) => {
+    const mod = MODULO_DA_VIEW[v];
+    if (!mod) return true;          // view sem módulo associado
+    return temPerm(mod);
+  };
+
+  useEffect(() => {
+    if (!user || userPerms?._configured === undefined) return;
+    if (viewPermitida(view)) return;
+    // Sem permissão: manda para a primeira tela que o usuário pode ver
+    const destino = ["dashboard", "trafego", "crm", "whatsapp", "clientes", "acompanhamento", "follow"]
+      .find((m) => temPerm(m));
+    setView(destino || "sem-acesso");
+    showToast("Você não tem permissão para acessar essa página");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, user, userPerms]);
 
   /* Tela inicial por perfil: quem não acessa o Dashboard comercial
      cai no primeiro módulo que tiver permissão, na ordem de prioridade. */
@@ -563,6 +597,19 @@ export default function App() {
         <ErrorBoundary>
         {erroCarga && <div className="login-erro" style={{ marginBottom: 16 }}>Erro ao carregar: {erroCarga}</div>}
 
+        {/* Segunda barreira: nada renderiza enquanto a view não for
+            validada. Sem isso, a tela apareceria por um instante
+            antes do redirecionamento. */}
+        {!viewPermitida(view) ? (
+          <div className="sem-acesso">
+            <div className="sem-acesso-ico">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <h3>Acesso não autorizado</h3>
+            <p>Você não tem permissão para acessar esta página. Fale com o administrador se precisar deste acesso.</p>
+          </div>
+        ) : (<>
+
         {view === "dashboard" && (
           <Dashboard userName={user?.nome} clientes={data.clientes || []} tarefas={data.tarefas || []} pessoas={data.pessoas || []} isAdmin={isAdmin} onToast={showToast} onReload={recarregar} onVerLead={(leadId) => { window.__abrirLeadId = leadId; setView("crm"); }} />
         )}
@@ -776,6 +823,7 @@ export default function App() {
         {view === "logs" && isAdmin && (
           <Logs onToast={showToast} />
         )}
+        </>)}
         </ErrorBoundary>
       </main>
 

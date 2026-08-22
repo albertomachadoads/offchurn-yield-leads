@@ -4,12 +4,6 @@ import { supabase } from "./supabaseClient";
 export async function signIn(email, senha) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
   if (error) throw error;
-  // Inserir na tabela pessoas para FK de responsável funcionar
-  if (data?.user?.id) {
-    await supabase.from("pessoas").upsert({
-      id: data.user.id, nome,
-    }, { onConflict: "id" }).catch(() => {});
-  }
   return data;
 }
 
@@ -88,10 +82,6 @@ export async function definirBloqueio(id, bloqueado) {
 // Observação: remover a conta de login em si (auth.users) exige a chave de
 // serviço no servidor; aqui removemos o perfil, o que já tira o acesso ao sistema.
 export async function excluirPerfil(id) {
-  const { error } = await supabase.rpc("excluir_usuario_completo", { pessoa_id: id });
-  if (error) {
-    // Fallback: excluir só da tabela pessoas
-    const { error: e2 } = await supabase.from("pessoas").delete().eq("id", id);
-    if (e2) throw e2;
-  }
+  const { error } = await supabase.from("perfis").delete().eq("id", id);
+  if (error) throw error;
 }
