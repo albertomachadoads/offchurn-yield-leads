@@ -688,6 +688,8 @@ export default function App() {
         {view === "clientes" && clienteAberto && (
           <ClienteDetalhe
             onRecarregar={recarregar}
+            isMaster={isMaster}
+            usuario={user}
             cliente={data.clientes.find((c) => c.id === clienteAberto.id) || clienteAberto}
             gestById={gestById}
             desempenho={data.desempenho || []}

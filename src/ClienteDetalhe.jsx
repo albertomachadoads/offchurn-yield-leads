@@ -5,6 +5,8 @@ import { Avatar } from "./Clientes.jsx";
 import MetricasMeta from "./MetricasMeta.jsx";
 import SelecionarMetricas from "./SelecionarMetricas.jsx";
 import SeletorConta from "./SeletorConta.jsx";
+import EditarMetas from "./EditarMetas.jsx";
+import Otimizador from "./Otimizador.jsx";
 import Relatorios from "./Relatorios.jsx";
 import { supabase } from "./supabaseClient.js";
 import { logAcao, logErro } from "./logger.js";
@@ -25,13 +27,14 @@ function Info({ label, valor, cor }) {
 }
 
 export default function ClienteDetalhe({
-  cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin,
+  cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin, isMaster, usuario,
   onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights,
   onListarContasGoogle, onVincularContaGoogle, onSincronizarGoogle, onBuscarInsightsGoogle,
   funil, onSalvarFunil, onToast, onRecarregar,
 }) {
   const [modalMetricas, setModalMetricas] = useState(false);
   const [seletorAberto, setSeletorAberto] = useState(null);   // "meta" | "google"
+  const [modalMetas, setModalMetas] = useState(false);
   const comp = competencia();
   const [contasMeta, setContasMeta] = useState(null);
   const [contasGoogle, setContasGoogle] = useState(null);
@@ -170,7 +173,7 @@ export default function ClienteDetalhe({
               <Icon.Folder /> Drive do cliente
             </a>
           )}
-          {isAdmin && <button className="btn btn-primary" onClick={() => onEditar(cliente)}><Icon.Edit /> Editar cadastro</button>}
+          {isAdmin && <button className="btn btn-primary" onClick={() => setModalMetas(true)}><Icon.Edit /> Editar metas</button>}
         </div>
       </div>
 
@@ -218,12 +221,10 @@ export default function ClienteDetalhe({
         {(cliente.metaAdAccountId || cliente.googleAdCustomerId) && (
           <button className={aba === "relatorio" ? "on" : ""} onClick={() => setAba("relatorio")}>Relatório</button>
         )}
+        <button className={aba === "otimizador" ? "on" : ""} onClick={() => setAba("otimizador")}>Otimizador</button>
         <button className={aba === "tarefas" ? "on" : ""} onClick={() => setAba("tarefas")}>
           Tarefas {atrasadas.length > 0 && <span className="aba-alerta">{atrasadas.length}</span>}
         </button>
-        {isAdmin && (
-          <button className={aba === "cadastro" ? "on" : ""} onClick={() => setAba("cadastro")}>Dados de cadastro</button>
-        )}
       </div>
 
       {aba === "dashboard" && (<>
@@ -314,28 +315,13 @@ export default function ClienteDetalhe({
 
       </>)}
 
-      {aba === "cadastro" && isAdmin && (
-        <div className="card card-pad">
-          <h3 className="dash-title">Dados de cadastro</h3>
-          <div className="info-grid">
-            <Info label="Gestor responsável" valor={gestById?.[cliente.responsavelId]?.nome} />
-            <Info label="Nicho" valor={cliente.nicho} />
-            <Info label="Objetivo" valor={cliente.objetivo} />
-            <Info label="Entrada" valor={cliente.dataEntrada ? fmtData(cliente.dataEntrada) : null} />
-            <Info label="Saída prevista" valor={cliente.dataSaidaPrevista ? fmtData(cliente.dataSaidaPrevista) : null} />
-            <Info label="Ticket" valor={cliente.ticket ? fmtMoeda(cliente.ticket) : null} />
-            <Info label="Recorrência" valor={cliente.ticket ? (cliente.recorrencia === "Único" ? "Pagamento único" : `Mensal · dia ${cliente.diaPagamento || "?"}`) : null} />
-            <Info label="Verba mensal" valor={cliente.verbaMensal ? fmtMoeda(cliente.verbaMensal) : null} />
-            <Info label="CPA alvo" valor={cliente.cpaMeta ? fmtMoeda(cliente.cpaMeta) : null} />
-            <Info label="Plataformas" valor={[cliente.platGoogle && "Google", cliente.platMeta && "Meta"].filter(Boolean).join(" · ") || null} />
-            <Info label="Conta Meta vinculada" valor={cliente.metaAdAccountId} />
-          </div>
-        </div>
-      )}
-
       {aba === "relatorio" && (
         <Relatorios cliente={cliente} funil={funil} onBuscar={onBuscarInsights}
           onBuscarGoogle={onBuscarInsightsGoogle} onToast={onToast} />
+      )}
+
+      {aba === "otimizador" && (
+        <Otimizador cliente={cliente} usuario={usuario} isMaster={isMaster} onToast={onToast} />
       )}
 
       {aba === "tarefas" && (<>
@@ -396,6 +382,13 @@ export default function ClienteDetalhe({
             setSeletorAberto(null);
           }}
         />
+      )}
+
+      {modalMetas && (
+        <EditarMetas cliente={cliente} gestores={Object.values(gestById || {})}
+          contasMeta={contasMeta} onToast={onToast}
+          onFechar={() => setModalMetas(false)}
+          onSalvar={async (c) => { await onEditar(c, true); if (onRecarregar) onRecarregar(); }} />
       )}
 
       {modalMetricas && (

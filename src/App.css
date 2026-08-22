@@ -2914,3 +2914,97 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .pf-cs-base { font-size: 9.5px; color: var(--ink-faint); margin-top: 1px; }
 .pf-nota-inline { font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; padding: 4px 10px; background: var(--bg); border-radius: 6px; }
 .tema-escuro .pf-nota-inline { background: rgba(255,255,255,.04); }
+
+/* ══════════════ OTIMIZADOR ══════════════ */
+.modal-wide { max-width: 760px !important; }
+
+.ot { display: flex; flex-direction: column; gap: 12px; }
+.ot-carregando { padding: 40px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+.ot-aviso { padding: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; text-align: center; }
+.ot-aviso strong { display: block; font-size: 15px; margin-bottom: 6px; }
+.ot-aviso p { font-size: 13px; color: var(--ink-faint); margin: 0 0 6px; line-height: 1.5; }
+.ot-aviso-dica code, .ot-aviso-topo code { font-family: ui-monospace, monospace; font-size: 11.5px; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+.ot-aviso-topo { padding: 10px 14px; background: #FFFAEB; border: 1px solid #FEDF89; border-radius: 9px; font-size: 12px; color: #B54708; line-height: 1.5; }
+.tema-escuro .ot-aviso-topo { background: #2A1F0A; border-color: #4A3410; color: #F5A524; }
+
+/* Agentes */
+.ot-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.ot-agentes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1; }
+@media (max-width: 800px) { .ot-agentes { grid-template-columns: 1fr; } }
+.ot-agente { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer; text-align: left; font-family: inherit; transition: .12s; color: var(--ink-faint); }
+.ot-agente:hover { border-color: var(--ink-faint); }
+.ot-agente.on { border-color: var(--green); background: var(--green-softer); color: var(--green); }
+.ot-agente svg { flex-shrink: 0; margin-top: 1px; }
+.ot-agente strong { display: block; font-size: 13px; font-weight: 600; color: var(--ink); }
+.ot-agente.on strong { color: var(--green); }
+.ot-agente small { display: block; font-size: 10.5px; color: var(--ink-faint); line-height: 1.35; margin-top: 2px; }
+.ot-cfg-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 12.5px; color: var(--ink-faint); cursor: pointer; font-family: inherit; white-space: nowrap; }
+.ot-cfg-btn:hover { border-color: var(--green); color: var(--green); }
+
+.ot-modos { display: flex; gap: 6px; flex-wrap: wrap; }
+.ot-modo { padding: 6px 13px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); font-size: 12px; color: var(--ink-faint); cursor: pointer; font-family: inherit; }
+.ot-modo:hover { border-color: var(--ink-faint); color: var(--ink); }
+.ot-modo.on { background: var(--green); border-color: var(--green); color: #fff; font-weight: 500; }
+
+/* Conversa */
+.ot-conversa { min-height: 320px; max-height: 52vh; overflow-y: auto; padding: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; gap: 14px; }
+.tema-escuro .ot-conversa { background: rgba(255,255,255,.02); }
+.ot-inicio { margin: auto; text-align: center; max-width: 400px; padding: 24px 0; }
+.ot-inicio-ico { width: 52px; height: 52px; border-radius: 14px; background: var(--green-softer); color: var(--green); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.ot-inicio h3 { margin: 0 0 5px; font-size: 15px; font-weight: 600; }
+.ot-inicio p { font-size: 12.5px; color: var(--ink-faint); margin: 0 0 12px; line-height: 1.5; }
+.ot-inicio-ctx { font-size: 11.5px; color: var(--ink-faint); line-height: 1.55; display: block; padding: 10px 14px; background: var(--surface); border-radius: 9px; }
+
+.ot-msg { max-width: 88%; }
+.ot-msg-user { align-self: flex-end; background: var(--green); color: #fff; padding: 10px 14px; border-radius: 13px 13px 3px 13px; }
+.ot-msg-assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); padding: 12px 15px; border-radius: 13px 13px 13px 3px; }
+.ot-msg-erro { align-self: flex-start; background: #FFFBFA; border: 1px solid #FDD8D3; color: #B42318; padding: 10px 14px; border-radius: 11px; }
+.tema-escuro .ot-msg-erro { background: rgba(217,45,32,.08); border-color: #4A1F1B; color: #F97066; }
+.ot-msg-autor { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-faint); margin-bottom: 5px; }
+.ot-msg-txt { font-size: 13.5px; line-height: 1.62; white-space: pre-wrap; word-break: break-word; }
+.ot-msg-anexos { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+.ot-anexo-tag { font-size: 10.5px; padding: 2px 8px; border-radius: 4px; background: rgba(255,255,255,.22); }
+
+.ot-pensando { display: flex; gap: 4px; padding: 3px 0; }
+.ot-pensando i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); animation: otp 1.3s infinite; }
+.ot-pensando i:nth-child(2) { animation-delay: .18s; }
+.ot-pensando i:nth-child(3) { animation-delay: .36s; }
+@keyframes otp { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+
+/* Anexos e entrada */
+.ot-anexos { display: flex; gap: 6px; flex-wrap: wrap; }
+.ot-anexo { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 5px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
+.ot-anexo button { border: none; background: none; color: var(--ink-faint); font-size: 15px; line-height: 1; cursor: pointer; padding: 0; }
+.ot-anexo button:hover { color: #D92D20; }
+
+.ot-entrada { display: flex; align-items: flex-end; gap: 8px; padding: 9px 11px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.ot-entrada:focus-within { border-color: var(--green); }
+.ot-clipe { width: 32px; height: 32px; border: none; background: none; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ot-clipe:hover { background: var(--bg); color: var(--green); }
+.ot-campo { flex: 1; border: none; background: none; outline: none; resize: none; font-family: inherit; font-size: 13.5px; color: var(--ink); line-height: 1.5; max-height: 150px; padding: 7px 0; }
+.ot-enviar { height: 32px; padding: 0 16px; border: none; border-radius: 8px; background: var(--green); color: #fff; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+.ot-enviar:disabled { opacity: .45; cursor: default; }
+
+/* Configuração */
+.ot-cfg-abas { display: flex; gap: 6px; margin-bottom: 12px; }
+.ot-cfg-aba { flex: 1; padding: 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); font-size: 12.5px; font-weight: 500; color: var(--ink-faint); cursor: pointer; font-family: inherit; }
+.ot-cfg-aba.on { background: var(--green); border-color: var(--green); color: #fff; }
+.ot-cfg-modos { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.ot-cfg-modo { padding: 5px 11px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); font-size: 11.5px; color: var(--ink-faint); cursor: pointer; font-family: inherit; }
+.ot-cfg-modo.on { border-color: var(--green); color: var(--green); background: var(--green-softer); }
+.ot-cfg-dica { font-size: 11.5px; color: var(--ink-faint); margin: 0 0 8px; line-height: 1.45; }
+.ot-cfg-texto { width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; font-family: ui-monospace, "SF Mono", monospace; font-size: 12px; line-height: 1.65; color: var(--ink); background: var(--bg); resize: vertical; }
+.tema-escuro .ot-cfg-texto { background: rgba(255,255,255,.02); }
+.ot-cfg-texto:focus { outline: none; border-color: var(--green); }
+.ot-cfg-contagem { display: block; text-align: right; font-size: 10.5px; color: var(--ink-faint); margin-top: 5px; }
+
+/* Editar metas */
+.em-plats { display: flex; gap: 8px; }
+.em-plat { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 9px; font-size: 12.5px; cursor: pointer; color: var(--ink-faint); }
+.em-plat.on { border-color: var(--green); background: var(--green-softer); color: var(--green); font-weight: 500; }
+.em-contas { margin-top: 16px; padding: 13px 15px; background: var(--bg); border-radius: 10px; }
+.tema-escuro .em-contas { background: rgba(255,255,255,.03); }
+.em-contas-t { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-faint); margin-bottom: 8px; }
+.em-conta { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; padding: 4px 0; }
+.em-conta span { color: var(--ink-faint); }
+.em-conta strong { font-weight: 500; text-align: right; }

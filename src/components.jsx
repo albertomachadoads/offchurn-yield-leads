@@ -174,10 +174,10 @@ export function AderenciaBar({ meta, realizado }) {
   );
 }
 
-export function Modal({ title, onClose, children, footer }) {
+export function Modal({ title, onClose, children, footer, wide }) {
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-modal="true">
+      <div className={`modal ${wide ? "modal-wide" : ""}`} role="dialog" aria-modal="true">
         <div className="modal-head">
           <h3>{title}</h3>
           <button className="iconbtn" onClick={onClose} aria-label="Fechar"><Icon.X /></button>
