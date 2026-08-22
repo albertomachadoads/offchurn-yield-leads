@@ -2836,3 +2836,16 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .pf-causa-tag { font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(217,45,32,.10); color: #D92D20; white-space: nowrap; }
 .pf-causa-qtd { font-size: 13px; font-weight: 600; width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
 .pf-causa-val { font-size: 11.5px; color: var(--ink-faint); width: 88px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Tabela de projeção mês a mês */
+.pf-tabela-proj tfoot td { padding: 11px 10px; border-top: 2px solid var(--line); font-weight: 700; font-size: 12.5px; }
+.pf-tabela-proj tbody tr { cursor: default; }
+.pf-linha-atual { background: var(--green-softer); }
+.tema-escuro .pf-linha-atual { background: rgba(24,163,95,.06); }
+.pf-mes-nome { font-weight: 500; white-space: nowrap; }
+.pf-tag-atual { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; padding: 1px 6px; border-radius: 4px; background: var(--green); color: #fff; margin-left: 7px; }
+
+/* Bruto x ajustado no card do mês */
+.mes-bruto { display: block; font-size: 9.5px; color: var(--ink-faint); margin-top: 2px; white-space: nowrap; }
+.mes-bruto em { font-style: normal; color: #D92D20; font-weight: 600; margin-left: 5px; }
+.fluxo-bruto { font-style: normal; font-size: 11.5px; color: var(--ink-faint); font-weight: 400; }

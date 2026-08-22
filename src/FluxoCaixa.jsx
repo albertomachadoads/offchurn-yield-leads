@@ -157,6 +157,19 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
   );
   const totaisMes = useMemo(() => porCompetencia(ocorrenciasAno), [ocorrenciasAno]);
   const totalAno = Object.values(totaisMes).reduce((a, b) => a + b, 0);
+  /* Fator de churn aplicado aos meses futuros do calendário */
+  const fatorChurn = (comp) => {
+    if (!comChurn) return 1;
+    const l = PA.linhas.find((x) => x.competencia === comp);
+    if (!l || l.bruto === 0) return 1;
+    return l.ajustado / l.bruto;
+  };
+
+  const totalAnoAjustado = useMemo(
+    () => Object.entries(totaisMes).reduce((a, [comp, v]) => a + v * fatorChurn(comp), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [totaisMes, comChurn, PA.linhas]
+  );
 
   const compSel = `${ano}-${String(mesSel + 1).padStart(2, "0")}`;
   const doMes = useMemo(
@@ -190,13 +203,6 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doMes, pagosPorChave, totalMes, recebidoMes]);
 
-  /* Fator de churn aplicado aos meses futuros do calendário */
-  const fatorChurn = (comp) => {
-    if (!comChurn) return 1;
-    const l = PA.linhas.find((x) => x.competencia === comp);
-    if (!l || l.bruto === 0) return 1;
-    return l.ajustado / l.bruto;
-  };
 
   async function alternarPago(o) {
     const chave = `${o.clienteId}|${o.competencia}`;
@@ -267,6 +273,54 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
             <span><i className="pf-l-real" />Ajustada por churn</span>
           </div>
         )}
+
+        {/* Valores exatos: o gráfico dá a leitura rápida, a tabela dá o número */}
+        <div className="pf-tabela-wrap" style={{ marginTop: 18 }}>
+          <table className="pf-tabela pf-tabela-proj">
+            <thead>
+              <tr>
+                <th>Mês</th>
+                <th className="pf-num">Receita bruta projetada</th>
+                <th className="pf-num">Ajustada por churn</th>
+                <th className="pf-num">Perda esperada</th>
+                <th className="pf-num">%</th>
+                <th className="pf-num">Acumulado ajustado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PA.linhas.map((l, i) => {
+                const acum = PA.linhas.slice(0, i + 1).reduce((a, x) => a + x.ajustado, 0);
+                return (
+                  <tr key={l.competencia} className={i === 0 ? "pf-linha-atual" : ""}>
+                    <td className="pf-mes-nome">
+                      {NOMES_MES[l.mes]}/{String(l.ano).slice(2)}
+                      {i === 0 && <span className="pf-tag-atual">atual</span>}
+                    </td>
+                    <td className="pf-num">{fmtMoeda(l.bruto)}</td>
+                    <td className="pf-num pf-ok">{fmtMoeda(l.ajustado)}</td>
+                    <td className={`pf-num ${l.perda > 0 ? "pf-ruim" : "pf-suave"}`}>
+                      {l.perda > 0 ? `-${fmtMoeda(l.perda)}` : "—"}
+                    </td>
+                    <td className={`pf-num ${l.pctPerda > 10 ? "pf-ruim" : "pf-suave"}`}>
+                      {l.pctPerda > 0.1 ? `${l.pctPerda.toFixed(1)}%` : "—"}
+                    </td>
+                    <td className="pf-num pf-suave">{fmtMoeda(acum)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total 12 meses</td>
+                <td className="pf-num">{fmtMoeda(PA.totalBruto)}</td>
+                <td className="pf-num pf-ok">{fmtMoeda(PA.totalAjustado)}</td>
+                <td className="pf-num pf-ruim">-{fmtMoeda(PA.perdaTotal)}</td>
+                <td className="pf-num pf-ruim">{fmtPct(PA.pctPerdaTotal)}</td>
+                <td className="pf-num"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
 
         {!churnRec.confiavel && (
           <p className="pf-nota">
@@ -403,7 +457,12 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
           <h3 className="dash-title" style={{ margin: 0 }}>Recebíveis por mês — {ano}</h3>
           <div className="fluxo-nav">
             <button className="btn btn-sm" onClick={() => setAno((a) => a - 1)}>‹ {ano - 1}</button>
-            <span className="fluxo-total">Total do ano: <strong>{fmtMoeda(totalAno)}</strong></span>
+            <span className="fluxo-total">
+              Total do ano: <strong>{fmtMoeda(totalAnoAjustado)}</strong>
+              {comChurn && totalAnoAjustado < totalAno * 0.995 && (
+                <em className="fluxo-bruto"> de {fmtMoeda(totalAno)} bruto</em>
+              )}
+            </span>
             <button className="btn btn-sm" onClick={() => setAno((a) => a + 1)}>{ano + 1} ›</button>
           </div>
         </div>
