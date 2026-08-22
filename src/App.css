@@ -2861,3 +2861,42 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 
 /* Navegação do mês no detalhe */
 .pf-nav-mes { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 24px 0 12px; }
+
+/* ══════════════ SELETOR DE CONTA COM BUSCA ══════════════ */
+.sc-bd { position: fixed; inset: 0; background: rgba(16,24,40,.55); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 300; }
+.tema-escuro .sc-bd { background: rgba(0,0,0,.68); }
+.sc-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 15px; width: 100%; max-width: 520px; max-height: 82vh; display: flex; flex-direction: column; box-shadow: 0 18px 46px rgba(16,24,40,.22); overflow: hidden; }
+
+.sc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 20px 14px; }
+.sc-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.sc-sub { display: block; font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.sc-x { border: none; background: none; font-size: 24px; line-height: 1; color: var(--ink-faint); cursor: pointer; padding: 0 3px; }
+.sc-x:hover { color: var(--ink); }
+
+.sc-busca { display: flex; align-items: center; gap: 9px; margin: 0 20px 12px; padding: 0 13px; height: 40px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink-faint); transition: border-color .12s; }
+.tema-escuro .sc-busca { background: rgba(255,255,255,.03); }
+.sc-busca:focus-within { border-color: var(--green); }
+.sc-busca input { flex: 1; min-width: 0; border: none; background: none; outline: none; font-size: 13.5px; color: var(--ink); font-family: inherit; }
+.sc-limpar { border: none; background: none; color: var(--ink-faint); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.sc-limpar:hover { color: var(--ink); }
+
+.sc-lista { flex: 1; overflow-y: auto; padding: 0 12px 8px; min-height: 120px; }
+.sc-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border: none; background: none; border-radius: 9px; cursor: pointer; font-family: inherit; }
+.sc-item.on { background: var(--bg); }
+.tema-escuro .sc-item.on { background: rgba(255,255,255,.05); }
+.sc-item.atual { background: var(--green-softer); }
+.sc-item-info { flex: 1; min-width: 0; }
+.sc-item-nome { font-size: 13.5px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-item-meta { font-size: 11.5px; color: var(--ink-faint); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-id { font-variant-numeric: tabular-nums; }
+.sc-inativa { color: #D97706; }
+.sc-item mark { background: rgba(24,163,95,.22); color: inherit; border-radius: 2px; padding: 0 1px; }
+.tema-escuro .sc-item mark { background: rgba(60,207,122,.25); }
+.sc-atual-tag { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; padding: 3px 8px; border-radius: 20px; background: var(--green); color: #fff; flex-shrink: 0; }
+.sc-vazio { font-size: 13px; color: var(--ink-faint); text-align: center; padding: 32px 20px; margin: 0; line-height: 1.6; }
+
+.sc-rodape { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--line); }
+.sc-dica { font-size: 11px; color: var(--ink-faint); }
+.sc-desvincular { border: 1px solid var(--line); background: var(--surface); color: #D92D20; font-size: 12px; font-weight: 500; padding: 6px 12px; border-radius: 7px; cursor: pointer; font-family: inherit; }
+.sc-desvincular:hover { border-color: #D92D20; background: rgba(217,45,32,.06); }
+@media (max-width: 560px) { .sc-dica { display: none; } }

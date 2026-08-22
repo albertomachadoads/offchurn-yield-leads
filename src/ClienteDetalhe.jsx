@@ -4,6 +4,7 @@ import { Icon } from "./components.jsx";
 import { Avatar } from "./Clientes.jsx";
 import MetricasMeta from "./MetricasMeta.jsx";
 import SelecionarMetricas from "./SelecionarMetricas.jsx";
+import SeletorConta from "./SeletorConta.jsx";
 import Relatorios from "./Relatorios.jsx";
 import { supabase } from "./supabaseClient.js";
 import { logAcao, logErro } from "./logger.js";
@@ -30,6 +31,7 @@ export default function ClienteDetalhe({
   funil, onSalvarFunil, onToast, onRecarregar,
 }) {
   const [modalMetricas, setModalMetricas] = useState(false);
+  const [seletorAberto, setSeletorAberto] = useState(null);   // "meta" | "google"
   const comp = competencia();
   const [contasMeta, setContasMeta] = useState(null);
   const [contasGoogle, setContasGoogle] = useState(null);
@@ -237,22 +239,13 @@ export default function ClienteDetalhe({
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {contasMeta === null ? (
-              <button className="btn btn-sm" onClick={carregarContas} disabled={buscandoContas}>
-                {buscandoContas ? "Buscando…" : (cliente.metaAdAccountId ? "Trocar conta" : "Conectar conta")}
-              </button>
-            ) : (
-              <select
-                className="select" style={{ maxWidth: 260 }}
-                value={cliente.metaAdAccountId || ""}
-                onChange={(e) => vincular(e.target.value)}
-              >
-                <option value="">— sem vínculo —</option>
-                {contasMeta.map((ct) => (
-                  <option key={ct.id} value={ct.id}>{ct.nome} ({ct.id})</option>
-                ))}
-              </select>
-            )}
+            <button className="btn btn-sm" disabled={buscandoContas}
+              onClick={async () => {
+                if (!contasMeta) await carregarContas();
+                setSeletorAberto("meta");
+              }}>
+              {buscandoContas ? "Buscando…" : (cliente.metaAdAccountId ? "Trocar conta" : "Conectar conta")}
+            </button>
             <button className="btn btn-sm btn-primary" onClick={sincronizar}
               disabled={sincronizando || !cliente.metaAdAccountId}
               title={!cliente.metaAdAccountId ? "Vincule uma conta primeiro" : ""}>
@@ -275,29 +268,13 @@ export default function ClienteDetalhe({
             </p>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {contasGoogle === null ? (
-              <button className="btn btn-sm" onClick={carregarContasGoogle} disabled={buscandoGoogle}>
-                {buscandoGoogle ? "Buscando…" : (cliente.googleAdCustomerId ? "Trocar conta" : "Conectar conta")}
-              </button>
-            ) : (
-              <select className="select" style={{ maxWidth: 320 }}
-                value={cliente.googleAdCustomerId ? `${cliente.googleMccId || ""}|${cliente.googleAdCustomerId}` : ""}
-                onChange={(e) => {
-                  const [mcc, cid] = (e.target.value || "").split("|");
-                  vincularGoogle(cid || null, mcc || null);
-                }}>
-                <option value="">— sem vínculo —</option>
-                {(contasGoogle || []).map((mcc) => (
-                  <optgroup key={mcc.mccId} label={`📁 ${mcc.mccNome} (${mcc.mccId})`}>
-                    {mcc.contas.map((ct) => (
-                      <option key={ct.id} value={`${mcc.mccId}|${ct.id}`}>
-                        {ct.nome} ({ct.id})
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            )}
+            <button className="btn btn-sm" disabled={buscandoGoogle}
+              onClick={async () => {
+                if (!contasGoogle) await carregarContasGoogle();
+                setSeletorAberto("google");
+              }}>
+              {buscandoGoogle ? "Buscando…" : (cliente.googleAdCustomerId ? "Trocar conta" : "Conectar conta")}
+            </button>
             <button className="btn btn-sm btn-primary" onClick={sincronizarGoogle}
               disabled={sincGoogle || !cliente.googleAdCustomerId}>
               {sincGoogle ? "Sincronizando…" : "↻ Sincronizar Google"}
@@ -387,6 +364,39 @@ export default function ClienteDetalhe({
         </div>
       )}
       </>)}
+
+      {seletorAberto === "meta" && (
+        <SeletorConta
+          contas={contasMeta || []}
+          valor={cliente.metaAdAccountId || ""}
+          rotulo="Conta de anúncios do Meta"
+          onFechar={() => setSeletorAberto(null)}
+          onSelecionar={(id) => { vincular(id); setSeletorAberto(null); }}
+        />
+      )}
+
+      {seletorAberto === "google" && (
+        <SeletorConta
+          /* As contas do Google vêm agrupadas por MCC; achatamos para
+             a busca alcançar todas de uma vez, mantendo o MCC no rótulo. */
+          contas={(contasGoogle || []).flatMap((mcc) =>
+            (mcc.contas || []).map((ct) => ({
+              id: `${mcc.mccId}|${ct.id}`,
+              nome: ct.nome,
+              moeda: `${mcc.mccNome} · ${ct.id}`,
+            }))
+          )}
+          valor={cliente.googleAdCustomerId ? `${cliente.googleMccId || ""}|${cliente.googleAdCustomerId}` : ""}
+          rotulo="Conta de anúncios do Google"
+          plataforma="google"
+          onFechar={() => setSeletorAberto(null)}
+          onSelecionar={(v) => {
+            const [mcc, cid] = (v || "").split("|");
+            vincularGoogle(cid || null, mcc || null);
+            setSeletorAberto(null);
+          }}
+        />
+      )}
 
       {modalMetricas && (
         <SelecionarMetricas cliente={cliente} onToast={onToast}
