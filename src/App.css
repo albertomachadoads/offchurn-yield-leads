@@ -2849,3 +2849,15 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .mes-bruto { display: block; font-size: 9.5px; color: var(--ink-faint); margin-top: 2px; white-space: nowrap; }
 .mes-bruto em { font-style: normal; color: #D92D20; font-weight: 600; margin-left: 5px; }
 .fluxo-bruto { font-style: normal; font-size: 11.5px; color: var(--ink-faint); font-weight: 400; }
+
+/* Tabelas do painel financeiro: números centralizados, nome à esquerda */
+.pf-tabela th, .pf-tabela td { text-align: center; }
+.pf-tabela th:first-child, .pf-tabela td:first-child { text-align: left; }
+.pf-tabela .pf-num { text-align: center; }
+.pf-tabela .pf-motivos { justify-content: center; }
+.pf-tabela .pf-part { justify-content: center; }
+.pf-tabela-proj tfoot td { text-align: center; }
+.pf-tabela-proj tfoot td:first-child { text-align: left; }
+
+/* Navegação do mês no detalhe */
+.pf-nav-mes { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 24px 0 12px; }

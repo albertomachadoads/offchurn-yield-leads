@@ -156,7 +156,6 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
     [clientes, ano]
   );
   const totaisMes = useMemo(() => porCompetencia(ocorrenciasAno), [ocorrenciasAno]);
-  const totalAno = Object.values(totaisMes).reduce((a, b) => a + b, 0);
   /* Fator de churn aplicado aos meses futuros do calendário */
   const fatorChurn = (comp) => {
     if (!comChurn) return 1;
@@ -165,11 +164,6 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
     return l.ajustado / l.bruto;
   };
 
-  const totalAnoAjustado = useMemo(
-    () => Object.entries(totaisMes).reduce((a, [comp, v]) => a + v * fatorChurn(comp), 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [totaisMes, comChurn, PA.linhas]
-  );
 
   const compSel = `${ano}-${String(mesSel + 1).padStart(2, "0")}`;
   const doMes = useMemo(
@@ -394,7 +388,7 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
         )}
       </Card>
 
-      {/* ══ 5. Causas de churn ══ */}
+      {/* ══ Causas de churn ══ */}
       {causas.total > 0 && (
         <Card titulo="Causas de churn"
           sub={`${causas.total} cliente${causas.total > 1 ? "s" : ""} cancelado${causas.total > 1 ? "s" : ""}` +
@@ -422,74 +416,17 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
         </Card>
       )}
 
-      {/* ══ 6. Concentração da receita ══ */}
-      <Card titulo="Participação no faturamento"
-        sub={M.concentracaoAlta
-          ? `atenção: os 5 maiores concentram ${fmtPct(M.concentracaoTop5)} da receita`
-          : `os 5 maiores representam ${fmtPct(M.concentracaoTop5)} da receita`}>
-        {M.ranking.length === 0 ? (
-          <p className="pf-vazio">Nenhum cliente com ticket cadastrado.</p>
-        ) : (
-          <div className="pf-conc">
-            {M.ranking.slice(0, 8).map((x, i) => (
-              <div key={x.cliente.id} className="pf-conc-linha" onClick={() => onAbrirCliente && onAbrirCliente(x.cliente)}>
-                <span className="pf-conc-pos">{i + 1}</span>
-                <span className="pf-conc-nome">{x.cliente.nome}</span>
-                <div className="pf-conc-trilha">
-                  <div className="pf-conc-barra" style={{ width: `${(x.participacao / (M.ranking[0]?.participacao || 1)) * 100}%` }} />
-                </div>
-                <span className="pf-conc-val">{fmtMoeda(x.ticket)}</span>
-                <span className="pf-conc-pct">{fmtPct(x.participacao)}</span>
-              </div>
-            ))}
-            {M.ranking.length > 8 && (
-              <p className="pf-nota">
-                Outros {M.ranking.length - 8} clientes somam {fmtPct(M.ranking.slice(8).reduce((a, x) => a + x.participacao, 0))} da receita.
-              </p>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* calendário anual */}
-      <div className="card card-pad" style={{ marginBottom: 20 }}>
-        <div className="fluxo-head">
-          <h3 className="dash-title" style={{ margin: 0 }}>Recebíveis por mês — {ano}</h3>
-          <div className="fluxo-nav">
-            <button className="btn btn-sm" onClick={() => setAno((a) => a - 1)}>‹ {ano - 1}</button>
-            <span className="fluxo-total">
-              Total do ano: <strong>{fmtMoeda(totalAnoAjustado)}</strong>
-              {comChurn && totalAnoAjustado < totalAno * 0.995 && (
-                <em className="fluxo-bruto"> de {fmtMoeda(totalAno)} bruto</em>
-              )}
-            </span>
-            <button className="btn btn-sm" onClick={() => setAno((a) => a + 1)}>{ano + 1} ›</button>
-          </div>
-        </div>
-        <div className="meses-grid">
-          {NOMES_MES.map((nome, i) => {
-            const comp = `${ano}-${String(i + 1).padStart(2, "0")}`;
-            const valor = totaisMes[comp] || 0;
-            const ativo = i === mesSel;
-            const eAtual = ano === hoje.getFullYear() && i === hoje.getMonth();
-            return (
-              <button key={comp} className={`mes-card ${ativo ? "on" : ""} ${eAtual ? "atual" : ""}`} onClick={() => setMesSel(i)}>
-                <span className="mes-nome">{nome.slice(0, 3)}</span>
-                <span className="mes-valor">{valor ? fmtMoeda(valor) : "—"}</span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Detalhe do mês — navegação própria, já que o calendário saiu */}
+      <div className="pf-nav-mes">
+        <button className="btn btn-sm" onClick={() => {
+          if (mesSel === 0) { setAno((a) => a - 1); setMesSel(11); } else setMesSel((m) => m - 1);
+        }}>‹ anterior</button>
+        <h3 className="dash-title" style={{ margin: 0 }}>Detalhe de {rotuloComp(compSel)}</h3>
+        <button className="btn btn-sm" onClick={() => {
+          if (mesSel === 11) { setAno((a) => a + 1); setMesSel(0); } else setMesSel((m) => m + 1);
+        }}>próximo ›</button>
       </div>
 
-      {/* detalhe do mês selecionado */}
-      <div className="fluxo-resumo">
-        <div className="fr-item"><span>Previsto</span><strong>{fmtMoeda(totalMes)}</strong></div>
-        <div className="fr-item ok"><span>Recebido</span><strong>{fmtMoeda(recebidoMes)}</strong></div>
-        <div className="fr-item pend"><span>Pendente</span><strong>{fmtMoeda(pendenteMes)}</strong></div>
-      </div>
-
-      <h3 className="dash-title" style={{ marginTop: 20 }}>Detalhe de {rotuloComp(compSel)}</h3>
       {doMes.length === 0 ? (
         <div className="card"><div className="empty">
           <h3>Nenhum recebível neste mês</h3>
