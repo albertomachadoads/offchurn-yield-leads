@@ -2642,3 +2642,62 @@ body.sb-hover .sidebar-mini .sidebar { width: 248px; }
 .tema-escuro .sem-acesso-ico { background: rgba(255,255,255,.06); }
 .sem-acesso h3 { margin: 0 0 8px; font-size: 17px; font-weight: 600; }
 .sem-acesso p { margin: 0; font-size: 13.5px; color: var(--ink-faint); line-height: 1.55; }
+
+/* ══════════════ FLUXO DE CAIXA — CHURN E RISCO ══════════════ */
+.fc-card { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 18px 20px; margin-top: 16px; }
+.fc-card-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.fc-card-h h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.fc-sub { display: block; font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+.fc-nota { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; margin: 14px 0 0; padding: 10px 13px; background: var(--bg); border-radius: 8px; }
+.tema-escuro .fc-nota { background: rgba(255,255,255,.03); }
+.fc-vazio { font-size: 12.5px; color: var(--ink-faint); padding: 16px 0; margin: 0; }
+.fc-nada { font-size: 11.5px; color: var(--ink-faint); font-style: italic; }
+
+.fc-resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+@media (max-width: 800px) { .fc-resumo { grid-template-columns: repeat(2, 1fr); } }
+.fc-resumo span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; color: var(--ink-faint); margin-bottom: 3px; }
+.fc-resumo strong { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+.fc-resumo em { font-style: normal; font-size: 12px; font-weight: 400; opacity: .8; }
+.fc-ok { color: #18A35F; }
+.fc-ruim { color: #D92D20; }
+.fc-atencao { color: #D97706; }
+
+/* Barras da projeção */
+.fc-barras { display: flex; gap: 8px; align-items: flex-end; height: 168px; }
+.fc-barra-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.fc-barra-pilha { width: 100%; flex: 1; display: flex; align-items: flex-end; }
+.fc-barra-bruto { width: 100%; background: var(--gray-soft); border-radius: 6px 6px 0 0; display: flex; align-items: flex-end; min-height: 4px; }
+.tema-escuro .fc-barra-bruto { background: rgba(255,255,255,.07); }
+.fc-barra-real { width: 100%; background: linear-gradient(180deg, #18A35F, #0C5530); border-radius: 6px 6px 0 0; transition: height .5s; }
+.fc-barra-val { font-size: 10px; font-weight: 600; margin-top: 6px; white-space: nowrap; }
+.fc-barra-mes { font-size: 10px; color: var(--ink-faint); text-transform: uppercase; margin-top: 1px; }
+.fc-barra-perda { font-size: 9.5px; color: #D92D20; font-weight: 600; margin-top: 1px; }
+.fc-legenda { display: flex; gap: 18px; justify-content: center; margin-top: 12px; font-size: 11px; color: var(--ink-faint); }
+.fc-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.fc-legenda i { width: 12px; height: 8px; border-radius: 2px; display: block; }
+.fc-l-bruto { background: var(--gray-soft); }
+.tema-escuro .fc-l-bruto { background: rgba(255,255,255,.12); }
+.fc-l-real { background: linear-gradient(180deg, #18A35F, #0C5530); }
+
+/* Tabela de risco */
+.fc-tabela-wrap { overflow-x: auto; }
+.fc-tabela { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.fc-tabela th { text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-faint); padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.fc-tabela td { padding: 11px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.fc-tabela tr:last-child td { border-bottom: none; }
+.fc-tabela tbody tr { cursor: pointer; }
+.fc-tabela tbody tr:hover { background: var(--bg); }
+.tema-escuro .fc-tabela tbody tr:hover { background: rgba(255,255,255,.03); }
+.fc-nome { font-weight: 600; }
+.fc-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc-suave { color: var(--ink-faint); }
+.fc-score { font-size: 11px; color: var(--ink-faint); margin-left: 7px; font-variant-numeric: tabular-nums; }
+.fc-motivos { display: flex; gap: 5px; flex-wrap: wrap; max-width: 320px; }
+.fc-motivo { font-size: 10.5px; padding: 2px 8px; border-radius: 4px; background: var(--gray-soft); color: var(--ink-soft); white-space: nowrap; }
+.tema-escuro .fc-motivo { background: rgba(255,255,255,.06); }
+.fc-badge { display: inline-block; font-size: 10.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.fc-badge.tom-ok { background: rgba(24,163,95,.12); color: #18A35F; }
+.fc-badge.tom-info { background: rgba(37,99,235,.12); color: #2563EB; }
+.fc-badge.tom-avi { background: rgba(217,119,6,.12); color: #D97706; }
+.fc-badge.tom-laranja { background: rgba(234,88,12,.12); color: #EA580C; }
+.fc-badge.tom-err { background: rgba(217,45,32,.12); color: #D92D20; }

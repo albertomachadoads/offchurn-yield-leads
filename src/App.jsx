@@ -739,6 +739,8 @@ export default function App() {
           <FluxoCaixa
             clientes={clientesFiltrados}
             recebiveis={data.recebiveis || []}
+            desempenho={data.desempenho || []}
+            onAbrirCliente={(c) => { setClienteAberto(c); setView("clientes"); }}
             onMarcarPago={marcarPago}
             onToast={showToast}
           />
