@@ -22,7 +22,13 @@ export default function EditarMetas({ cliente, gestores, contasMeta, onSalvar, o
     cpa: cliente.cpa ?? "",
     platMeta: !!cliente.platMeta,
     platGoogle: !!cliente.platGoogle,
+    contextoIa: cliente.contextoIa || "",
+    publicoAlvo: cliente.publicoAlvo || "",
+    propostaValor: cliente.propostaValor || "",
+    tomVoz: cliente.tomVoz || "",
+    restricoesIa: cliente.restricoesIa || "",
   });
+  const [abaCfg, setAbaCfg] = useState("metas");
   const [salvando, setSalvando] = useState(false);
   const s = (k, v) => setF((p) => ({ ...p, [k]: v }));
 
@@ -41,6 +47,11 @@ export default function EditarMetas({ cliente, gestores, contasMeta, onSalvar, o
         cpa: f.cpa === "" ? null : Number(f.cpa),
         platMeta: f.platMeta,
         platGoogle: f.platGoogle,
+        contextoIa: f.contextoIa.trim() || null,
+        publicoAlvo: f.publicoAlvo.trim() || null,
+        propostaValor: f.propostaValor.trim() || null,
+        tomVoz: f.tomVoz.trim() || null,
+        restricoesIa: f.restricoesIa.trim() || null,
       });
       onToast("Metas atualizadas");
       onFechar();
@@ -60,6 +71,64 @@ export default function EditarMetas({ cliente, gestores, contasMeta, onSalvar, o
         </button>
       </>
     }>
+      <div className="em-abas">
+        <button type="button" className={abaCfg === "metas" ? "on" : ""} onClick={() => setAbaCfg("metas")}>
+          Metas e operação
+        </button>
+        <button type="button" className={abaCfg === "contexto" ? "on" : ""} onClick={() => setAbaCfg("contexto")}>
+          Contexto para IA
+          {!f.contextoIa && <span className="em-pendente" title="Ainda não preenchido" />}
+        </button>
+      </div>
+
+      {abaCfg === "contexto" ? (
+        <div className="em-ctx">
+          <p className="em-ctx-intro">
+            Tudo aqui é enviado aos agentes do Otimizador em cada conversa.
+            Quanto mais específico, menos genérica a resposta.
+          </p>
+
+          <div className="form-row">
+            <label>Sobre o negócio</label>
+            <textarea className="input" rows={5} value={f.contextoIa}
+              onChange={(e) => s("contextoIa", e.target.value)}
+              placeholder={"O que o cliente vende, como opera, o que o diferencia da concorrência.\n\nEx.: Escritório de advocacia previdenciária em Salvador. Atende aposentadoria por tempo de contribuição e revisão de benefício. Consulta inicial gratuita, honorários só no êxito. Sócio fundador com 18 anos de atuação e presença em rádio local."} />
+          </div>
+
+          <div className="form-row">
+            <label>Público-alvo</label>
+            <textarea className="input" rows={3} value={f.publicoAlvo}
+              onChange={(e) => s("publicoAlvo", e.target.value)}
+              placeholder={"Quem compra: idade, região, situação, dores e objeções mais comuns.\n\nEx.: Homens e mulheres de 55 a 68 anos, interior da Bahia, baixa familiaridade com internet. Já tentaram pelo INSS e foram negados. Desconfiam de advogado que cobra adiantado."} />
+          </div>
+
+          <div className="form-grid2">
+            <div className="form-row">
+              <label>Proposta de valor</label>
+              <textarea className="input" rows={3} value={f.propostaValor}
+                onChange={(e) => s("propostaValor", e.target.value)}
+                placeholder="A promessa central da oferta e a prova que a sustenta." />
+            </div>
+            <div className="form-row">
+              <label>Tom de voz</label>
+              <textarea className="input" rows={3} value={f.tomVoz}
+                onChange={(e) => s("tomVoz", e.target.value)}
+                placeholder="Como a marca fala. Ex.: acolhedor e direto, sem juridiquês, tratamento por você." />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label>Restrições</label>
+            <textarea className="input" rows={3} value={f.restricoesIa}
+              onChange={(e) => s("restricoesIa", e.target.value)}
+              placeholder={"O que NÃO pode ser dito ou prometido.\n\nEx.: proibido garantir resultado ou prazo de decisão judicial (regra da OAB). Não citar valores de benefício. Não usar a palavra 'grátis' para os honorários."} />
+            <span className="form-dica">
+              Limites legais, do setor ou da marca. Os agentes respeitam o que estiver aqui.
+            </span>
+          </div>
+        </div>
+      ) : (<>
+
       <div className="form-grid2">
         <div className="form-row">
           <label>Gestor responsável</label>
@@ -133,6 +202,7 @@ export default function EditarMetas({ cliente, gestores, contasMeta, onSalvar, o
           O vínculo das contas é feito pelos botões “Conectar conta”, na aba Dashboard.
         </span>
       </div>
+      </>)}
     </Modal>
   );
 }

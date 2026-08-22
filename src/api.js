@@ -7,6 +7,8 @@ const mapCliente = (r) => ({
   cpa: r.cpa, verbaMensal: r.verba_mensal,
   nicho: r.nicho, dataEntrada: r.data_entrada, dataSaidaPrevista: r.data_saida_prevista,
   inativadoEm: r.inativado_em, motivoSaida: r.motivo_saida,
+  contextoIa: r.contexto_ia, publicoAlvo: r.publico_alvo,
+  propostaValor: r.proposta_valor, tomVoz: r.tom_voz, restricoesIa: r.restricoes_ia,
   ticket: r.ticket, recorrencia: r.recorrencia || "Mensal", diaPagamento: r.dia_pagamento,
   linkDrive: r.link_drive,
   nps: r.nps, platGoogle: r.plat_google || false, platMeta: r.plat_meta || false,
@@ -103,6 +105,11 @@ export async function upsertCliente(c) {
     data_saida_prevista: txt(c.dataSaidaPrevista),
     // Churn: data e motivo vêm do formulário. Cliente reativado
     // tem os dois limpos, para não continuar contando como perda.
+    contexto_ia: txt(c.contextoIa),
+    publico_alvo: txt(c.publicoAlvo),
+    proposta_valor: txt(c.propostaValor),
+    tom_voz: txt(c.tomVoz),
+    restricoes_ia: txt(c.restricoesIa),
     inativado_em: c.ativo ? null : txt(c.inativadoEm),
     motivo_saida: c.ativo ? null : txt(c.motivoSaida),
     ticket: num(c.ticket),

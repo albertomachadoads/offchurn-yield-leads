@@ -245,6 +245,13 @@ export default function Otimizador({ cliente, usuario, isMaster, onToast }) {
         </div>
       )}
 
+      {!cliente.contextoIa && (
+        <div className="ot-aviso-ctx">
+          Contexto do negócio não preenchido. Abra <strong>Editar metas → Contexto para IA</strong> e
+          descreva o cliente — sem isso os agentes respondem de forma genérica.
+        </div>
+      )}
+
       {!cfg.chaveConfigurada && (
         <div className="ot-aviso-topo">
           A chave da API de IA não está configurada. Cadastre <code>ANTHROPIC_API_KEY</code> nos
@@ -264,8 +271,11 @@ export default function Otimizador({ cliente, usuario, isMaster, onToast }) {
             <h3>{agenteAtual?.nome}</h3>
             <p>{agenteAtual?.descricao}</p>
             <span className="ot-inicio-ctx">
-              Este agente já conhece os dados de <strong>{cliente.nome}</strong> — verba, meta de CPA,
-              plataformas e desempenho do mês.
+              {cliente.contextoIa
+                ? <>Este agente conhece o contexto de <strong>{cliente.nome}</strong> — negócio, público,
+                    tom de voz e restrições, além dos dados de verba e desempenho.</>
+                : <>Este agente conhece os dados de <strong>{cliente.nome}</strong>, mas o contexto do
+                    negócio ainda não foi preenchido. As respostas ficam mais precisas com ele.</>}
             </span>
           </div>
         ) : mensagens.map((m, i) => (
