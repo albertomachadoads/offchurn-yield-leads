@@ -5,7 +5,8 @@ import { competencia } from "./projecao";
 import {
   pacingPeriodo, classificarPacing, scoreCriticidade, detectarProblemas,
 } from "./trafegoEngine.js";
-import { resumirTarefas, prioridadesDoDia, calcularChurn } from "./tarefasCore.js";
+import { resumirTarefas, prioridadesDoDia } from "./tarefasCore.js";
+import { churnHistorico } from "./churnEngine.js";
 import CentralTarefas from "./CentralTarefas.jsx";
 
 /* ============================================================
@@ -225,9 +226,16 @@ export default function PainelTrafego({
     };
   }, [carteira, P.pctTranscorrido]);
 
-  const churn = useMemo(() => calcularChurn(clientes, {
-    de: `${comp}-01`, ate: `${comp}-31`, metaAceitavel: 5,
-  }), [clientes, comp]);
+  /* Mesma função do painel financeiro — uma fórmula só no sistema */
+  const META_CHURN = 5;
+  const churnBase = useMemo(() => churnHistorico(clientes || []), [clientes]);
+  const churn = useMemo(() => ({
+    taxa: churnBase.taxaAtual,
+    perdidos: churnBase.perdidosAtual,
+    base: churnBase.ativosInicioAtual,
+    metaAceitavel: META_CHURN,
+    acimaDaMeta: churnBase.taxaAtual > META_CHURN,
+  }), [churnBase]);
 
   const saude = useMemo(() => ({
     total: carteira.length,

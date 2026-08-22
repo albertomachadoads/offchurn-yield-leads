@@ -80,7 +80,10 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
   const [mesSel, setMesSel] = useState(hoje.getMonth());
   const [busy, setBusy] = useState(false);
   const [comChurn, setComChurn] = useState(true);
-  const [modoProj, setModoProj] = useState("avancado");
+  /* A projeção do caixa usa exclusivamente a taxa de churn.
+     O score individual do cliente é informativo e fica fora
+     daqui — foi decisão de negócio, não limitação técnica. */
+  const modoProj = "simples";
 
   const cliById = useMemo(() => Object.fromEntries((clientes || []).map((c) => [c.id, c])), [clientes]);
 
@@ -108,7 +111,7 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
       modo: modoProj, taxaChurn: churnRec.taxaProjecao, desempPorCliente: dp,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientes, recebiveis, desempenho, modoProj, churnRec.taxaProjecao]);
+  }, [clientes, recebiveis, desempenho, churnRec.taxaProjecao]);
 
   /* Risco por cliente, com participação e impacto */
   const risco = useMemo(() => {
@@ -201,9 +204,22 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
   async function alternarPago(o) {
     const chave = `${o.clienteId}|${o.competencia}`;
     const atual = pagosPorChave[chave];
+    const novoPago = !atual?.pago;
     setBusy(true);
-    try { await onMarcarPago(o, !atual?.pago); }
-    catch (e) { onToast("Erro: " + e.message); }
+    try {
+      /* upsertRecebivel espera UM objeto com todos os campos.
+         Antes passávamos (o, pago) em dois argumentos: o segundo
+         era ignorado e o registro ia sem o campo "pago". */
+      await onMarcarPago({
+        clienteId: o.clienteId,
+        competencia: o.competencia,
+        valor: atual?.valor ?? o.valor,
+        pago: novoPago,
+        dataPagamento: novoPago ? new Date().toISOString().slice(0, 10) : null,
+        observacao: atual?.observacao || null,
+      });
+      onToast(novoPago ? "Marcado como recebido" : "Recebimento desfeito");
+    } catch (e) { onToast("Erro: " + (e.message || "falha ao salvar")); }
     finally { setBusy(false); }
   }
 
@@ -248,13 +264,12 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
       {/* ══ 2. Projeção anualizada ══ */}
       <Card titulo="Projeção financeira — próximos 12 meses"
         sub={comChurn
-          ? `receita ajustada pela probabilidade de saída${modoProj === "simples" ? " (churn médio da carteira)" : " (risco individual por cliente)"}`
+          ? `receita descontando ${fmtPct(churnRec.taxaProjecao)} de churn ao mês`
           : "receita bruta, sem desconto de churn"}
         acao={
-          <select className="select" style={{ width: "auto" }} value={modoProj} onChange={(e) => setModoProj(e.target.value)}>
-            <option value="avancado">Risco individual</option>
-            <option value="simples">Churn médio</option>
-          </select>
+          <span className="pf-nota-inline">
+            taxa aplicada: {fmtPct(churnRec.taxaProjecao)}/mês
+          </span>
         }>
         <div className="pf-resumo">
           <div><span>Receita bruta projetada</span><strong>{fmtMoeda(PA.totalBruto)}</strong></div>
@@ -342,30 +357,30 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
         </div>
       </Card>
 
-      {/* ══ 4. Risco da carteira ══ */}
-      <Card titulo="Risco da carteira"
-        sub={`${risco.emRisco.length} de ${risco.lista.length} clientes exigem atenção · ${fmtMoeda(risco.receitaEmRisco)} de receita em risco${risco.emAberto > 0 ? ` · ${fmtMoeda(risco.emAberto)} em aberto` : ""}`}>
+      {/* ══ 4. Situação dos clientes ══
+          Espelho do cadastro: informativo, não entra no cálculo
+          do caixa. A projeção usa exclusivamente o churn. */}
+      <Card titulo="Situação dos clientes"
+        sub="reflete a criticidade cadastrada na ficha de cada cliente"
+        acao={<span className="pf-nota-inline">não influencia a projeção</span>}>
         {risco.lista.length === 0 ? (
-          <p className="pf-vazio">Nenhum cliente ativo para avaliar.</p>
+          <p className="pf-vazio">Nenhum cliente ativo.</p>
         ) : (
           <div className="pf-tabela-wrap">
             <table className="pf-tabela">
               <thead>
                 <tr>
                   <th>Cliente</th><th>Situação</th>
-                  <th className="pf-num">Ticket</th><th className="pf-num">Participação</th>
-                  <th className="pf-num">Em aberto</th><th className="pf-num">Impacto se sair</th>
-                  <th>Motivos</th>
+                  <th className="pf-num">Ticket</th>
+                  <th className="pf-num">Participação</th>
+                  <th className="pf-num">Em aberto</th>
                 </tr>
               </thead>
               <tbody>
                 {risco.lista.slice(0, 15).map((x) => (
                   <tr key={x.cliente.id} onClick={() => onAbrirCliente && onAbrirCliente(x.cliente)}>
                     <td className="pf-nome">{x.cliente.nome}</td>
-                    <td>
-                      <span className={`pf-badge tom-${x.faixa.tom}`}>{x.faixa.rot}</span>
-                      <span className="pf-score">{x.score}</span>
-                    </td>
+                    <td><span className={`pf-badge tom-${x.faixa.tom}`}>{x.faixa.rot}</span></td>
                     <td className="pf-num">{fmtMoeda(x.ticket)}</td>
                     <td className="pf-num">
                       <div className="pf-part">
@@ -376,14 +391,6 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
                     <td className={`pf-num ${x.historico?.valorEmAberto > 0 ? "pf-ruim" : "pf-suave"}`}>
                       {x.historico?.valorEmAberto > 0 ? fmtMoeda(x.historico.valorEmAberto) : "—"}
                     </td>
-                    <td className={`pf-num ${x.score > 45 ? "pf-ruim" : "pf-suave"}`}>
-                      -{fmtMoeda(x.impacto)}<em>/mês</em>
-                    </td>
-                    <td className="pf-motivos">
-                      {x.motivos.length === 0
-                        ? <span className="pf-nada">sem apontamentos</span>
-                        : x.motivos.slice(0, 2).map((m, i) => <span key={i} className="pf-motivo">{m}</span>)}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -391,6 +398,7 @@ export default function FluxoCaixa({ clientes, recebiveis, desempenho, onMarcarP
           </div>
         )}
       </Card>
+
 
       {/* ══ Evolução do churn ══ */}
       {churnCli.serie.some((x) => x.perdidos > 0) && (

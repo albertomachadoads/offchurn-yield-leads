@@ -94,36 +94,14 @@ export function prioridadesDoDia(tarefas, { scorePorCliente = {}, limite = 8, ho
 }
 
 /* ---------- Churn ----------
-   Um cliente conta como perdido quando é inativado no cadastro.
-   Sem data de inativação registrada, o cliente entra no período
-   corrente — assumir o contrário esconderia perdas reais. */
-export function calcularChurn(clientes, { de, ate, metaAceitavel = 5 } = {}) {
-  const lista = clientes || [];
-  const ativos = lista.filter((c) => c.ativo);
-  const inativos = lista.filter((c) => !c.ativo);
+   Reexportado do churnEngine para haver UMA fórmula no sistema.
+   Antes existiam duas: esta somava os clientes que entraram no
+   próprio período à base, o que diluía a taxa e divergia do
+   painel financeiro (14,3% contra 22,2% no mesmo dado).
 
-  const noPeriodo = inativos.filter((c) => {
-    const ref = (c.inativadoEm || c.atualizadoEm || "").slice(0, 10);
-    if (!ref) return true;
-    if (de && ref < de) return false;
-    if (ate && ref > ate) return false;
-    return true;
-  });
-
-  const baseInicial = ativos.length + noPeriodo.length;
-  const taxa = baseInicial > 0 ? (noPeriodo.length / baseInicial) * 100 : 0;
-
-  return {
-    perdidos: noPeriodo.length,
-    ativos: ativos.length,
-    taxa,
-    metaAceitavel,
-    acimaDaMeta: taxa > metaAceitavel,
-    clientes: noPeriodo,
-  };
-}
-
-
+   A regra correta é a do churnEngine: a base é quem já era
+   cliente no início do período. Quem entrou depois não podia
+   ter saído, então não pertence ao denominador. */
 /* ---------- Prioridade derivada ----------
    Não há campo de prioridade no banco. Ela vem do atraso e da
    criticidade do cliente — dado real, não inventado. */
@@ -157,11 +135,10 @@ export function recortesTarefas(tarefas, { scorePorCliente = {}, hoje = hojeISO(
 
   const atrasadas = lista.filter((t) => ehAtrasada(t, hoje)).map(decorar)
     .sort((a, b) => ORDEM_PRIO[a.prioridade] - ORDEM_PRIO[b.prioridade]
-      || String(a.quando || "").localeCompare(String(b.quando || "")));  // mais atrasada primeiro
+      || String(a.quando || "").localeCompare(String(b.quando || "")));
 
   const deHoje = lista.filter((t) => ehDeHoje(t, hoje) && !ehAtrasada(t, hoje)).map(decorar).sort(ordenar);
 
-  // próxima semana: do dia seguinte até +7 dias
   const d1 = new Date(hoje); d1.setDate(d1.getDate() + 1);
   const d7 = new Date(hoje); d7.setDate(d7.getDate() + 7);
   const ini = d1.toISOString().slice(0, 10), fim = d7.toISOString().slice(0, 10);
@@ -169,10 +146,20 @@ export function recortesTarefas(tarefas, { scorePorCliente = {}, hoje = hojeISO(
     .filter((t) => { const q = t.prazo || t.data; return q && q >= ini && q <= fim; })
     .map(decorar).sort(ordenar);
 
-  // agrupadas por dia, para a leitura da semana
   const porDia = {};
   futuras.forEach((t) => { (porDia[t.quando] = porDia[t.quando] || []).push(t); });
   const dias = Object.keys(porDia).sort().map((d) => ({ data: d, tarefas: porDia[d] }));
 
   return { atrasadas, deHoje, futuras, dias };
 }
+
+/* ---------- Churn ----------
+   Reexportado do churnEngine para haver UMA fórmula no sistema.
+   Antes existia aqui um calcularChurn que somava à base os
+   clientes entrados no próprio período, diluindo a taxa e
+   divergindo do painel financeiro (14,3% contra 22,2%).
+
+   A regra correta é a do churnEngine: a base é quem já era
+   cliente no início do período — quem entrou depois não podia
+   ter saído, logo não pertence ao denominador. */
+export { churnHistorico, churnReceita } from "./churnEngine.js";
