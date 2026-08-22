@@ -27,7 +27,7 @@ function Info({ label, valor, cor }) {
 }
 
 export default function ClienteDetalhe({
-  cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, isAdmin, isMaster, usuario,
+  cliente, gestById, desempenho, tarefas, pessoas, painel, acompanhamentos, onVoltar, onEditar, onSalvarCliente, isAdmin, isMaster, usuario,
   onListarContasMeta, onVincularConta, onSincronizarCliente, onBuscarInsights,
   onListarContasGoogle, onVincularContaGoogle, onSincronizarGoogle, onBuscarInsightsGoogle,
   funil, onSalvarFunil, onToast, onRecarregar,
@@ -388,7 +388,12 @@ export default function ClienteDetalhe({
         <EditarMetas cliente={cliente} gestores={Object.values(gestById || {})}
           contasMeta={contasMeta} onToast={onToast}
           onFechar={() => setModalMetas(false)}
-          onSalvar={async (c) => { await onEditar(c, true); if (onRecarregar) onRecarregar(); }} />
+          onSalvar={async (c) => {
+            /* onEditar apenas abre o modal antigo; quem grava é
+               onSalvarCliente (api.upsertCliente + recarregar). */
+            if (!onSalvarCliente) throw new Error("Salvamento não configurado");
+            return await onSalvarCliente(c);
+          }} />
       )}
 
       {modalMetricas && (

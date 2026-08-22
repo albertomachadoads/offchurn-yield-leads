@@ -393,6 +393,7 @@ export default function App() {
       if (saved.ativo) setSemana((s) => new Set(s).add(saved.id));
       setCliModal(null); showToast("Cliente salvo"); recarregar();
       logAcao("cliente", `Cliente ${c.id ? "editado" : "criado"}: ${c.nome}`);
+      return saved;   // quem chamou pode conferir o que persistiu
     } catch (e) { showToast("Erro: " + (e.message || "falha")); logErro("cliente", "Falha ao salvar cliente: " + e.message); }
   }
   async function toggleAtivo(c) {
@@ -700,6 +701,7 @@ export default function App() {
             isAdmin={isAdmin}
             onVoltar={() => setClienteAberto(null)}
             onEditar={(c) => setCliModal(c)}
+            onSalvarCliente={salvarCliente}
             onListarContasMeta={api.metaListarContas}
             onVincularConta={async (contaId) => {
               const atual = data.clientes.find((c) => c.id === clienteAberto.id);

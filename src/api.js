@@ -127,8 +127,28 @@ export async function upsertCliente(c) {
     meta_ad_account_id: (c.metaAdAccountId === "" || c.metaAdAccountId == null) ? null : String(c.metaAdAccountId),
     cpa_meta: num(c.cpaMeta),
   };
-  if (c.id) row.id = c.id;
-  const { data, error } = await supabase.from("clientes").upsert(row).select().single();
+  /* Edição usa UPDATE explícito, não upsert.
+
+     Com upsert, se o RLS barra a escrita o Postgres não devolve
+     erro: a linha não é alterada e o .select() traz o registro
+     antigo. A tela reporta sucesso e o dado não persiste.
+
+     Com UPDATE, .select() volta vazio quando nada foi alterado —
+     e aí conseguimos avisar de verdade. */
+  if (c.id) {
+    const { data, error } = await supabase
+      .from("clientes").update(row).eq("id", c.id).select();
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      throw new Error(
+        "O banco recusou a alteração. Seu usuário não tem permissão de escrita " +
+        "na tabela de clientes (RLS). Rode o script RESOLVER_definitivo.sql."
+      );
+    }
+    return mapCliente(data[0]);
+  }
+
+  const { data, error } = await supabase.from("clientes").insert(row).select().single();
   if (error) throw error;
   return mapCliente(data);
 }

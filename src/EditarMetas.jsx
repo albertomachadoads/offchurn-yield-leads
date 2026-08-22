@@ -37,7 +37,7 @@ export default function EditarMetas({ cliente, gestores, contasMeta, onSalvar, o
     try {
       /* Envia o cliente inteiro com os campos alterados, para o
          upsert não zerar o que não aparece nesta tela. */
-      await onSalvar({
+      const salvo = await onSalvar({
         ...cliente,
         responsavelId: f.responsavelId || null,
         nicho: f.nicho.trim() || null,
@@ -53,10 +53,24 @@ export default function EditarMetas({ cliente, gestores, contasMeta, onSalvar, o
         tomVoz: f.tomVoz.trim() || null,
         restricoesIa: f.restricoesIa.trim() || null,
       });
-      onToast("Metas atualizadas");
+      /* Confere o que o banco devolveu. Se a coluna não existe,
+         o Supabase ignora o campo em silêncio: o upsert passa,
+         mas o valor não persiste — sem erro nenhum. */
+      if (f.contextoIa.trim() && salvo && !salvo.contextoIa) {
+        onToast("As colunas de contexto não existem no banco. Rode supabase_contexto_cliente.sql antes de preencher.");
+        setSalvando(false);
+        return;
+      }
       onFechar();
     } catch (e) {
-      onToast("Erro: " + (e.message || "não foi possível salvar"));
+      const msg = String(e.message || "");
+      /* Coluna ausente = o SQL do contexto ainda não foi rodado.
+         Sem essa dica o usuário fica sem saber o que houve. */
+      if (/contexto_ia|publico_alvo|proposta_valor|tom_voz|restricoes_ia|column/i.test(msg)) {
+        onToast("Os campos de contexto ainda não existem no banco. Rode o SQL supabase_contexto_cliente.sql.");
+      } else {
+        onToast("Erro ao salvar: " + (msg || "falha desconhecida"));
+      }
     } finally { setSalvando(false); }
   }
 
